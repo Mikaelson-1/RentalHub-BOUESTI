@@ -63,7 +63,7 @@ export async function POST(request: Request) {
         email: normalizedEmail,
         password: hashedPassword,
         role,
-        verificationStatus: 'UNVERIFIED',
+        verificationStatus: 'VERIFIED',
       },
       select: {
         id:                 true,

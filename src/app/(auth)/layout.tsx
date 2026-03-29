@@ -8,7 +8,7 @@ export default function AuthLayout({
   return (
     <>
       <PublicNavbar />
-      <main className="flex-grow">{children}</main>
+      <main className="flex-grow bg-gray-50 overflow-x-hidden">{children}</main>
     </>
   );
 }

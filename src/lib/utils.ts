@@ -4,17 +4,38 @@
  * General-purpose utility helpers used across the application.
  */
 
-import { type ClassValue, clsx } from 'clsx';
+type ClassValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | ClassValue[]
+  | Record<string, boolean | null | undefined>;
 
 /** Merge Tailwind class names conditionally */
 export function cn(...inputs: ClassValue[]): string {
-  // Simple implementation without the `tw-merge` package
-  return inputs
-    .flat()
-    .filter(Boolean)
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const classes: string[] = [];
+
+  const walk = (value: ClassValue): void => {
+    if (!value) return;
+    if (typeof value === 'string' || typeof value === 'number') {
+      classes.push(String(value));
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      for (const [key, enabled] of Object.entries(value)) {
+        if (enabled) classes.push(key);
+      }
+    }
+  };
+
+  inputs.forEach(walk);
+  return classes.join(' ').replace(/\s+/g, ' ').trim();
 }
 
 /** Format a number as Nigerian Naira */

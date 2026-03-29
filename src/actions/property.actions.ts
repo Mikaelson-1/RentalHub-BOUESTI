@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { PropertyStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -9,10 +10,10 @@ export interface PropertyWithRelations {
   id: string;
   title: string;
   description: string;
-  price: number;
-  distanceToCampus: number | null;
-  amenities: string[];
-  images: string[];
+  price: number | Prisma.Decimal;
+  distanceToCampus: number | Prisma.Decimal | null;
+  amenities: Prisma.JsonValue;
+  images: Prisma.JsonValue;
   status: PropertyStatus;
   createdAt: Date;
   updatedAt: Date;

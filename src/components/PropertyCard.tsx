@@ -20,16 +20,20 @@ export default function PropertyCard({ property }: PropertyCardProps) {
 
   // Parse amenities from JSON
   const amenities = Array.isArray(property.amenities)
-    ? property.amenities
-    : JSON.parse(property.amenities as unknown as string) || [];
+    ? property.amenities.filter((item): item is string => typeof item === "string")
+    : [];
+
+  const images = Array.isArray(property.images)
+    ? property.images.filter((item): item is string => typeof item === "string")
+    : [];
 
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-gray-100">
       {/* Image */}
       <div className="relative h-48 bg-gray-200">
-        {property.images && property.images.length > 0 ? (
+        {images.length > 0 ? (
           <img
-            src={property.images[0]}
+            src={images[0]}
             alt={property.title}
             className="w-full h-full object-cover"
           />
@@ -127,7 +131,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                 d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
               />
             </svg>
-            {property.distanceToCampus} km to campus
+            {Number(property.distanceToCampus)} km to campus
           </div>
         )}
 

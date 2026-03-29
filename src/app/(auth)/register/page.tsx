@@ -1,25 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { registerUser } from "@/actions/auth.actions";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const defaultRole = searchParams.get("role") || "STUDENT";
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
-    role: defaultRole,
+    role: "STUDENT",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const roleParam = new URLSearchParams(window.location.search).get("role");
+    if (roleParam === "LANDLORD" || roleParam === "STUDENT") {
+      setFormData((prev) => ({ ...prev, role: roleParam }));
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,21 +54,11 @@ export default function RegisterPage() {
       });
 
       if (result.success) {
-        if (formData.role === "LANDLORD") {
-          setSuccess(
-            "Account created successfully! Your account is under review by our admin team. You'll be notified once approved."
-          );
-          // Redirect to pending approval page after 3 seconds
-          setTimeout(() => {
-            router.push("/pending-approval");
-          }, 3000);
-        } else {
-          setSuccess(result.message || "Account created successfully!");
-          // Redirect to login after 2 seconds
-          setTimeout(() => {
-            router.push("/login");
-          }, 2000);
-        }
+        setSuccess(result.message || "Account created successfully!");
+        // Redirect to login after 2 seconds
+        setTimeout(() => {
+          router.push("/login");
+        }, 2000);
       } else {
         setError(result.error || "Registration failed");
       }

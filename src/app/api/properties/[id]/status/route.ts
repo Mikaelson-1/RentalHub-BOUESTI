@@ -10,12 +10,13 @@ import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import type { PropertyStatus } from '@prisma/client';
 
-interface Params {
-  params: { id: string };
+interface RouteContext {
+  params: Promise<{ id: string }>;
 }
 
-export async function PATCH(request: Request, { params }: Params) {
+export async function PATCH(request: Request, { params }: RouteContext) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
@@ -34,7 +35,7 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 
     const property = await prisma.property.update({
-      where: { id: params.id },
+      where: { id },
       data:  { status },
       include: { landlord: { select: { name: true, email: true } }, location: true },
     });

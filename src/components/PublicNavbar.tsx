@@ -3,16 +3,27 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Menu, X, Plus, User } from "lucide-react";
 
 const navLinks = [
   { href: "#how-it-works", label: "How it Works" },
+  { href: "/properties", label: "Browse" },
+  { href: "#faq", label: "FAQ" },
 ];
 
 export default function PublicNavbar() {
   const { data: session, status } = useSession();
-  const isAuthenticated = status === "authenticated";
+  const isAuthenticated =
+    status === "authenticated" && Boolean(session?.user?.email);
+  const pathname = usePathname();
+  const isHomePage = pathname === "/";
+  const isAuthPage =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password";
+  const showDashboardActions = !isHomePage && !isAuthPage && isAuthenticated;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const getDashboardLink = () => {
@@ -33,7 +44,6 @@ export default function PublicNavbar() {
     <nav className="sticky top-0 z-50 backdrop-blur-md bg-white/90 border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo - Left */}
           <Link href="/" className="flex items-center flex-shrink-0">
             <Image
               src="/logo.png"
@@ -44,8 +54,7 @@ export default function PublicNavbar() {
             />
           </Link>
 
-          {/* Center Links - Hidden on mobile */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-7">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -57,10 +66,8 @@ export default function PublicNavbar() {
             ))}
           </div>
 
-          {/* Right Side Buttons - Hidden on mobile */}
           <div className="hidden md:flex items-center gap-3">
-            {isAuthenticated ? (
-              // Authenticated user
+            {status === "loading" ? null : showDashboardActions ? (
               <>
                 <Link
                   href={getDashboardLink()}
@@ -77,14 +84,7 @@ export default function PublicNavbar() {
                 </button>
               </>
             ) : (
-              // Guest user
               <>
-                <Link
-                  href="/register"
-                  className="text-sm font-medium text-black border border-black px-4 py-2 rounded-md hover:bg-black hover:text-white transition-colors"
-                >
-                  Sign Up
-                </Link>
                 <Link
                   href="/login"
                   className="text-sm font-medium text-gray-700 hover:text-orange-500 transition-colors"
@@ -92,17 +92,22 @@ export default function PublicNavbar() {
                   Log In
                 </Link>
                 <Link
+                  href="/register"
+                  className="text-sm font-medium text-black border border-black px-4 py-2 rounded-md hover:bg-black hover:text-white transition-colors"
+                >
+                  Sign Up
+                </Link>
+                <Link
                   href="/register?role=LANDLORD"
                   className="flex items-center gap-1 text-sm font-semibold bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Listing
+                  List Property
                 </Link>
               </>
             )}
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden p-2 text-gray-700 hover:text-orange-500 transition-colors"
@@ -116,11 +121,9 @@ export default function PublicNavbar() {
           </button>
         </div>
 
-        {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-100">
             <div className="flex flex-col gap-4">
-              {/* Mobile Nav Links */}
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
@@ -132,11 +135,9 @@ export default function PublicNavbar() {
                 </Link>
               ))}
 
-              {/* Mobile Divider */}
               <div className="border-t border-gray-100 my-2" />
 
-              {/* Mobile Auth Buttons */}
-              {isAuthenticated ? (
+              {status === "loading" ? null : showDashboardActions ? (
                 <>
                   <Link
                     href={getDashboardLink()}
@@ -159,13 +160,6 @@ export default function PublicNavbar() {
               ) : (
                 <>
                   <Link
-                    href="/register"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="text-base font-medium text-black border border-black px-4 py-2 rounded-md text-center hover:bg-black hover:text-white transition-colors"
-                  >
-                    Sign Up
-                  </Link>
-                  <Link
                     href="/login"
                     onClick={() => setMobileMenuOpen(false)}
                     className="text-base font-medium text-gray-700 hover:text-orange-500 transition-colors py-2"
@@ -173,12 +167,19 @@ export default function PublicNavbar() {
                     Log In
                   </Link>
                   <Link
+                    href="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-base font-medium text-black border border-black px-4 py-2 rounded-md text-center hover:bg-black hover:text-white transition-colors"
+                  >
+                    Sign Up
+                  </Link>
+                  <Link
                     href="/register?role=LANDLORD"
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center justify-center gap-2 text-base font-semibold bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 transition-colors"
                   >
                     <Plus className="w-5 h-5" />
-                    Add Listing
+                    List Property
                   </Link>
                 </>
               )}

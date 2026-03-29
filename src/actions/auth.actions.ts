@@ -58,11 +58,9 @@ export async function registerUser(data: RegisterData) {
     // Determine role (default to STUDENT if not specified)
     const role = data.role || Role.STUDENT;
 
-    // Determine verification status (LANDLORDs need verification)
-    const verificationStatus =
-      role === Role.LANDLORD
-        ? VerificationStatus.UNVERIFIED
-        : VerificationStatus.VERIFIED;
+    // Account verification is not required for signup.
+    // Property listings are reviewed separately via PropertyStatus.PENDING.
+    const verificationStatus = VerificationStatus.VERIFIED;
 
     // Create the user
     const user = await prisma.user.create({
@@ -78,9 +76,7 @@ export async function registerUser(data: RegisterData) {
     return {
       success: true,
       message:
-        role === Role.LANDLORD
-          ? "Account created successfully. Please wait for admin verification before listing properties."
-          : "Account created successfully. You can now log in.",
+        "Account created successfully. You can now log in.",
       user: {
         id: user.id,
         name: user.name,

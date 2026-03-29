@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, FormProvider, useWatch } from "react-hook-form";
+import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { 
@@ -24,11 +24,19 @@ import {
 import Link from "next/link";
 
 // Validation Schema
+const toNumber = (value: unknown) => {
+  if (value === "" || value === null || value === undefined) {
+    return undefined;
+  }
+  const numericValue = Number(value);
+  return Number.isNaN(numericValue) ? undefined : numericValue;
+};
+
 const propertySchema = z.object({
   // Step 1: Core Details
   title: z.string().min(3, "Title must be at least 3 characters"),
   propertyType: z.string().min(1, "Please select a property type"),
-  vacantUnits: z.number().min(1, "At least 1 unit required"),
+  vacantUnits: z.preprocess(toNumber, z.number().min(1, "At least 1 unit required")),
   genderPreference: z.string().min(1, "Please select gender preference"),
   
   // Step 2: Location & Amenities
@@ -43,10 +51,10 @@ const propertySchema = z.object({
   }),
   
   // Step 3: Financials
-  annualRent: z.number().min(1, "Annual rent is required"),
-  agencyFee: z.number().min(0, "Agency fee cannot be negative"),
-  cautionFee: z.number().min(0, "Caution fee cannot be negative"),
-  serviceCharge: z.number().optional(),
+  annualRent: z.preprocess(toNumber, z.number().min(1, "Annual rent is required")),
+  agencyFee: z.preprocess(toNumber, z.number().min(0, "Agency fee cannot be negative")),
+  cautionFee: z.preprocess(toNumber, z.number().min(0, "Caution fee cannot be negative")),
+  serviceCharge: z.preprocess(toNumber, z.number().min(0, "Service charge cannot be negative").optional()),
   
   // Step 4: Media & Proof
   landmarkDirections: z.string().min(10, "Please provide landmark directions"),
@@ -55,7 +63,8 @@ const propertySchema = z.object({
   verificationDoc: z.any().optional(),
 });
 
-type PropertyFormData = z.infer<typeof propertySchema>;
+type PropertyFormInput = z.input<typeof propertySchema>;
+type PropertyFormData = z.output<typeof propertySchema>;
 
 const steps = [
   { id: 1, name: "Core Details", icon: Home },
@@ -77,20 +86,22 @@ const genderOptions = [
   { value: "female", label: "Female Only" },
 ];
 
-const environments = [
-  { value: "uro", label: "Uro" },
-  { value: "odo_oja", label: "Odo Oja" },
-  { value: "afao", label: "Afao" },
-  { value: "ajebandele", label: "Ajebandele" },
-  { value: "ikoyi", label: "Ikoyi Estate" },
-  { value: "amoye", label: "Amoye Grammar School Area" },
-];
-
 const distanceOptions = [
   { value: "under_10", label: "Under 10 mins walk" },
   { value: "15_20", label: "15-20 mins walk" },
   { value: "bike_cab", label: "Requires Bike/Cab" },
 ];
+
+const DISTANCE_TO_KM: Record<string, number> = {
+  under_10: 0.8,
+  "15_20": 1.5,
+  bike_cab: 3.0,
+};
+
+interface LocationOption {
+  id: string;
+  name: string;
+}
 
 const amenityCategories = {
   water: {
@@ -119,8 +130,17 @@ export default function AddPropertyForm() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(true);
+  const [submitError, setSubmitError] = useState("");
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
+  const [selectedVerificationDoc, setSelectedVerificationDoc] = useState<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const verificationInputRef = useRef<HTMLInputElement>(null);
 
-  const methods = useForm<PropertyFormData>({
+  const methods = useForm<PropertyFormInput, unknown, PropertyFormData>({
     resolver: zodResolver(propertySchema),
     defaultValues: {
       targetUniversity: "BOUESTI",
@@ -137,9 +157,38 @@ export default function AddPropertyForm() {
     mode: "onChange",
   });
 
-  const { register, handleSubmit, formState: { errors, isValid }, trigger, watch, setValue } = methods;
+  const { register, handleSubmit, formState: { errors }, trigger, watch, setValue, setError, clearErrors } = methods;
 
   const watchAmenities = watch("amenities");
+
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const response = await fetch("/api/locations");
+        if (!response.ok) {
+          throw new Error("Failed to load locations");
+        }
+        const payload = await response.json();
+        const items = (payload?.data ?? []) as LocationOption[];
+        setLocations(items);
+      } catch (error) {
+        console.error("Could not fetch locations:", error);
+        setSubmitError("Could not load location list. Refresh and try again.");
+      } finally {
+        setLocationsLoading(false);
+      }
+    };
+
+    loadLocations();
+  }, []);
+
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+      reader.readAsDataURL(file);
+    });
 
   const toggleAmenity = (category: keyof typeof amenityCategories, option: string) => {
     const current = watchAmenities?.[category] || [];
@@ -184,12 +233,113 @@ export default function AddPropertyForm() {
     }
   };
 
+  const handlePhotoSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    setSelectedPhotos(files);
+    setValue("photos", files, { shouldValidate: true });
+    clearErrors("photos");
+  };
+
+  const handleVideoSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setSelectedVideo(file);
+    setValue("video", file, { shouldValidate: true });
+  };
+
+  const handleVerificationDocSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setSelectedVerificationDoc(file);
+    setValue("verificationDoc", file, { shouldValidate: true });
+  };
+
   const onSubmit = async (data: PropertyFormData) => {
+    setSubmitError("");
+
+    if (selectedPhotos.length === 0) {
+      setError("photos", {
+        type: "manual",
+        message: "Please upload at least one property photo.",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log("Form submitted:", data);
-    router.push("/landlord");
+
+    try {
+      const photoUrls = await Promise.all(selectedPhotos.map((file) => fileToDataUrl(file)));
+      const imagePayload = selectedPhotos.map((file, index) => ({
+        type: "image",
+        name: file.name,
+        size: file.size,
+        mimeType: file.type,
+        url: photoUrls[index],
+      }));
+      const videoPayload = selectedVideo
+        ? {
+            type: "video",
+            name: selectedVideo.name,
+            size: selectedVideo.size,
+            mimeType: selectedVideo.type,
+          }
+        : null;
+      const verificationDocPayload = selectedVerificationDoc
+        ? {
+            type: "verificationDocument",
+            name: selectedVerificationDoc.name,
+            size: selectedVerificationDoc.size,
+            mimeType: selectedVerificationDoc.type,
+            ...(selectedVerificationDoc.size <= 2 * 1024 * 1024
+              ? { url: await fileToDataUrl(selectedVerificationDoc) }
+              : {}),
+          }
+        : null;
+
+      const amenities = [
+        ...data.amenities.water,
+        ...data.amenities.power,
+        ...data.amenities.security,
+        ...data.amenities.facilities,
+      ];
+
+      const response = await fetch("/api/properties", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: data.title,
+          description: [
+            `Type: ${data.propertyType}`,
+            `Units: ${data.vacantUnits}`,
+            `Gender Preference: ${data.genderPreference}`,
+            `Landmark: ${data.landmarkDirections}`,
+            `Fees: Agency ₦${data.agencyFee}, Caution ₦${data.cautionFee}${data.serviceCharge !== undefined ? `, Service ₦${data.serviceCharge}` : ""}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          price: data.annualRent,
+          locationId: data.environment,
+          distanceToCampus: DISTANCE_TO_KM[data.distanceToCampus] ?? null,
+          amenities,
+          images: [
+            ...imagePayload,
+            ...(videoPayload ? [videoPayload] : []),
+            ...(verificationDocPayload ? [verificationDocPayload] : []),
+          ],
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Could not submit listing.");
+      }
+
+      router.push("/landlord");
+      router.refresh();
+    } catch (error) {
+      console.error("Listing submission failed:", error);
+      setSubmitError(error instanceof Error ? error.message : "An error occurred while submitting.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const StepIcon = steps[currentStep - 1].icon;
@@ -324,7 +474,7 @@ export default function AddPropertyForm() {
                         Vacant Units *
                       </label>
                       <input
-                        {...register("vacantUnits", { valueAsNumber: true })}
+                        {...register("vacantUnits")}
                         type="number"
                         min="1"
                         placeholder="1"
@@ -381,12 +531,15 @@ export default function AddPropertyForm() {
                       </label>
                       <select
                         {...register("environment")}
+                        disabled={locationsLoading || locations.length === 0}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                       >
-                        <option value="">Select area</option>
-                        {environments.map((env) => (
-                          <option key={env.value} value={env.value}>
-                            {env.label}
+                        <option value="">
+                          {locationsLoading ? "Loading locations..." : "Select area"}
+                        </option>
+                        {locations.map((location) => (
+                          <option key={location.id} value={location.id}>
+                            {location.name}
                           </option>
                         ))}
                       </select>
@@ -471,7 +624,7 @@ export default function AddPropertyForm() {
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₦</span>
                         <input
-                          {...register("annualRent", { valueAsNumber: true })}
+                          {...register("annualRent")}
                           type="number"
                           placeholder="150000"
                           className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
@@ -489,7 +642,7 @@ export default function AddPropertyForm() {
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₦</span>
                         <input
-                          {...register("agencyFee", { valueAsNumber: true })}
+                          {...register("agencyFee")}
                           type="number"
                           placeholder="0"
                           className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
@@ -507,7 +660,7 @@ export default function AddPropertyForm() {
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₦</span>
                         <input
-                          {...register("cautionFee", { valueAsNumber: true })}
+                          {...register("cautionFee")}
                           type="number"
                           placeholder="0"
                           className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
@@ -525,7 +678,7 @@ export default function AddPropertyForm() {
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₦</span>
                         <input
-                          {...register("serviceCharge", { valueAsNumber: true })}
+                          {...register("serviceCharge")}
                           type="number"
                           placeholder="0"
                           className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
@@ -560,7 +713,10 @@ export default function AddPropertyForm() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Property Photos *
                     </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-orange-500 transition-colors cursor-pointer bg-gray-50">
+                    <div
+                      className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-orange-500 transition-colors cursor-pointer bg-gray-50"
+                      onClick={() => photoInputRef.current?.click()}
+                    >
                       <Camera className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-700 font-medium mb-2">
                         Drag and drop photos here, or click to browse
@@ -575,8 +731,23 @@ export default function AddPropertyForm() {
                         <Upload className="w-4 h-4" />
                         Select Photos
                       </button>
-                      <input type="file" multiple accept="image/*" className="hidden" />
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handlePhotoSelect}
+                      />
+                      {selectedPhotos.length > 0 && (
+                        <p className="text-sm text-green-700 mt-3">
+                          {selectedPhotos.length} photo(s) selected
+                        </p>
+                      )}
                     </div>
+                    {errors.photos && (
+                      <p className="mt-1 text-sm text-red-500">{String(errors.photos.message || "")}</p>
+                    )}
                   </div>
 
                   {/* Video Walkthrough */}
@@ -584,7 +755,10 @@ export default function AddPropertyForm() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Video Walkthrough <span className="text-gray-400">(Optional)</span>
                     </label>
-                    <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-orange-400 transition-colors cursor-pointer bg-gray-50/50">
+                    <div
+                      className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-orange-400 transition-colors cursor-pointer bg-gray-50/50"
+                      onClick={() => videoInputRef.current?.click()}
+                    >
                       <Video className="w-10 h-10 text-gray-400 mx-auto mb-3" />
                       <p className="text-gray-600 text-sm mb-2">
                         Upload a short video tour of the property
@@ -592,7 +766,16 @@ export default function AddPropertyForm() {
                       <p className="text-xs text-gray-400">
                         Max 2 minutes, MP4 format
                       </p>
-                      <input type="file" accept="video/*" className="hidden" />
+                      <input
+                        ref={videoInputRef}
+                        type="file"
+                        accept="video/*"
+                        className="hidden"
+                        onChange={handleVideoSelect}
+                      />
+                      {selectedVideo && (
+                        <p className="text-sm text-green-700 mt-3">{selectedVideo.name}</p>
+                      )}
                     </div>
                   </div>
 
@@ -601,7 +784,10 @@ export default function AddPropertyForm() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Admin Verification Document
                     </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-orange-500 transition-colors cursor-pointer bg-gray-50">
+                    <div
+                      className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-orange-500 transition-colors cursor-pointer bg-gray-50"
+                      onClick={() => verificationInputRef.current?.click()}
+                    >
                       <FileText className="w-10 h-10 text-gray-400 mx-auto mb-3" />
                       <p className="text-gray-700 font-medium mb-2">
                         Upload Utility Bill or Property ID
@@ -616,13 +802,27 @@ export default function AddPropertyForm() {
                         <Upload className="w-4 h-4" />
                         Select Document
                       </button>
-                      <input type="file" accept=".pdf,.jpg,.png" className="hidden" />
+                      <input
+                        ref={verificationInputRef}
+                        type="file"
+                        accept=".pdf,.jpg,.png"
+                        className="hidden"
+                        onChange={handleVerificationDocSelect}
+                      />
+                      {selectedVerificationDoc && (
+                        <p className="text-sm text-green-700 mt-3">{selectedVerificationDoc.name}</p>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Navigation Buttons */}
+              {submitError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                  {submitError}
+                </p>
+              )}
               <div className="flex justify-between pt-8 mt-8 border-t border-gray-200">
                 <button
                   type="button"

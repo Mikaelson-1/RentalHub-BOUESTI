@@ -9,14 +9,47 @@ import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import type { PropertyStatus } from '@prisma/client';
 
+const SCHOOL_LOCATION_KEYWORDS: Record<string, string[]> = {
+  'BOUESTI - Ikere-Ekiti': ['Ikere', 'Uro', 'Odo Oja', 'Afao', 'Olumilua', 'Ajebandele', 'Ikoyi Estate', 'Amoye', "Oke 'Kere"],
+  'University of Lagos (UNILAG)': ['Akoka', 'Yaba', 'Bariga', 'Surulere'],
+  'Obafemi Awolowo University (OAU)': ['Ile-Ife', 'Modakeke'],
+  'University of Ibadan (UI)': ['Ibadan', 'Bodija', 'Agbowo', 'Sango'],
+  'University of Benin (UNIBEN)': ['Benin', 'Ugbowo', 'Ekosodin'],
+  'Federal University of Technology Akure (FUTA)': ['Akure', 'Oba-Ile', 'Aule'],
+  'University of Ilorin (UNILORIN)': ['Ilorin', 'Tanke', 'Oke-Odo'],
+  'Ahmadu Bello University (ABU)': ['Zaria', 'Samaru', 'Kongo'],
+  'University of Nigeria Nsukka (UNN)': ['Nsukka', 'Odenigwe'],
+  'Covenant University': ['Ota', 'Canaanland', 'Iyana-Iyesi'],
+};
+
 // ── GET — Browse approved properties ─────────────────────
 
 export async function GET(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
     const { searchParams } = new URL(request.url);
+    const mine = searchParams.get("mine") === "true";
+    const isLandlordMineView = mine && session?.user?.role === "LANDLORD";
 
     const location  = searchParams.get('location') ?? undefined;
-    const status    = (searchParams.get('status') as PropertyStatus) ?? 'APPROVED';
+    const school = searchParams.get('school') ?? undefined;
+    const activeFilter = school?.trim() || location?.trim() || undefined;
+    const locationNameFilters = activeFilter
+      ? (school ? SCHOOL_LOCATION_KEYWORDS[school] ?? [school] : [location ?? ''])
+          .map((keyword) => keyword.trim())
+          .filter(Boolean)
+      : [];
+    const requestedStatus = searchParams.get('status') as PropertyStatus | null;
+    const allowedStatuses: PropertyStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
+    const isAdmin = session?.user?.role === 'ADMIN';
+    const status =
+      isLandlordMineView
+        ? requestedStatus && allowedStatuses.includes(requestedStatus)
+          ? requestedStatus
+          : undefined
+        : isAdmin && requestedStatus && allowedStatuses.includes(requestedStatus)
+        ? requestedStatus
+        : 'APPROVED';
     const minPrice  = searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : undefined;
     const maxPrice  = searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : undefined;
     const page      = Math.max(1, Number(searchParams.get('page') ?? '1'));
@@ -25,8 +58,15 @@ export async function GET(request: Request) {
     const sortOrder = (searchParams.get('sortOrder') ?? 'desc') as 'asc' | 'desc';
 
     const where = {
-      status,
-      ...(location && { location: { name: { contains: location, mode: 'insensitive' as const } } }),
+      ...(status && { status }),
+      ...(isLandlordMineView && { landlordId: session?.user?.id }),
+      ...(activeFilter && {
+        location: {
+          OR: locationNameFilters.map((keyword) => ({
+            name: { contains: keyword, mode: 'insensitive' as const },
+          })),
+        },
+      }),
       ...(minPrice !== undefined || maxPrice !== undefined
         ? { price: { ...(minPrice !== undefined && { gte: minPrice }), ...(maxPrice !== undefined && { lte: maxPrice }) } }
         : {}),
@@ -108,7 +148,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { success: true, data: property, message: 'Property submitted for review.' },
+      { success: true, data: property, message: 'Property submitted for admin review.' },
       { status: 201 },
     );
   } catch (error) {

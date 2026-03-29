@@ -1,91 +1,164 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-// Mock data - replace with actual API calls
-const mockBookings = [
-  {
-    id: "1",
-    property: "Modern Self-Contain in Uro",
-    location: "Uro",
-    price: "₦150,000/year",
-    status: "CONFIRMED",
-    date: "2024-03-15",
-  },
-  {
-    id: "2",
-    property: "2-Bedroom Flat near Campus",
-    location: "Odo Oja",
-    price: "₦200,000/year",
-    status: "PENDING",
-    date: "2024-03-20",
-  },
-];
+interface PropertyItem {
+  id: string;
+  title: string;
+  price: number | string;
+  location: {
+    name: string;
+  };
+}
 
-const mockProperties = [
-  {
-    id: "1",
-    title: "Spacious Self-Contain",
-    location: "Ikoyi Estate",
-    price: "₦180,000/year",
-    distance: "0.5km",
-    image: null,
-  },
-  {
-    id: "2",
-    title: "Student-Friendly Apartment",
-    location: "Afao",
-    price: "₦120,000/year",
-    distance: "1.2km",
-    image: null,
-  },
-  {
-    id: "3",
-    title: "Newly Built Self-Contain",
-    location: "Oke Kere",
-    price: "₦160,000/year",
-    distance: "0.8km",
-    image: null,
-  },
-];
+interface BookingItem {
+  id: string;
+  status: "PENDING" | "CONFIRMED" | "CANCELLED";
+  createdAt: string;
+  property: {
+    id: string;
+    title: string;
+    price: number | string;
+    location: {
+      name: string;
+    };
+  };
+}
+
+interface PropertiesResponse {
+  success: boolean;
+  data?: {
+    items: PropertyItem[];
+  };
+  error?: string;
+}
+
+interface BookingsResponse {
+  success: boolean;
+  data?: BookingItem[];
+  error?: string;
+}
 
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState<"browse" | "bookings">("browse");
+  const [properties, setProperties] = useState<PropertyItem[]>([]);
+  const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [bookingPropertyId, setBookingPropertyId] = useState("");
+  const [error, setError] = useState("");
+
+  const loadStudentData = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const [propertiesResponse, bookingsResponse] = await Promise.all([
+        fetch("/api/properties?pageSize=24", { cache: "no-store" }),
+        fetch("/api/bookings", { cache: "no-store" }),
+      ]);
+
+      const propertiesPayload = (await propertiesResponse.json()) as PropertiesResponse;
+      const bookingsPayload = (await bookingsResponse.json()) as BookingsResponse;
+
+      if (!propertiesResponse.ok || !propertiesPayload.success) {
+        throw new Error(propertiesPayload.error || "Failed to load properties.");
+      }
+
+      if (!bookingsResponse.ok || !bookingsPayload.success) {
+        throw new Error(bookingsPayload.error || "Failed to load bookings.");
+      }
+
+      setProperties(propertiesPayload.data?.items ?? []);
+      setBookings(bookingsPayload.data ?? []);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Failed to load student dashboard.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStudentData();
+  }, [loadStudentData]);
+
+  const bookProperty = async (propertyId: string) => {
+    setBookingPropertyId(propertyId);
+    setError("");
+
+    try {
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ propertyId }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to create booking.");
+      }
+
+      await loadStudentData();
+      setActiveTab("bookings");
+    } catch (bookingError) {
+      setError(bookingError instanceof Error ? bookingError.message : "Failed to create booking.");
+    } finally {
+      setBookingPropertyId("");
+    }
+  };
+
+  const hasActiveBooking = (propertyId: string) =>
+    bookings.some(
+      (booking) =>
+        booking.property.id === propertyId &&
+        (booking.status === "PENDING" || booking.status === "CONFIRMED"),
+    );
+
+  const formatPrice = (price: number | string) =>
+    new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      maximumFractionDigits: 0,
+    }).format(Number(price));
+
+  const confirmedBookings = useMemo(
+    () => bookings.filter((booking) => booking.status === "CONFIRMED").length,
+    [bookings],
+  );
+
+  const pendingBookings = useMemo(
+    () => bookings.filter((booking) => booking.status === "PENDING").length,
+    [bookings],
+  );
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-navy">Student Dashboard</h1>
-        <p className="text-gray-600 mt-1">
-          Browse properties and manage your bookings
-        </p>
+        <p className="text-gray-600 mt-1">Browse properties and manage your bookings</p>
       </div>
 
-      {/* Stats */}
+      {error && (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-primary-green">
-            {mockBookings.length}
-          </div>
+          <div className="text-3xl font-bold text-primary-green">{bookings.length}</div>
           <div className="text-gray-600">Total Bookings</div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-primary-green">
-            {mockBookings.filter((b) => b.status === "CONFIRMED").length}
-          </div>
+          <div className="text-3xl font-bold text-primary-green">{confirmedBookings}</div>
           <div className="text-gray-600">Confirmed</div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-primary-green">
-            {mockBookings.filter((b) => b.status === "PENDING").length}
-          </div>
+          <div className="text-3xl font-bold text-primary-green">{pendingBookings}</div>
           <div className="text-gray-600">Pending</div>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm mb-6">
         <div className="border-b border-gray-200">
           <nav className="flex">
@@ -113,93 +186,82 @@ export default function StudentDashboard() {
         </div>
 
         <div className="p-6">
-          {activeTab === "browse" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {mockProperties.map((property) => (
-                <div
-                  key={property.id}
-                  className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
-                >
-                  <div className="h-48 bg-gray-200 flex items-center justify-center">
-                    <svg
-                      className="w-12 h-12 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+          {isLoading ? (
+            <div className="text-center py-8 text-gray-500">Loading dashboard...</div>
+          ) : activeTab === "browse" ? (
+            properties.length === 0 ? (
+              <div className="text-center py-10 text-gray-500">No properties available yet.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {properties.map((property) => {
+                  const booked = hasActiveBooking(property.id);
+                  return (
+                    <div
+                      key={property.id}
+                      className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                      />
-                    </svg>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-navy text-lg">
-                      {property.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm">{property.location}</p>
-                    <div className="flex justify-between items-center mt-3">
-                      <span className="text-primary-green font-bold">
-                        {property.price}
-                      </span>
-                      <span className="text-gray-500 text-sm">
-                        {property.distance} to campus
-                      </span>
+                      <div className="h-40 bg-gray-100" />
+                      <div className="p-4">
+                        <h3 className="font-semibold text-navy text-lg">{property.title}</h3>
+                        <p className="text-gray-600 text-sm">{property.location.name}</p>
+                        <div className="flex justify-between items-center mt-3">
+                          <span className="text-primary-green font-bold">{formatPrice(property.price)}</span>
+                        </div>
+                        <button
+                          onClick={() => bookProperty(property.id)}
+                          disabled={booked || bookingPropertyId === property.id}
+                          className="w-full mt-4 bg-primary-green hover:bg-primary-dark disabled:bg-gray-300 text-white py-2 rounded-lg transition-colors"
+                        >
+                          {bookingPropertyId === property.id
+                            ? "Booking..."
+                            : booked
+                            ? "Already Booked"
+                            : "Book Now"}
+                        </button>
+                      </div>
                     </div>
-                    <button className="w-full mt-4 bg-primary-green hover:bg-primary-dark text-white py-2 rounded-lg transition-colors">
-                      Book Now
-                    </button>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
+            )
+          ) : bookings.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No bookings yet</p>
+              <Link href="/properties" className="text-primary-green hover:underline mt-2 inline-block">
+                Browse properties
+              </Link>
             </div>
           ) : (
             <div className="space-y-4">
-              {mockBookings.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-500">No bookings yet</p>
-                  <Link
-                    href="/properties"
-                    className="text-primary-green hover:underline mt-2 inline-block"
-                  >
-                    Browse properties
-                  </Link>
-                </div>
-              ) : (
-                mockBookings.map((booking) => (
-                  <div
-                    key={booking.id}
-                    className="border border-gray-200 rounded-lg p-4 flex justify-between items-center"
-                  >
-                    <div>
-                      <h3 className="font-semibold text-navy">
-                        {booking.property}
-                      </h3>
-                      <p className="text-gray-600 text-sm">
-                        {booking.location} • {booking.price}
-                      </p>
-                      <p className="text-gray-500 text-xs mt-1">
-                        Booked on {booking.date}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          booking.status === "CONFIRMED"
-                            ? "bg-green-100 text-green-800"
-                            : booking.status === "PENDING"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {booking.status}
-                      </span>
-                    </div>
+              {bookings.map((booking) => (
+                <div
+                  key={booking.id}
+                  className="border border-gray-200 rounded-lg p-4 flex justify-between items-center"
+                >
+                  <div>
+                    <h3 className="font-semibold text-navy">{booking.property.title}</h3>
+                    <p className="text-gray-600 text-sm">
+                      {booking.property.location.name} • {formatPrice(booking.property.price)}
+                    </p>
+                    <p className="text-gray-500 text-xs mt-1">
+                      Booked on {new Date(booking.createdAt).toLocaleDateString()}
+                    </p>
                   </div>
-                ))
-              )}
+                  <div className="text-right">
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        booking.status === "CONFIRMED"
+                          ? "bg-green-100 text-green-800"
+                          : booking.status === "PENDING"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {booking.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

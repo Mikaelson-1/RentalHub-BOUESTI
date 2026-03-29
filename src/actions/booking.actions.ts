@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { BookingStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -20,7 +21,7 @@ export interface BookingWithRelations {
   property: {
     id: string;
     title: string;
-    price: number;
+    price: number | Prisma.Decimal;
     location: {
       name: string;
     };

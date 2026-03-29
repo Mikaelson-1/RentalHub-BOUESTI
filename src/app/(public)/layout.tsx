@@ -9,7 +9,7 @@ export default function PublicLayout({
   return (
     <>
       <PublicNavbar />
-      <main className="flex-grow">{children}</main>
+      <main className="flex-grow overflow-x-hidden">{children}</main>
       <Footer />
     </>
   );
