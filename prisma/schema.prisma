@@ -1,0 +1,129 @@
+// ============================================================
+// RentalHub-BOUESTI — Prisma Schema
+// Database: PostgreSQL (Railway)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────────
+
+enum Role {
+  STUDENT
+  LANDLORD
+  ADMIN
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  SUSPENDED
+}
+
+enum PropertyStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+// ── Models ───────────────────────────────────────────────────
+
+/// A platform user. Can be a student, landlord, or admin.
+model User {
+  id                 String             @id @default(cuid())
+  name               String
+  email              String             @unique
+  password           String             /// Bcrypt-hashed — never store plain text
+  role               Role               @default(STUDENT)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // Relations
+  properties         Property[]         @relation("LandlordProperties")
+  bookings           Booking[]          @relation("StudentBookings")
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+/// A geographical area in or around Ikere-Ekiti (e.g. Uro, Afao Road).
+model Location {
+  id             String     @id @default(cuid())
+  name           String     @unique
+  /// Classification helps group areas: e.g. "Core Quarter", "Residential Estate", "Neighbourhood"
+  classification String     @default("Neighbourhood")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  // Relations
+  properties     Property[]
+
+  @@index([classification])
+  @@map("locations")
+}
+
+/// A rental property listed by a landlord.
+model Property {
+  id               String         @id @default(cuid())
+  title            String
+  description      String         @db.Text
+  price            Decimal        @db.Decimal(10, 2) /// Monthly rent in NGN
+  distanceToCampus Decimal?       @db.Decimal(5, 2)  /// Distance in kilometres to BOUESTI main gate
+  /// JSON array of amenity strings e.g. ["WiFi", "Water", "Security", "Generator"]
+  amenities        Json           @default("[]")
+  /// JSON array of image URL strings
+  images           Json           @default("[]")
+  status           PropertyStatus @default(PENDING)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Foreign keys
+  landlordId       String
+  locationId       String
+
+  // Relations
+  landlord         User           @relation("LandlordProperties", fields: [landlordId], references: [id], onDelete: Cascade)
+  location         Location       @relation(fields: [locationId], references: [id])
+  bookings         Booking[]
+
+  @@index([landlordId])
+  @@index([locationId])
+  @@index([status])
+  @@index([price])
+  @@map("properties")
+}
+
+/// A booking made by a student for a property.
+model Booking {
+  id         String        @id @default(cuid())
+  status     BookingStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  // Foreign keys
+  studentId  String
+  propertyId String
+
+  // Relations
+  student    User          @relation("StudentBookings", fields: [studentId], references: [id], onDelete: Cascade)
+  property   Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([propertyId])
+  @@index([status])
+  @@map("bookings")
+}
