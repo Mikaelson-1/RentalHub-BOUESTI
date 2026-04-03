@@ -28,12 +28,3 @@ export function validateEnv(): void {
   }
 }
 
-// Run validation at server startup only — not during `next build` or tests.
-// NEXT_PHASE is set to 'phase-production-build' by Vercel/Next.js during build.
-if (
-  typeof window === 'undefined' &&
-  process.env.NODE_ENV !== 'test' &&
-  process.env.NEXT_PHASE !== 'phase-production-build'
-) {
-  validateEnv();
-}
