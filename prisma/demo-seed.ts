@@ -125,14 +125,14 @@ async function main() {
       distanceToCampus: 0.8,
       amenities: ['Water', 'Security'],
       status: PropertyStatus.REJECTED,
-      rejectionReason: 'Property photos do not match the description. Please resubmit with accurate images.',
+      reviewNote: 'Property photos do not match the description. Please resubmit with accurate images.',
     },
   ];
 
   const createdPropertyIds: string[] = [];
 
   for (const prop of properties) {
-    const { rejectionReason, ...rest } = prop as typeof prop & { rejectionReason?: string };
+    const { reviewNote, ...rest } = prop as typeof prop & { reviewNote?: string };
     const existing = await prisma.property.findFirst({
       where: { title: prop.title, landlordId },
     });
@@ -148,7 +148,7 @@ async function main() {
         landlordId,
         amenities: prop.amenities,
         images: [],
-        ...(rejectionReason ? { rejectionReason } : {}),
+        ...(reviewNote ? { reviewNote } : {}),
       },
     });
     createdPropertyIds.push(created.id);
