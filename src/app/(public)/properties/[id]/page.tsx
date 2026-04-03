@@ -1,6 +1,11 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getPropertyImage } from "@/lib/property-image";
+import BookButton from "@/components/BookButton";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +35,17 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
     notFound();
   }
 
+  const session = await getServerSession(authOptions);
+  const userRole = session?.user?.role ?? null;
+
+  let hasBooking = false;
+  if (userRole === "STUDENT" && session?.user?.id) {
+    const existing = await prisma.booking.findFirst({
+      where: { studentId: session.user.id, propertyId: property.id, status: { in: ["PENDING", "CONFIRMED"] } },
+    });
+    hasBooking = !!existing;
+  }
+
   const amenities = Array.isArray(property.amenities) ? property.amenities : [];
   const rawImages = Array.isArray(property.images) ? property.images : [];
   const imageUrls = rawImages.flatMap((imageItem) => {
@@ -55,15 +71,15 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
         </Link>
 
         <div className="mt-4 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
-          {imageUrls.length > 0 && (
-            <div className="mb-6">
-              <img
-                src={imageUrls[0]}
-                alt={property.title}
-                className="w-full h-72 object-cover rounded-xl border border-gray-200"
-              />
-            </div>
-          )}
+          <div className="mb-6 relative h-72 rounded-xl overflow-hidden border border-gray-200">
+            <Image
+              src={imageUrls.length > 0 ? imageUrls[0] : getPropertyImage(property.id)}
+              alt={property.title}
+              fill
+              className="object-cover"
+              unoptimized={imageUrls.length > 0}
+            />
+          </div>
 
           <p className="text-sm text-gray-500">{property.location.name}</p>
           <h1 className="text-3xl font-bold text-[#192F59] mt-1">{property.title}</h1>
@@ -97,6 +113,8 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
             </p>
             <p className="text-sm text-gray-500 mt-1">Verification: {property.landlord.verificationStatus}</p>
           </div>
+
+          <BookButton propertyId={property.id} hasBooking={hasBooking} userRole={userRole} />
         </div>
       </div>
     </div>

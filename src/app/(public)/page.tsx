@@ -1,59 +1,124 @@
 import Link from "next/link";
+import Image from "next/image";
 import prisma from "@/lib/prisma";
-import { SCHOOL_OPTIONS } from "@/lib/schools";
+import { getPropertyImage } from "@/lib/property-image";
+import FAQAccordion from "@/components/FAQAccordion";
+import FloatingCTA from "@/components/FloatingCTA";
+import {
+  MapPin,
+  Zap,
+  Shield,
+  Droplets,
+  Car,
+  Wifi,
+  Sun,
+  CheckCircle,
+  ArrowRight,
+  Star,
+  Home,
+  Users,
+  Building2,
+} from "lucide-react";
 
-// Fetch up to 3 approved properties from the database for the featured section.
-// This page is statically generated but revalidated whenever a property is approved.
-export const revalidate = 60; // revalidate at most every 60 seconds
+// ── Data fetching ─────────────────────────────────────────────
 
-async function getFeaturedProperties() {
+async function getPageData() {
   try {
-    return await prisma.property.findMany({
-      where: { status: "APPROVED" },
-      include: {
-        location: { select: { name: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 3,
-    });
+    const [propertyCount, locationCount, featured] = await Promise.all([
+      prisma.property.count({ where: { status: "APPROVED" } }),
+      prisma.location.count(),
+      prisma.property.findMany({
+        where: { status: "APPROVED" },
+        include: { location: true },
+        orderBy: { createdAt: "desc" },
+        take: 4,
+      }),
+    ]);
+
+    return {
+      stats: { propertyCount, locationCount },
+      featured: featured.map((p) => ({
+        id: p.id,
+        title: p.title,
+        price: Number(p.price),
+        distanceToCampus: p.distanceToCampus ? Number(p.distanceToCampus) : null,
+        amenities: Array.isArray(p.amenities) ? (p.amenities as string[]) : [],
+        location: p.location.name,
+      })),
+    };
   } catch {
-    return [];
+    return {
+      stats: { propertyCount: 0, locationCount: 8 },
+      featured: [],
+    };
   }
 }
 
-const faqs = [
-  {
-    q: "How do I know a listing is real?",
-    a: "Each approved listing passes platform checks and is tied to a verified landlord profile.",
-  },
-  {
-    q: "Can landlords list immediately after signup?",
-    a: "Landlords can create accounts immediately, but property listings go live only after admin review.",
-  },
-  {
-    q: "Can students contact landlords directly?",
-    a: "Yes. Once you identify a property, you can proceed through booking flow and outreach options.",
-  },
-  {
-    q: "Are there hidden fees?",
-    a: "RentalHub emphasizes transparent rent and charge disclosure before booking decisions.",
-  },
-  {
-    q: "What if I spot a suspicious listing?",
-    a: "Report it through support, and our admin team will investigate and take action quickly.",
-  },
+// ── Amenity icon ──────────────────────────────────────────────
+
+function AmenityIcon({ name }: { name: string }) {
+  const l = name.toLowerCase();
+  if (l.includes("wifi") || l.includes("internet")) return <Wifi className="w-3 h-3" />;
+  if (l.includes("generator") || l.includes("prepaid") || l.includes("solar"))
+    return l.includes("solar") ? <Sun className="w-3 h-3" /> : <Zap className="w-3 h-3" />;
+  if (l.includes("security") || l.includes("watchman") || l.includes("burglar"))
+    return <Shield className="w-3 h-3" />;
+  if (l.includes("water") || l.includes("borehole") || l.includes("well"))
+    return <Droplets className="w-3 h-3" />;
+  if (l.includes("parking") || l.includes("car")) return <Car className="w-3 h-3" />;
+  return <CheckCircle className="w-3 h-3" />;
+}
+
+// ── Static data ───────────────────────────────────────────────
+
+const SCHOOLS = [
+  { value: "BOUESTI - Ikere-Ekiti", label: "BOUESTI - Ikere-Ekiti" },
+  { value: "University of Lagos (UNILAG)", label: "University of Lagos (UNILAG)" },
+  { value: "Obafemi Awolowo University (OAU)", label: "OAU - Ile-Ife" },
+  { value: "University of Ibadan (UI)", label: "University of Ibadan (UI)" },
+  { value: "University of Benin (UNIBEN)", label: "University of Benin (UNIBEN)" },
+  { value: "Federal University of Technology Akure (FUTA)", label: "FUTA - Akure" },
+  { value: "University of Ilorin (UNILORIN)", label: "University of Ilorin" },
+  { value: "Ahmadu Bello University (ABU)", label: "Ahmadu Bello University" },
+  { value: "University of Nigeria Nsukka (UNN)", label: "UNN - Nsukka" },
+  { value: "Covenant University", label: "Covenant University" },
 ];
 
+const STUDENT_STEPS = [
+  { icon: <Building2 className="w-5 h-5" />, title: "Browse verified listings", desc: "Filter by area, rent range, and distance to campus." },
+  { icon: <Star className="w-5 h-5" />, title: "Compare & shortlist", desc: "Review amenities, photos, and landlord profiles side by side." },
+  { icon: <CheckCircle className="w-5 h-5" />, title: "Book confidently", desc: "Request a booking and connect directly with the landlord." },
+];
+
+const LANDLORD_STEPS = [
+  { icon: <Users className="w-5 h-5" />, title: "Create your profile", desc: "Sign up and complete your landlord profile in minutes." },
+  { icon: <Home className="w-5 h-5" />, title: "List your property", desc: "Submit your listing — it goes live after a quick admin review." },
+  { icon: <Star className="w-5 h-5" />, title: "Get serious tenants", desc: "Connect with verified students actively looking for housing." },
+];
+
+const FAQS = [
+  { q: "How do I know a listing is real?", a: "Every listing on RentalHub passes a manual admin review before going live. Listings are tied to verified landlord accounts, and our team checks property details for accuracy." },
+  { q: "Can landlords list immediately after signup?", a: "Landlords can create their account right away and submit listings instantly. However, each listing only goes live after admin approval — usually within 24 hours." },
+  { q: "Can students contact landlords directly?", a: "Yes. Once you find a property you like, you can submit a booking request. The landlord can then confirm or reach out to you directly." },
+  { q: "Are there hidden fees?", a: "No. RentalHub is free for students to browse and book. Landlords are not charged listing fees. The rent shown is exactly what you'll pay." },
+  { q: "What if I spot a suspicious listing?", a: "Use the Report button on any listing, or contact our support team. Our admin team investigates every report and acts quickly to protect students." },
+  { q: "Which areas around BOUESTI are covered?", a: "We currently cover Uro, Odo Oja, Oke'Kere, Afao, Olumilua Area, Ajebandele, Ikoyi Estate, and Amoye Grammar School Area — all within walking or cycling distance of the main gate." },
+];
+
+// ── Page ──────────────────────────────────────────────────────
+
 export default async function HomePage() {
-  const featuredProperties = await getFeaturedProperties();
+  const { stats, featured } = await getPageData();
 
   return (
     <div className="min-h-screen bg-[#fafafa] overflow-x-hidden">
+
+      {/* ── Hero ─────────────────────────────────────────── */}
       <section className="relative bg-gradient-to-b from-white to-gray-50 py-16 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-normal text-[#192F59] leading-[0.95] tracking-tight">
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-[#192F59] leading-[0.95] tracking-tight">
                 YOUR
                 <br />
                 CAMPUS
@@ -69,14 +134,12 @@ export default async function HomePage() {
                 <div className="relative flex-1">
                   <select
                     name="school"
-                    className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-3.5 font-sans text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#E67E22]/20 focus:border-[#E67E22] cursor-pointer"
                     defaultValue=""
+                    className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-3.5 font-sans text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#E67E22]/20 focus:border-[#E67E22] cursor-pointer"
                   >
                     <option value="">Select school...</option>
-                    {SCHOOL_OPTIONS.map((school) => (
-                      <option key={school.value} value={school.value}>
-                        {school.label}
-                      </option>
+                    {SCHOOLS.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
                     ))}
                   </select>
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -97,57 +160,26 @@ export default async function HomePage() {
             <div className="relative">
               <div className="bg-white rounded-[2rem] shadow-xl shadow-gray-200/50 p-6 lg:p-8">
                 <div className="flex flex-wrap gap-2 mb-5">
-                  <span className="px-4 py-1.5 border border-gray-200 rounded-full font-sans text-xs text-gray-600">
-                    Verified
-                  </span>
-                  <span className="px-4 py-1.5 border border-gray-200 rounded-full font-sans text-xs text-gray-600">
-                    Secure
-                  </span>
-                  <span className="px-4 py-1.5 bg-[#192F59] rounded-full font-sans text-xs text-white">
-                    Close to Campus
-                  </span>
+                  <span className="px-4 py-1.5 border border-gray-200 rounded-full font-sans text-xs text-gray-600">Verified</span>
+                  <span className="px-4 py-1.5 border border-gray-200 rounded-full font-sans text-xs text-gray-600">Secure</span>
+                  <span className="px-4 py-1.5 bg-[#192F59] rounded-full font-sans text-xs text-white">Close to Campus</span>
                 </div>
 
-                <h2 className="font-sans text-2xl font-semibold text-[#192F59] mb-1">
-                  Premium Student Living
-                </h2>
-                <p className="font-sans text-sm text-gray-500 mb-6">
-                  From single rooms to shared apartments.
-                </p>
+                <h2 className="font-sans text-2xl font-semibold text-[#192F59] mb-1">Premium Student Living</h2>
+                <p className="font-sans text-sm text-gray-500 mb-6">From single rooms to shared apartments.</p>
 
                 <div className="relative">
-                  <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl h-[280px] overflow-hidden relative">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <svg className="w-40 h-40 text-gray-300" viewBox="0 0 200 160" fill="none">
-                        <rect x="30" y="60" width="140" height="80" fill="#e5e5e5" stroke="#d4d4d4" strokeWidth="2"/>
-                        <rect x="20" y="50" width="160" height="15" fill="#d4d4d4" stroke="#c4c4c4" strokeWidth="2"/>
-                        <rect x="45" y="75" width="25" height="35" fill="#f0f0f0" stroke="#d4d4d4" strokeWidth="1"/>
-                        <rect x="87" y="75" width="25" height="35" fill="#f0f0f0" stroke="#d4d4d4" strokeWidth="1"/>
-                        <rect x="130" y="75" width="25" height="35" fill="#f0f0f0" stroke="#d4d4d4" strokeWidth="1"/>
-                        <rect x="45" y="120" width="25" height="15" fill="#f0f0f0" stroke="#d4d4d4" strokeWidth="1"/>
-                        <rect x="87" y="120" width="25" height="15" fill="#f0f0f0" stroke="#d4d4d4" strokeWidth="1"/>
-                        <rect x="130" y="120" width="25" height="15" fill="#f0f0f0" stroke="#d4d4d4" strokeWidth="1"/>
-                        <rect x="85" y="110" width="30" height="30" fill="#c4c4c4" stroke="#b4b4b4" strokeWidth="1"/>
-                        <path d="M10 50 L100 20 L190 50" fill="none" stroke="#b4b4b4" strokeWidth="3"/>
-                      </svg>
-                    </div>
+                  <div className="rounded-2xl h-[280px] overflow-hidden relative">
+                    <Image
+                      src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&h=280&fit=crop&auto=format"
+                      alt="Student apartment"
+                      fill
+                      className="object-cover"
+                    />
                     <div className="absolute top-4 left-4 w-3 h-3 bg-[#E67E22] rounded-full" />
                     <div className="absolute top-8 right-8 w-2 h-2 bg-[#192F59] rounded-full" />
                   </div>
 
-                  <div className="absolute bottom-2 right-2 sm:-bottom-4 sm:-right-4 bg-white rounded-xl p-3 shadow-lg border border-gray-100">
-                    <p className="font-sans text-[10px] font-bold text-[#192F59] tracking-wider mb-2">VIRTUAL TOUR</p>
-                    <div className="flex items-center gap-2">
-                      <button className="w-10 h-10 bg-[#E67E22] rounded-full flex items-center justify-center hover:bg-[#D35400] transition-colors">
-                        <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </button>
-                      <div className="w-16 h-12 bg-gray-100 rounded-lg overflow-hidden">
-                        <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center" />
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -155,150 +187,203 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="featured" className="bg-gray-50 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-10 flex items-end justify-between">
+      {/* ── Featured Properties ───────────────────────────── */}
+      <section className="py-16 sm:py-20 bg-gray-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between mb-10">
             <div>
-              <p className="text-xs font-semibold tracking-widest text-[#E67E22] uppercase">Approved Listings</p>
-              <h2 className="text-3xl font-serif text-[#192F59] mt-2">Featured Properties</h2>
+              <p className="text-xs font-bold tracking-widest text-[#E67E22] uppercase mb-2">Latest Listings</p>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#192F59]">Featured Properties</h2>
             </div>
-            <Link
-              href="/properties"
-              className="text-sm font-semibold text-[#192F59] hover:text-[#E67E22] transition-colors hidden sm:block"
-            >
-              View all →
+            <Link href="/properties" className="hidden sm:flex items-center gap-1 text-sm font-semibold text-[#E67E22] hover:underline">
+              View all <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
-          {featuredProperties.length === 0 ? (
-            <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
-              <p className="text-gray-500 text-sm">No approved listings yet. Check back soon!</p>
-              <Link href="/register?role=LANDLORD" className="inline-block mt-4 text-sm font-semibold text-[#E67E22] hover:underline">
-                Are you a landlord? List your property →
-              </Link>
+          {featured.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p>No listings yet — check back soon.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {featuredProperties.map((property) => {
-                const amenities = Array.isArray(property.amenities)
-                  ? (property.amenities as string[]).slice(0, 3)
-                  : [];
-                const price = new Intl.NumberFormat("en-NG", {
-                  style: "currency",
-                  currency: "NGN",
-                  maximumFractionDigits: 0,
-                }).format(Number(property.price));
-
-                return (
-                  <div key={property.id} className="bg-white border border-gray-200 rounded-2xl p-6">
-                    <p className="text-sm text-gray-500">{property.location.name}</p>
-                    <h3 className="text-xl font-semibold text-[#192F59] mt-1 line-clamp-1">{property.title}</h3>
-                    <p className="text-[#00A553] font-bold text-lg mt-3">{price}</p>
-                    {property.distanceToCampus && (
-                      <p className="text-sm text-gray-500 mt-1">{Number(property.distanceToCampus)} km to campus</p>
-                    )}
-
-                    {amenities.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-4">
-                        {amenities.map((amenity) => (
-                          <span key={amenity} className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
-                            {amenity}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {featured.map((p, i) => (
+                <div key={p.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex flex-col">
+                  <div className="relative h-40 bg-gray-100">
+                    <Image
+                      src={getPropertyImage(p.id)}
+                      alt={p.title}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="p-5 flex flex-col flex-1">
+                    <div className="flex items-center gap-1 text-xs text-gray-400 mb-1">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      {p.location}
+                    </div>
+                    <h3 className="font-semibold text-[#192F59] text-sm leading-snug mb-3 line-clamp-2">{p.title}</h3>
+                    <div className="mt-auto">
+                      <p className="text-[#00A553] font-bold text-lg">
+                        ₦{p.price.toLocaleString()}
+                        <span className="text-gray-400 text-xs font-normal">/yr</span>
+                      </p>
+                      {p.distanceToCampus && (
+                        <p className="text-xs text-gray-400 mt-0.5">{p.distanceToCampus} km to campus</p>
+                      )}
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {p.amenities.slice(0, 3).map((a) => (
+                          <span key={a} className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                            <AmenityIcon name={a} />
+                            {a}
                           </span>
                         ))}
                       </div>
-                    )}
-
-                    <Link
-                      href={`/properties/${property.id}`}
-                      className="inline-block mt-5 text-sm font-semibold text-[#192F59] hover:text-[#E67E22] transition-colors"
-                    >
-                      View Details →
-                    </Link>
+                      <Link href={`/properties/${p.id}`} className="mt-4 flex items-center gap-1 text-xs font-semibold text-[#E67E22] hover:gap-2 transition-all">
+                        View details <ArrowRight className="w-3 h-3" />
+                      </Link>
+                    </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
 
-          <div className="mt-6 text-center sm:hidden">
-            <Link href="/properties" className="text-sm font-semibold text-[#192F59] hover:text-[#E67E22] transition-colors">
-              View all properties →
+          <div className="text-center mt-8 sm:hidden">
+            <Link href="/properties" className="inline-flex items-center gap-2 bg-[#E67E22] text-white font-semibold px-8 py-3 rounded-xl text-sm">
+              View all listings <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
       </section>
 
-      <section id="how-it-works" className="bg-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-xs font-semibold tracking-widest text-[#E67E22] uppercase text-center">How It Works</p>
-          <h2 className="text-3xl font-serif text-[#192F59] mt-2 text-center">Simple for Students. Efficient for Landlords.</h2>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-10">
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-7">
-              <h3 className="text-xl font-semibold text-[#192F59]">For Students</h3>
-              <ol className="mt-4 space-y-3 text-sm text-gray-700">
-                <li>1. Browse verified hostels by area, rent, and distance.</li>
-                <li>2. Compare amenities and short-list your best options.</li>
-                <li>3. Book confidently and follow up with property owners.</li>
-              </ol>
-            </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-7">
-              <h3 className="text-xl font-semibold text-[#192F59]">For Landlords</h3>
-              <ol className="mt-4 space-y-3 text-sm text-gray-700">
-                <li>1. Register and complete landlord profile verification.</li>
-                <li>2. Submit listings with clear rent, fees, and amenities.</li>
-                <li>3. Get reviewed and connect with serious student renters.</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="faq" className="bg-white py-16">
+      {/* ── Trust strip ──────────────────────────────────── */}
+      <section className="py-12 border-y border-gray-100 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-xs font-semibold tracking-widest text-[#E67E22] uppercase text-center">FAQ</p>
-          <h2 className="text-3xl font-serif text-[#192F59] mt-2 text-center">Questions students and landlords ask most</h2>
-
-          <div className="mt-10 space-y-4">
-            {faqs.map((item) => (
-              <details key={item.q} className="group bg-gray-50 border border-gray-200 rounded-xl p-5">
-                <summary className="cursor-pointer font-semibold text-[#192F59] list-none">
-                  {item.q}
-                </summary>
-                <p className="text-sm text-gray-600 mt-3">{item.a}</p>
-              </details>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
+            {[
+              { icon: <Shield className="w-5 h-5" />, label: "Every listing admin-verified" },
+              { icon: <CheckCircle className="w-5 h-5" />, label: "No hidden fees, ever" },
+              { icon: <Users className="w-5 h-5" />, label: "Real landlord profiles" },
+              { icon: <MapPin className="w-5 h-5" />, label: "Hyper-local to your campus" },
+            ].map(({ icon, label }) => (
+              <div key={label} className="flex flex-col items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-[#E67E22]/10 flex items-center justify-center text-[#E67E22]">
+                  {icon}
+                </div>
+                <p className="text-xs text-gray-600 font-medium leading-snug">{label}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="bg-[#192F59] py-16 lg:py-24">
+      {/* ── How it Works ─────────────────────────────────── */}
+      <section className="py-16 sm:py-20 bg-gray-50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <p className="text-xs font-bold tracking-widest text-[#E67E22] uppercase mb-2">How It Works</p>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#192F59]">Simple for Everyone</h2>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Students */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-[#192F59]" />
+                </div>
+                <h3 className="text-xl font-bold text-[#192F59]">For Students</h3>
+              </div>
+              <div className="space-y-0">
+                {STUDENT_STEPS.map((step, i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-9 h-9 rounded-full bg-[#E67E22] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">{i + 1}</div>
+                      {i < STUDENT_STEPS.length - 1 && <div className="w-px flex-1 min-h-[2rem] bg-gray-100 my-1" />}
+                    </div>
+                    <div className="pb-6 pt-1">
+                      <div className="flex items-center gap-2 text-[#192F59] mb-1">
+                        {step.icon}
+                        <h4 className="font-semibold text-sm">{step.title}</h4>
+                      </div>
+                      <p className="text-sm text-gray-500">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link href="/register?role=STUDENT" className="inline-flex items-center gap-2 bg-[#192F59] text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-[#1a3570] transition-colors">
+                Get started free <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Landlords */}
+            <div className="bg-[#192F59] rounded-2xl p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                  <Home className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white">For Landlords</h3>
+              </div>
+              <div className="space-y-0">
+                {LANDLORD_STEPS.map((step, i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-9 h-9 rounded-full bg-[#E67E22] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">{i + 1}</div>
+                      {i < LANDLORD_STEPS.length - 1 && <div className="w-px flex-1 min-h-[2rem] bg-white/10 my-1" />}
+                    </div>
+                    <div className="pb-6 pt-1">
+                      <div className="flex items-center gap-2 text-white mb-1">
+                        {step.icon}
+                        <h4 className="font-semibold text-sm">{step.title}</h4>
+                      </div>
+                      <p className="text-sm text-gray-400">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link href="/register?role=LANDLORD" className="inline-flex items-center gap-2 bg-[#E67E22] hover:bg-[#D35400] text-white text-sm font-semibold px-6 py-3 rounded-xl transition-colors">
+                List your property <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ──────────────────────────────────────────── */}
+      <section className="py-16 sm:py-20 bg-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <p className="text-xs font-bold tracking-widest text-[#E67E22] uppercase mb-2">FAQ</p>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#192F59]">Common Questions</h2>
+            <p className="text-gray-500 mt-3 text-sm">Everything students and landlords ask before getting started.</p>
+          </div>
+          <FAQAccordion faqs={FAQS} />
+        </div>
+      </section>
+
+      {/* ── CTA ──────────────────────────────────────────── */}
+      <section className="bg-[#E67E22] py-16 sm:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="font-sans text-xs font-bold text-[#F39C12] uppercase tracking-widest mb-4">Get Started Today</p>
-          <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-white mb-6 leading-tight">
-            Ready to Find Your
-            <br />
+          <h2 className="font-bold tracking-tight text-3xl sm:text-5xl text-white mb-4 leading-tight">
+            Ready to Find Your<br />
             <span className="italic">Perfect Hostel?</span>
           </h2>
-          <p className="font-sans text-gray-300 text-base mb-10 max-w-lg mx-auto">
+          <p className="text-orange-100 text-base mb-10 max-w-lg mx-auto">
             Join students and landlords already using RentalHub NG to make housing decisions easier and safer.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/properties"
-              className="bg-[#E67E22] hover:bg-[#D35400] text-white font-sans text-sm font-semibold px-10 py-4 rounded-xl transition-colors"
-            >
-              FIND A HOSTEL
+            <Link href="/properties" className="bg-white text-[#E67E22] font-bold px-10 py-4 rounded-xl hover:bg-orange-50 transition-colors text-sm">
+              BROWSE LISTINGS
             </Link>
-            <Link
-              href="/register?role=LANDLORD"
-              className="border border-white/30 hover:border-white text-white font-sans text-sm font-semibold px-10 py-4 rounded-xl transition-colors"
-            >
+            <Link href="/register?role=LANDLORD" className="border-2 border-white text-white font-bold px-10 py-4 rounded-xl hover:bg-white/10 transition-colors text-sm">
               LIST YOUR PROPERTY
             </Link>
           </div>
         </div>
       </section>
+
+      <FloatingCTA />
     </div>
   );
 }

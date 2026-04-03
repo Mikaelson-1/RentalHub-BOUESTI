@@ -52,19 +52,24 @@ export default function LoginPage() {
       }
 
       if (actualRole) {
-        // Redirect based on role
-        switch (actualRole) {
-          case "LANDLORD":
-            router.push("/landlord");
-            break;
-          case "STUDENT":
-            router.push("/student");
-            break;
-          case "ADMIN":
-            router.push("/admin");
-            break;
-          default:
-            router.push("/");
+        const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl");
+        // Honour callbackUrl for students returning from a property page
+        if (callbackUrl && actualRole === "STUDENT" && callbackUrl.startsWith("/properties/")) {
+          router.push(callbackUrl);
+        } else {
+          switch (actualRole) {
+            case "LANDLORD":
+              router.push("/landlord");
+              break;
+            case "STUDENT":
+              router.push("/student");
+              break;
+            case "ADMIN":
+              router.push("/admin");
+              break;
+            default:
+              router.push("/");
+          }
         }
       } else {
         router.push("/");
@@ -112,6 +117,7 @@ export default function LoginPage() {
               >
                 <option value="STUDENT">Student</option>
                 <option value="LANDLORD">Landlord</option>
+                <option value="ADMIN">Admin</option>
               </select>
             </div>
 

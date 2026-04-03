@@ -1,52 +1,54 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { MapPin, Wifi, Zap, Shield, Droplets, Car, Sun, CheckCircle, Lock } from "lucide-react";
+import { getPropertyImage } from "@/lib/property-image";
 
-interface PropertyItem {
+interface PropertyDetail {
   id: string;
   title: string;
+  description: string;
   price: number | string;
-  location: {
-    name: string;
-  };
+  distanceToCampus: number | null;
+  amenities: string[];
+  location: { name: string };
+  landlord: { name: string };
 }
 
 interface BookingItem {
   id: string;
   status: "PENDING" | "CONFIRMED" | "CANCELLED";
   createdAt: string;
-  property: {
-    id: string;
-    title: string;
-    price: number | string;
-    location: {
-      name: string;
-    };
-  };
+  property: PropertyDetail;
 }
 
-interface PropertiesResponse {
-  success: boolean;
-  data?: {
-    items: PropertyItem[];
-  };
-  error?: string;
+interface BrowseProperty {
+  id: string;
+  title: string;
+  price: number | string;
+  location: { name: string };
 }
 
-interface BookingsResponse {
-  success: boolean;
-  data?: {
-    items: BookingItem[];
-    total: number;
-    totalPages: number;
-  };
-  error?: string;
+function AmenityIcon({ name }: { name: string }) {
+  const l = name.toLowerCase();
+  if (l.includes("wifi") || l.includes("internet")) return <Wifi className="w-3 h-3" />;
+  if (l.includes("solar")) return <Sun className="w-3 h-3" />;
+  if (l.includes("generator") || l.includes("prepaid")) return <Zap className="w-3 h-3" />;
+  if (l.includes("security") || l.includes("burglar")) return <Shield className="w-3 h-3" />;
+  if (l.includes("water") || l.includes("borehole")) return <Droplets className="w-3 h-3" />;
+  if (l.includes("parking") || l.includes("car")) return <Car className="w-3 h-3" />;
+  return <CheckCircle className="w-3 h-3" />;
 }
 
 export default function StudentDashboard() {
-  const [activeTab, setActiveTab] = useState<"browse" | "bookings">("browse");
-  const [properties, setProperties] = useState<PropertyItem[]>([]);
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get("tab") === "bookings" ? "bookings" : "browse";
+
+  const [activeTab, setActiveTab] = useState<"browse" | "bookings">(defaultTab);
+  const [properties, setProperties] = useState<BrowseProperty[]>([]);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [bookingPropertyId, setBookingPropertyId] = useState("");
@@ -63,21 +65,21 @@ export default function StudentDashboard() {
         fetch("/api/bookings", { cache: "no-store" }),
       ]);
 
-      const propertiesPayload = (await propertiesResponse.json()) as PropertiesResponse;
-      const bookingsPayload = (await bookingsResponse.json()) as BookingsResponse;
+      const propertiesPayload = await propertiesResponse.json();
+      const bookingsPayload = await bookingsResponse.json();
 
       if (!propertiesResponse.ok || !propertiesPayload.success) {
         throw new Error(propertiesPayload.error || "Failed to load properties.");
       }
-
       if (!bookingsResponse.ok || !bookingsPayload.success) {
         throw new Error(bookingsPayload.error || "Failed to load bookings.");
       }
 
       setProperties(propertiesPayload.data?.items ?? []);
-      setBookings(bookingsPayload.data?.items ?? []);
+      // Bookings API returns data as a plain array
+      setBookings(Array.isArray(bookingsPayload.data) ? bookingsPayload.data : []);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to load student dashboard.");
+      setError(loadError instanceof Error ? loadError.message : "Failed to load dashboard.");
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +92,6 @@ export default function StudentDashboard() {
   const bookProperty = async (propertyId: string) => {
     setBookingPropertyId(propertyId);
     setError("");
-
     try {
       const response = await fetch("/api/bookings", {
         method: "POST",
@@ -98,11 +99,7 @@ export default function StudentDashboard() {
         body: JSON.stringify({ propertyId }),
       });
       const payload = await response.json();
-
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || "Failed to create booking.");
-      }
-
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || "Failed to create booking.");
       await loadStudentData();
       setActiveTab("bookings");
     } catch (bookingError) {
@@ -111,13 +108,6 @@ export default function StudentDashboard() {
       setBookingPropertyId("");
     }
   };
-
-  const hasActiveBooking = (propertyId: string) =>
-    bookings.some(
-      (booking) =>
-        booking.property.id === propertyId &&
-        (booking.status === "PENDING" || booking.status === "CONFIRMED"),
-    );
 
   const cancelBooking = async (bookingId: string) => {
     setUpdatingBookingId(bookingId);
@@ -129,9 +119,7 @@ export default function StudentDashboard() {
         body: JSON.stringify({ bookingId, status: "CANCELLED" }),
       });
       const payload = await response.json();
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || "Failed to cancel booking.");
-      }
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || "Failed to cancel booking.");
       await loadStudentData();
     } catch (cancelError) {
       setError(cancelError instanceof Error ? cancelError.message : "Failed to cancel booking.");
@@ -140,22 +128,14 @@ export default function StudentDashboard() {
     }
   };
 
+  const hasActiveBooking = (propertyId: string) =>
+    bookings.some((b) => b.property.id === propertyId && (b.status === "PENDING" || b.status === "CONFIRMED"));
+
   const formatPrice = (price: number | string) =>
-    new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      maximumFractionDigits: 0,
-    }).format(Number(price));
+    new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(Number(price));
 
-  const confirmedBookings = useMemo(
-    () => bookings.filter((booking) => booking.status === "CONFIRMED").length,
-    [bookings],
-  );
-
-  const pendingBookings = useMemo(
-    () => bookings.filter((booking) => booking.status === "PENDING").length,
-    [bookings],
-  );
+  const confirmedBookings = useMemo(() => bookings.filter((b) => b.status === "CONFIRMED").length, [bookings]);
+  const pendingBookings = useMemo(() => bookings.filter((b) => b.status === "PENDING").length, [bookings]);
 
   return (
     <div>
@@ -165,11 +145,10 @@ export default function StudentDashboard() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <div className="text-3xl font-bold text-primary-green">{bookings.length}</div>
@@ -180,20 +159,19 @@ export default function StudentDashboard() {
           <div className="text-gray-600">Confirmed</div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-primary-green">{pendingBookings}</div>
+          <div className="text-3xl font-bold text-yellow-500">{pendingBookings}</div>
           <div className="text-gray-600">Pending</div>
         </div>
       </div>
 
+      {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm mb-6">
         <div className="border-b border-gray-200">
           <nav className="flex">
             <button
               onClick={() => setActiveTab("browse")}
               className={`px-6 py-4 text-sm font-medium border-b-2 ${
-                activeTab === "browse"
-                  ? "border-primary-green text-primary-green"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                activeTab === "browse" ? "border-primary-green text-primary-green" : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
             >
               Browse Properties
@@ -201,12 +179,10 @@ export default function StudentDashboard() {
             <button
               onClick={() => setActiveTab("bookings")}
               className={`px-6 py-4 text-sm font-medium border-b-2 ${
-                activeTab === "bookings"
-                  ? "border-primary-green text-primary-green"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                activeTab === "bookings" ? "border-primary-green text-primary-green" : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
             >
-              My Bookings
+              My Bookings {bookings.length > 0 && <span className="ml-1 bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{bookings.length}</span>}
             </button>
           </nav>
         </div>
@@ -222,28 +198,28 @@ export default function StudentDashboard() {
                 {properties.map((property) => {
                   const booked = hasActiveBooking(property.id);
                   return (
-                    <div
-                      key={property.id}
-                      className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
-                    >
-                      <div className="h-40 bg-gray-100" />
+                    <div key={property.id} className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+                      <div className="relative h-40 bg-gray-100">
+                        <Image src={getPropertyImage(property.id)} alt={property.title} fill className="object-cover" />
+                      </div>
                       <div className="p-4">
-                        <h3 className="font-semibold text-navy text-lg">{property.title}</h3>
-                        <p className="text-gray-600 text-sm">{property.location.name}</p>
-                        <div className="flex justify-between items-center mt-3">
-                          <span className="text-primary-green font-bold">{formatPrice(property.price)}</span>
+                        <h3 className="font-semibold text-navy">{property.title}</h3>
+                        <p className="text-gray-500 text-sm flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3" /> {property.location.name}
+                        </p>
+                        <p className="text-primary-green font-bold mt-2">{formatPrice(property.price)}<span className="text-xs text-gray-400 font-normal">/yr</span></p>
+                        <div className="flex gap-2 mt-3">
+                          <Link href={`/properties/${property.id}`} className="flex-1 text-center text-sm border border-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+                            View
+                          </Link>
+                          <button
+                            onClick={() => bookProperty(property.id)}
+                            disabled={booked || bookingPropertyId === property.id}
+                            className="flex-1 bg-amber-400 hover:bg-amber-500 disabled:bg-gray-200 disabled:text-gray-400 text-gray-900 font-semibold py-2 rounded-lg transition-colors text-sm"
+                          >
+                            {bookingPropertyId === property.id ? "..." : booked ? "Booked ✓" : "Book"}
+                          </button>
                         </div>
-                        <button
-                          onClick={() => bookProperty(property.id)}
-                          disabled={booked || bookingPropertyId === property.id}
-                          className="w-full mt-4 bg-primary-green hover:bg-primary-dark disabled:bg-gray-300 text-white py-2 rounded-lg transition-colors"
-                        >
-                          {bookingPropertyId === property.id
-                            ? "Booking..."
-                            : booked
-                            ? "Already Booked"
-                            : "Book Now"}
-                        </button>
                       </div>
                     </div>
                   );
@@ -253,46 +229,96 @@ export default function StudentDashboard() {
           ) : bookings.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500">No bookings yet</p>
-              <Link href="/properties" className="text-primary-green hover:underline mt-2 inline-block">
-                Browse properties
-              </Link>
+              <button onClick={() => setActiveTab("browse")} className="text-primary-green hover:underline mt-2 inline-block text-sm">
+                Browse properties →
+              </button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {bookings.map((booking) => (
-                <div
-                  key={booking.id}
-                  className="border border-gray-200 rounded-lg p-4 flex justify-between items-center"
-                >
-                  <div>
-                    <h3 className="font-semibold text-navy">{booking.property.title}</h3>
-                    <p className="text-gray-600 text-sm">
-                      {booking.property.location.name} • {formatPrice(booking.property.price)}
-                    </p>
-                    <p className="text-gray-500 text-xs mt-1">
-                      Booked on {new Date(booking.createdAt).toLocaleDateString()}
-                    </p>
+                <div key={booking.id} className="border border-gray-200 rounded-2xl overflow-hidden">
+                  {/* Property image */}
+                  <div className="relative h-52 bg-gray-100">
+                    <Image
+                      src={getPropertyImage(booking.property.id)}
+                      alt={booking.property.title}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute top-3 right-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        booking.status === "CONFIRMED" ? "bg-green-500 text-white" :
+                        booking.status === "PENDING" ? "bg-amber-400 text-gray-900" :
+                        "bg-gray-400 text-white"
+                      }`}>
+                        {booking.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        booking.status === "CONFIRMED"
-                          ? "bg-green-100 text-green-800"
-                          : booking.status === "PENDING"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {booking.status}
-                    </span>
-                    {(booking.status === "PENDING" || booking.status === "CONFIRMED") && (
-                      <button
-                        onClick={() => cancelBooking(booking.id)}
-                        disabled={updatingBookingId === booking.id}
-                        className="block mt-2 text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
-                      >
-                        {updatingBookingId === booking.id ? "Cancelling..." : "Cancel"}
-                      </button>
+
+                  <div className="p-6">
+                    {/* Location + title */}
+                    <p className="text-xs text-gray-400 flex items-center gap-1 mb-1">
+                      <MapPin className="w-3 h-3" /> {booking.property.location.name}
+                    </p>
+                    <h3 className="text-xl font-bold text-[#192F59]">{booking.property.title}</h3>
+
+                    {/* Price + distance */}
+                    <div className="flex items-baseline gap-3 mt-2">
+                      <p className="text-2xl font-bold text-[#00A553]">
+                        {formatPrice(booking.property.price)}
+                        <span className="text-sm font-normal text-gray-400 ml-1">/year</span>
+                      </p>
+                      {booking.property.distanceToCampus && (
+                        <span className="text-xs text-gray-400">{Number(booking.property.distanceToCampus)} km to campus</span>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    {booking.property.description && (
+                      <p className="text-sm text-gray-600 mt-3 leading-relaxed line-clamp-3">
+                        {booking.property.description}
+                      </p>
+                    )}
+
+                    {/* Amenities */}
+                    {booking.property.amenities?.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {booking.property.amenities.map((a) => (
+                          <span key={a} className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">
+                            <AmenityIcon name={a} /> {a}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Landlord + booked date */}
+                    <div className="flex items-center justify-between mt-4 text-xs text-gray-400">
+                      <span>Listed by <span className="font-medium text-gray-600">{booking.property.landlord.name}</span></span>
+                      <span>Booked {new Date(booking.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}</span>
+                    </div>
+
+                    {/* Actions */}
+                    {booking.status !== "CANCELLED" && (
+                      <div className="mt-5 flex flex-col sm:flex-row gap-3">
+                        <button
+                          className="flex-1 flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-gray-900 font-bold py-3.5 rounded-xl transition-colors text-sm"
+                          onClick={() => alert("Payment integration coming soon. Your booking is reserved — the landlord has been notified.")}
+                        >
+                          <Lock className="w-4 h-4" />
+                          Pay now to secure
+                        </button>
+                        <button
+                          onClick={() => cancelBooking(booking.id)}
+                          disabled={updatingBookingId === booking.id}
+                          className="sm:w-auto text-sm text-red-500 hover:text-red-600 disabled:opacity-50 border border-red-200 px-5 py-3.5 rounded-xl hover:bg-red-50 transition-colors"
+                        >
+                          {updatingBookingId === booking.id ? "Cancelling..." : "Cancel Booking"}
+                        </button>
+                      </div>
+                    )}
+                    {booking.status === "CANCELLED" && (
+                      <p className="mt-4 text-sm text-gray-400 text-center">This booking was cancelled.</p>
                     )}
                   </div>
                 </div>

@@ -41,14 +41,16 @@ export default function DashboardNavbar() {
 
           {/* Right Side - Actions & Profile */}
           <div className="flex items-center gap-3">
-            {/* Add Listing Button */}
-            <Link
-              href="/landlord/add-property"
-              className="hidden sm:flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Listing</span>
-            </Link>
+            {/* Add Listing Button - landlords only */}
+            {session?.user?.role === "LANDLORD" && (
+              <Link
+                href="/landlord/add-property"
+                className="hidden sm:flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Listing</span>
+              </Link>
+            )}
 
             {/* Action Icons */}
             <div className="flex items-center gap-1">

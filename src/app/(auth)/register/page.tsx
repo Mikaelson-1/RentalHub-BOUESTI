@@ -17,12 +17,16 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [callbackUrl, setCallbackUrl] = useState("");
 
   useEffect(() => {
-    const roleParam = new URLSearchParams(window.location.search).get("role");
+    const params = new URLSearchParams(window.location.search);
+    const roleParam = params.get("role");
+    const callbackParam = params.get("callbackUrl");
     if (roleParam === "LANDLORD" || roleParam === "STUDENT") {
       setFormData((prev) => ({ ...prev, role: roleParam }));
     }
+    if (callbackParam) setCallbackUrl(callbackParam);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,9 +65,9 @@ export default function RegisterPage() {
 
       if (response.ok && result?.success) {
         setSuccess(result.message || "Account created successfully!");
-        // Redirect to login after 2 seconds
         setTimeout(() => {
-          router.push("/login");
+          const loginUrl = callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login";
+          router.push(loginUrl);
         }, 2000);
       } else {
         setError(result?.error || "Registration failed");
