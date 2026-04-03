@@ -28,7 +28,3 @@ export function validateEnv(): void {
   }
 }
 
-// Run validation when this module is first imported (server-side, non-test).
-if (typeof window === 'undefined' && process.env.NODE_ENV !== 'test') {
-  validateEnv();
-}
