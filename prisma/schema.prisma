@@ -53,6 +53,7 @@ model User {
 
   // Relations
   properties         Property[]         @relation("LandlordProperties")
+  reviewedProperties Property[]         @relation("properties_reviewedByIdTousers")
   bookings           Booking[]          @relation("StudentBookings")
 
   @@index([email])
@@ -88,6 +89,11 @@ model Property {
   /// JSON array of image URL strings
   images           Json           @default("[]")
   status           PropertyStatus @default(PENDING)
+  /// Optional reason provided by admin when rejecting a listing
+  rejectionReason  String?        @db.Text
+  /// Preserved from earlier schema version — tracks who reviewed and when
+  reviewedAt       DateTime?
+  reviewedById     String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
@@ -98,12 +104,14 @@ model Property {
   // Relations
   landlord         User           @relation("LandlordProperties", fields: [landlordId], references: [id], onDelete: Cascade)
   location         Location       @relation(fields: [locationId], references: [id])
+  reviewer         User?          @relation("properties_reviewedByIdTousers", fields: [reviewedById], references: [id])
   bookings         Booking[]
 
   @@index([landlordId])
   @@index([locationId])
   @@index([status])
   @@index([price])
+  @@index([reviewedById])
   @@map("properties")
 }
 
@@ -125,5 +133,6 @@ model Booking {
   @@index([studentId])
   @@index([propertyId])
   @@index([status])
+  @@index([studentId, status])
   @@map("bookings")
 }
