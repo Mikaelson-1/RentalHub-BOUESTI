@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -13,6 +14,36 @@ interface PropertyDetailsPageProps {
   params: Promise<{
     id: string;
   }>;
+}
+
+export async function generateMetadata({ params }: PropertyDetailsPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const property = await prisma.property.findUnique({
+    where: { id },
+    select: { title: true, description: true, price: true, location: { select: { name: true } } },
+  });
+
+  if (!property) return { title: "Property Not Found" };
+
+  const price = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(Number(property.price));
+  const image = getPropertyImage(id);
+
+  return {
+    title: property.title,
+    description: `${property.description?.slice(0, 155) ?? property.title} — ${price}/year in ${property.location.name}.`,
+    openGraph: {
+      title: `${property.title} | RentalHub NG`,
+      description: `${property.description?.slice(0, 155) ?? property.title} — ${price}/year in ${property.location.name}.`,
+      url: `https://rentalhub.ng/properties/${id}`,
+      images: [{ url: image, width: 800, height: 400, alt: property.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: property.title,
+      description: `${price}/year in ${property.location.name}.`,
+      images: [image],
+    },
+  };
 }
 
 export default async function PropertyDetailsPage({ params }: PropertyDetailsPageProps) {

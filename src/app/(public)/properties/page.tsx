@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import prisma from "@/lib/prisma";
@@ -5,6 +6,18 @@ import { SCHOOL_LOCATION_KEYWORDS } from "@/lib/schools";
 import { getPropertyImage } from "@/lib/property-image";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Available Properties",
+  description:
+    "Browse all verified off-campus accommodation near BOUESTI. Filter by location and find your perfect student room or apartment.",
+  openGraph: {
+    title: "Available Properties | RentalHub NG",
+    description:
+      "Browse all verified off-campus accommodation near BOUESTI. Filter by location and find your perfect student room or apartment.",
+    url: "https://rentalhub.ng/properties",
+  },
+};
 
 interface PropertiesPageProps {
   searchParams?: Promise<{
