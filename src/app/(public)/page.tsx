@@ -1,9 +1,22 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import prisma from "@/lib/prisma";
 import { getPropertyImage } from "@/lib/property-image";
 import FAQAccordion from "@/components/FAQAccordion";
 import FloatingCTA from "@/components/FloatingCTA";
+
+export const metadata: Metadata = {
+  title: "RentalHub NG - Verified Student Housing Near BOUESTI",
+  description:
+    "Browse verified off-campus apartments, self-contains, and rooms near BOUESTI. Book directly with trusted landlords — no agent fees.",
+  openGraph: {
+    title: "RentalHub NG - Verified Student Housing Near BOUESTI",
+    description:
+      "Browse verified off-campus apartments, self-contains, and rooms near BOUESTI. Book directly with trusted landlords — no agent fees.",
+    url: "https://rentalhub.ng",
+  },
+};
 import {
   MapPin,
   Zap,
