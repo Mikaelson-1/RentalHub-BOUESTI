@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { rateLimit, getRateLimitKey } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
 
@@ -96,15 +97,40 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error('[REGISTER ERROR]', { error: message });
+    const code = error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined;
+    const inferredCode = (message.match(/P\d{4}/)?.[0] ?? undefined) as string | undefined;
 
+    logger.error('[REGISTER ERROR]', { code: code ?? inferredCode, error: message });
+
+    // Duplicate unique key, usually email race-condition.
+    if (code === 'P2002' || inferredCode === 'P2002') {
+      return NextResponse.json(
+        { success: false, error: 'An account with this email already exists.' },
+        { status: 409 },
+      );
+    }
+
+    // Missing table/column because DB schema is behind deployed code.
+    if (code === 'P2021' || code === 'P2022' || inferredCode === 'P2021' || inferredCode === 'P2022') {
+      return NextResponse.json(
+        { success: false, error: 'Registration is temporarily unavailable. Database schema is outdated.' },
+        { status: 503 },
+      );
+    }
+
+    // DB connectivity/auth/env config issues.
     if (
-      message.includes("PrismaClientInitializationError") ||
-      message.includes("Can't reach database server") ||
-      message.includes("P1001")
+      code === 'P1000' ||
+      code === 'P1001' ||
+      code === 'P1003' ||
+      inferredCode === 'P1000' ||
+      inferredCode === 'P1001' ||
+      inferredCode === 'P1003' ||
+      message.includes('DATABASE_URL') ||
+      message.includes("Can't reach database server")
     ) {
       return NextResponse.json(
-        { success: false, error: "Registration is temporarily unavailable. Database connection failed." },
+        { success: false, error: 'Registration is temporarily unavailable. Please try again shortly.' },
         { status: 503 },
       );
     }
