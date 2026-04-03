@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { MapPin, Wifi, Zap, Shield, Droplets, Car, Sun, CheckCircle, Lock } from "lucide-react";
 import { getPropertyImage } from "@/lib/property-image";
@@ -43,7 +43,7 @@ function AmenityIcon({ name }: { name: string }) {
   return <CheckCircle className="w-3 h-3" />;
 }
 
-export default function StudentDashboard() {
+function StudentDashboardInner() {
   const searchParams = useSearchParams();
   const defaultTab = searchParams.get("tab") === "bookings" ? "bookings" : "browse";
 
@@ -328,5 +328,13 @@ export default function StudentDashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StudentDashboard() {
+  return (
+    <Suspense fallback={<div className="text-center py-8 text-gray-500">Loading dashboard...</div>}>
+      <StudentDashboardInner />
+    </Suspense>
   );
 }
