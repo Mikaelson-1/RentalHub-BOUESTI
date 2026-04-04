@@ -133,6 +133,11 @@ export default function AddPropertyForm() {
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(true);
   const [submitError, setSubmitError] = useState("");
+  const [aiDescription, setAiDescription] = useState("");
+  const [aiDescLoading, setAiDescLoading] = useState(false);
+  const [aiDescError, setAiDescError] = useState("");
+  const [priceAdvisor, setPriceAdvisor] = useState<{ min: number; max: number; median: number; count: number; insight: string } | null>(null);
+  const [priceAdvisorLoading, setPriceAdvisorLoading] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
   const [selectedVerificationDoc, setSelectedVerificationDoc] = useState<File | null>(null);
@@ -160,6 +165,55 @@ export default function AddPropertyForm() {
   const { register, handleSubmit, formState: { errors }, trigger, watch, setValue, setError, clearErrors } = methods;
 
   const watchAmenities = watch("amenities");
+
+  const generateDescription = async () => {
+    const values = methods.getValues();
+    setAiDescLoading(true);
+    setAiDescError("");
+    try {
+      const res = await fetch("/api/ai/generate-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: values.title,
+          propertyType: values.propertyType,
+          distanceToCampus: values.distanceToCampus,
+          genderPreference: values.genderPreference,
+          amenities: [
+            ...(values.amenities?.water ?? []),
+            ...(values.amenities?.power ?? []),
+            ...(values.amenities?.security ?? []),
+            ...(values.amenities?.facilities ?? []),
+          ],
+          annualRent: values.annualRent,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Failed to generate");
+      setAiDescription(json.data.description);
+    } catch (e) {
+      setAiDescError(e instanceof Error ? e.message : "AI generation failed");
+    } finally {
+      setAiDescLoading(false);
+    }
+  };
+
+  const loadPriceAdvisor = async () => {
+    const values = methods.getValues();
+    if (!values.environment) return;
+    setPriceAdvisorLoading(true);
+    try {
+      const res = await fetch(`/api/ai/price-advisor?locationId=${values.environment}&propertyType=${encodeURIComponent(values.propertyType || "")}`);
+      const json = await res.json();
+      if (res.ok && json.success) setPriceAdvisor(json.data);
+    } catch { /* silent */ }
+    finally { setPriceAdvisorLoading(false); }
+  };
+
+  useEffect(() => {
+    if (currentStep === 3) loadPriceAdvisor();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
 
   useEffect(() => {
     const loadLocations = async () => {
@@ -337,15 +391,16 @@ export default function AddPropertyForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: data.title,
-          description: [
-            `Type: ${data.propertyType}`,
-            `Units: ${data.vacantUnits}`,
-            `Gender Preference: ${data.genderPreference}`,
-            `Landmark: ${data.landmarkDirections}`,
-            `Fees: Agency ₦${data.agencyFee}, Caution ₦${data.cautionFee}${data.serviceCharge !== undefined ? `, Service ₦${data.serviceCharge}` : ""}`,
-          ]
-            .filter(Boolean)
-            .join("\n"),
+          description: aiDescription.trim() ||
+            [
+              `Type: ${data.propertyType}`,
+              `Units: ${data.vacantUnits}`,
+              `Gender Preference: ${data.genderPreference}`,
+              `Landmark: ${data.landmarkDirections}`,
+              `Fees: Agency ₦${data.agencyFee}, Caution ₦${data.cautionFee}${data.serviceCharge !== undefined ? `, Service ₦${data.serviceCharge}` : ""}`,
+            ]
+              .filter(Boolean)
+              .join("\n"),
           price: data.annualRent,
           locationId: data.environment,
           distanceToCampus: DISTANCE_TO_KM[data.distanceToCampus] ?? null,
@@ -536,6 +591,35 @@ export default function AddPropertyForm() {
                       <p className="mt-1 text-sm text-red-500">{errors.genderPreference.message}</p>
                     )}
                   </div>
+
+                  {/* AI Description Generator */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Property Description <span className="text-gray-400">(Optional — AI can write this for you)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={generateDescription}
+                        disabled={aiDescLoading}
+                        className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-all"
+                      >
+                        {aiDescLoading ? (
+                          <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> Generating...</>
+                        ) : (
+                          <>&#10024; AI Generate</>
+                        )}
+                      </button>
+                    </div>
+                    <textarea
+                      value={aiDescription}
+                      onChange={(e) => setAiDescription(e.target.value)}
+                      rows={4}
+                      placeholder="Describe your property — location highlights, what makes it ideal for students, special features..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all resize-none"
+                    />
+                    {aiDescError && <p className="mt-1 text-sm text-red-500">{aiDescError}</p>}
+                  </div>
                 </div>
               )}
 
@@ -716,6 +800,39 @@ export default function AddPropertyForm() {
                         />
                       </div>
                     </div>
+                  </div>
+
+                  {/* AI Price Advisor */}
+                  <div className="mt-2 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">&#x1F916;</span>
+                      <h4 className="font-semibold text-indigo-900 text-sm">AI Rent Price Advisor</h4>
+                      {priceAdvisorLoading && <span className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin inline-block" />}
+                    </div>
+                    {priceAdvisor ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-3 mb-3">
+                          <div className="bg-white rounded-lg p-3 text-center border border-indigo-100">
+                            <p className="text-xs text-gray-500 mb-0.5">Lowest</p>
+                            <p className="text-sm font-bold text-gray-900">&#x20A6;{priceAdvisor.min.toLocaleString("en-NG")}</p>
+                          </div>
+                          <div className="bg-white rounded-lg p-3 text-center border border-indigo-200 ring-1 ring-indigo-300">
+                            <p className="text-xs text-indigo-600 mb-0.5 font-medium">Median</p>
+                            <p className="text-sm font-bold text-indigo-700">&#x20A6;{priceAdvisor.median.toLocaleString("en-NG")}</p>
+                          </div>
+                          <div className="bg-white rounded-lg p-3 text-center border border-indigo-100">
+                            <p className="text-xs text-gray-500 mb-0.5">Highest</p>
+                            <p className="text-sm font-bold text-gray-900">&#x20A6;{priceAdvisor.max.toLocaleString("en-NG")}</p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-indigo-700 italic">{priceAdvisor.insight}</p>
+                        <p className="text-xs text-gray-400 mt-1">Based on {priceAdvisor.count} similar listings in this area.</p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-indigo-600">
+                        {priceAdvisorLoading ? "Loading market data..." : "Select a location in Step 2 to see market pricing data."}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

@@ -11,6 +11,27 @@ interface AdminSummary {
   totalBookings: number;
 }
 
+interface ForecastData {
+  monthlyBookings: { month: string; count: number }[];
+  bookingStatusBreakdown: { PENDING: number; CONFIRMED: number; CANCELLED: number };
+  totalApproved: number;
+  totalPending: number;
+  forecast: string;
+}
+
+interface VerificationLandlord {
+  id: string;
+  name: string;
+  email: string;
+  verificationStatus: string;
+  aiPreScreenScore: string | null;
+  aiPreScreenNote: string | null;
+  verificationSubmittedAt: string | null;
+  governmentIdUrl: string | null;
+  selfieUrl: string | null;
+  ownershipProofUrl: string | null;
+}
+
 interface PropertyItem {
   id: string;
   title: string;
@@ -91,7 +112,7 @@ interface BookingsResponse {
   error?: string;
 }
 
-type AdminPanel = "properties" | "pending" | "users" | "bookings";
+type AdminPanel = "properties" | "pending" | "users" | "bookings" | "verifications" | "forecast";
 type PropertyFilter = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
 
 const initialSummary: AdminSummary = {
@@ -112,6 +133,9 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [forecast, setForecast] = useState<ForecastData | null>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
+  const [verificationLandlords, setVerificationLandlords] = useState<VerificationLandlord[]>([]);
 
   const loadAdminData = useCallback(async (school: string) => {
     setIsLoading(true);
@@ -128,6 +152,7 @@ export default function AdminDashboard() {
         rejectedResponse,
         usersResponse,
         bookingsResponse,
+        landlordsResponse,
       ] = await Promise.all([
         fetch(`/api/admin/summary?t=${Date.now()}${schoolParam}`, { cache: "no-store" }),
         fetch(`/api/properties?status=PENDING&pageSize=100${propSchoolParam}`, { cache: "no-store" }),
@@ -135,6 +160,7 @@ export default function AdminDashboard() {
         fetch(`/api/properties?status=REJECTED&pageSize=100${propSchoolParam}`, { cache: "no-store" }),
         fetch("/api/admin/users", { cache: "no-store" }),
         fetch(`/api/admin/bookings?t=${Date.now()}${schoolParam}`, { cache: "no-store" }),
+        fetch("/api/admin/landlords", { cache: "no-store" }),
       ]);
 
       const summaryPayload = (await summaryResponse.json()) as AdminSummaryResponse;
@@ -143,6 +169,7 @@ export default function AdminDashboard() {
       const rejectedPayload = (await rejectedResponse.json()) as PropertiesResponse;
       const usersPayload = (await usersResponse.json()) as UsersResponse;
       const bookingsPayload = (await bookingsResponse.json()) as BookingsResponse;
+      const landlordsPayload = (await landlordsResponse.json()) as { success: boolean; data?: VerificationLandlord[] };
 
       if (!summaryResponse.ok || !summaryPayload.success || !summaryPayload.data) {
         throw new Error(summaryPayload.error || "Could not load admin summary.");
@@ -173,6 +200,7 @@ export default function AdminDashboard() {
       setAllProperties(combinedProperties);
       setUsers(usersPayload.data ?? []);
       setBookings(bookingsPayload.data ?? []);
+      setVerificationLandlords(landlordsPayload.data ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load admin data.");
     } finally {
@@ -226,6 +254,21 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadForecast = useCallback(async () => {
+    setForecastLoading(true);
+    try {
+      const schoolParam = selectedSchool !== "ALL" ? `?school=${encodeURIComponent(selectedSchool)}` : "";
+      const res = await fetch(`/api/admin/demand-forecast${schoolParam}`, { cache: "no-store" });
+      const json = await res.json();
+      if (res.ok && json.success) setForecast(json.data);
+    } catch { /* silent */ }
+    finally { setForecastLoading(false); }
+  }, [selectedSchool]);
+
+  useEffect(() => {
+    if (activePanel === "forecast") loadForecast();
+  }, [activePanel, loadForecast]);
+
   return (
     <div>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -277,7 +320,7 @@ export default function AdminDashboard() {
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
         <button
           onClick={() => setActivePanel("properties")}
           className={`bg-white p-6 rounded-xl shadow-sm text-left hover:shadow-md transition-shadow ${
@@ -317,6 +360,22 @@ export default function AdminDashboard() {
           <div className="text-3xl font-bold text-primary-green">{summary.totalBookings}</div>
           <div className="text-gray-600">Total Bookings</div>
         </button>
+
+        <button
+          onClick={() => setActivePanel("verifications")}
+          className={`bg-white p-6 rounded-xl shadow-sm text-left hover:shadow-md transition-shadow ${activePanel === "verifications" ? "ring-2 ring-purple-400/30" : ""}`}
+        >
+          <div className="text-3xl font-bold text-purple-600">{verificationLandlords.length}</div>
+          <div className="text-gray-600">Pending Verifications</div>
+        </button>
+
+        <button
+          onClick={() => setActivePanel("forecast")}
+          className={`bg-white p-6 rounded-xl shadow-sm text-left hover:shadow-md transition-shadow ${activePanel === "forecast" ? "ring-2 ring-indigo-400/30" : ""}`}
+        >
+          <div className="text-3xl font-bold text-indigo-600">AI</div>
+          <div className="text-gray-600">Demand Forecast</div>
+        </button>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm">
@@ -327,6 +386,8 @@ export default function AdminDashboard() {
               {activePanel === "pending" && "Pending Approvals"}
               {activePanel === "users" && "All Users"}
               {activePanel === "bookings" && "All Bookings"}
+              {activePanel === "verifications" && "Landlord Verifications"}
+              {activePanel === "forecast" && "AI Demand Forecast"}
             </h2>
 
             {activePanel === "pending" && pendingProperties.length > 0 && (
@@ -496,7 +557,7 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
-          ) : (
+          ) : activePanel === "bookings" ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1100px]">
                 <thead>
@@ -549,6 +610,137 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+          ) : activePanel === "verifications" ? (
+            <div className="space-y-4">
+              {verificationLandlords.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 text-lg">No pending verifications</p>
+                  <p className="text-gray-400 text-sm mt-1">All landlord submissions have been reviewed</p>
+                </div>
+              ) : (
+                verificationLandlords.map((landlord) => (
+                  <div key={landlord.id} className="border border-gray-200 rounded-lg p-5">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-navy">{landlord.name}</h3>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            landlord.aiPreScreenScore === "PASS" ? "bg-green-100 text-green-700" :
+                            landlord.aiPreScreenScore === "FAIL" ? "bg-red-100 text-red-700" :
+                            landlord.aiPreScreenScore === "REVIEW" ? "bg-yellow-100 text-yellow-700" :
+                            "bg-gray-100 text-gray-500"
+                          }`}>
+                            {landlord.aiPreScreenScore ? `AI: ${landlord.aiPreScreenScore}` : "AI: Not screened"}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500">{landlord.email}</p>
+                        {landlord.aiPreScreenNote && (
+                          <p className="text-xs text-gray-500 mt-1 italic">&quot;{landlord.aiPreScreenNote}&quot;</p>
+                        )}
+                        <div className="flex gap-3 mt-2 text-xs text-gray-400">
+                          <span>{landlord.governmentIdUrl ? "✓ Gov ID" : "✗ Gov ID"}</span>
+                          <span>{landlord.selfieUrl ? "✓ Selfie" : "✗ Selfie"}</span>
+                          <span>{landlord.ownershipProofUrl ? "✓ Ownership Proof" : "✗ Ownership Proof"}</span>
+                        </div>
+                        {landlord.verificationSubmittedAt && (
+                          <p className="text-xs text-gray-400 mt-1">Submitted: {new Date(landlord.verificationSubmittedAt).toLocaleDateString()}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            await fetch("/api/admin/landlords", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ userId: landlord.id, action: "APPROVE" }),
+                            });
+                            await loadAdminData(selectedSchool);
+                          }}
+                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                        >Approve</button>
+                        <button
+                          onClick={async () => {
+                            const note = prompt("Rejection reason (required):");
+                            if (!note) return;
+                            await fetch("/api/admin/landlords", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ userId: landlord.id, action: "REJECT", note }),
+                            });
+                            await loadAdminData(selectedSchool);
+                          }}
+                          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                        >Reject</button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : activePanel === "forecast" ? (
+            <div>
+              {forecastLoading ? (
+                <div className="text-center py-10 text-gray-500">Generating AI forecast...</div>
+              ) : !forecast ? (
+                <div className="text-center py-10 text-gray-500">Click the Demand Forecast card to load.</div>
+              ) : (
+                <div className="space-y-6">
+                  {/* AI Insight */}
+                  <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-xl">&#x1F916;</span>
+                      <h3 className="font-semibold text-indigo-900">AI Demand Forecast</h3>
+                    </div>
+                    <p className="text-sm text-indigo-800 leading-relaxed">{forecast.forecast}</p>
+                  </div>
+
+                  {/* Stats grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-green-600">{forecast.totalApproved}</p>
+                      <p className="text-xs text-gray-500 mt-1">Live Listings</p>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-yellow-600">{forecast.totalPending}</p>
+                      <p className="text-xs text-gray-500 mt-1">Pending Review</p>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-blue-600">{forecast.bookingStatusBreakdown.CONFIRMED}</p>
+                      <p className="text-xs text-gray-500 mt-1">Confirmed Bookings</p>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-gray-600">{forecast.bookingStatusBreakdown.PENDING}</p>
+                      <p className="text-xs text-gray-500 mt-1">Pending Bookings</p>
+                    </div>
+                  </div>
+
+                  {/* Monthly bookings bar chart */}
+                  {forecast.monthlyBookings.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-6">
+                      <h4 className="font-semibold text-gray-800 mb-4 text-sm">Monthly Booking Activity (Last 12 Months)</h4>
+                      <div className="flex items-end gap-2 h-32">
+                        {forecast.monthlyBookings.map((m) => {
+                          const maxCount = Math.max(...forecast.monthlyBookings.map((x) => x.count), 1);
+                          const pct = (m.count / maxCount) * 100;
+                          return (
+                            <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                              <span className="text-xs text-gray-600 font-medium">{m.count}</span>
+                              <div
+                                className="w-full bg-indigo-500 rounded-t-sm transition-all"
+                                style={{ height: `${Math.max(pct, 4)}%` }}
+                              />
+                              <span className="text-[10px] text-gray-400 rotate-45 origin-left translate-y-3">{m.month.slice(5)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-10 text-gray-400">Select a panel above.</div>
           )}
         </div>
       </div>

@@ -135,6 +135,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Invalid location.' }, { status: 400 });
     }
 
+    // AI Scam check
+    let aiScamFlag = false;
+    let aiScamReason: string | null = null;
+    try {
+      const scamRes = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/ai/check-listing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description }),
+      });
+      if (scamRes.ok) {
+        const scamPayload = await scamRes.json();
+        if (scamPayload?.data?.flagged && scamPayload?.data?.confidence === 'high') {
+          return NextResponse.json(
+            { success: false, error: `Your listing was flagged for suspicious content: ${scamPayload.data.reasons.join('; ')}. Please revise your listing.` },
+            { status: 400 },
+          );
+        }
+        if (scamPayload?.data?.flagged) {
+          aiScamFlag = true;
+          aiScamReason = scamPayload.data.reasons.join('; ');
+        }
+      }
+    } catch { /* don't block listing if AI fails */ }
+
     const property = await prisma.property.create({
       data: {
         title:            title.trim(),
@@ -146,6 +170,8 @@ export async function POST(request: Request) {
         amenities,
         images,
         status:           'PENDING',
+        aiScamFlag,
+        aiScamReason,
       },
       include: { location: true },
     });

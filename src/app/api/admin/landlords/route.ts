@@ -33,6 +33,8 @@ export async function GET() {
         ownershipProofUrl:       true,
         verificationNote:        true,
         verificationSubmittedAt: true,
+        aiPreScreenScore:        true,
+        aiPreScreenNote:         true,
         createdAt:               true,
         _count: { select: { properties: true } },
       },
@@ -53,11 +55,14 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: "Admin access required." }, { status: 403 });
     }
 
-    const { landlordId, action, note } = await request.json();
+    const body = await request.json();
+    const landlordId: string = body.landlordId ?? body.userId;
+    const action: string = body.action;
+    const note: string | undefined = body.note;
 
     if (!landlordId || !["APPROVE", "REJECT"].includes(action)) {
       return NextResponse.json(
-        { success: false, error: "landlordId and action (APPROVE | REJECT) are required." },
+        { success: false, error: "landlordId (or userId) and action (APPROVE | REJECT) are required." },
         { status: 400 },
       );
     }
@@ -73,7 +78,7 @@ export async function PATCH(request: Request) {
       where: { id: landlordId },
       data:  {
         verificationStatus: action === "APPROVE" ? "VERIFIED" : "REJECTED",
-        verificationNote:   action === "REJECT" ? note.trim() : null,
+        verificationNote:   action === "REJECT" ? (note ?? "").trim() : null,
       },
       select: { id: true, name: true, email: true, verificationStatus: true },
     });

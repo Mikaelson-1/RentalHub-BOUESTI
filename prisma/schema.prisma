@@ -64,6 +64,10 @@ model User {
   verificationNote         String?   @db.Text /// Admin feedback on rejection
   verificationSubmittedAt  DateTime? /// When all docs were submitted
 
+  // AI Pre-screening fields
+  aiPreScreenScore  String?
+  aiPreScreenNote   String?
+
   // Relations
   properties         Property[]         @relation("LandlordProperties")
   reviewedProperties Property[]         @relation("PropertyReviews")
@@ -106,6 +110,8 @@ model Property {
   status           PropertyStatus @default(PENDING)
   reviewedAt       DateTime?
   reviewNote       String?        @db.Text
+  aiScamFlag       Boolean        @default(false)
+  aiScamReason     String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
