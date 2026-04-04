@@ -13,6 +13,7 @@ declare module "next-auth" {
     id: string;
     role: Role;
     verificationStatus: VerificationStatus;
+    avatarUrl?: string | null;
   }
 
   interface Session {
@@ -22,6 +23,7 @@ declare module "next-auth" {
       email: string;
       role: Role;
       verificationStatus: VerificationStatus;
+      avatarUrl?: string | null;
     };
   }
 }
@@ -31,6 +33,7 @@ declare module "next-auth/jwt" {
     id: string;
     role: Role;
     verificationStatus: VerificationStatus;
+    avatarUrl?: string | null;
   }
 }
 
@@ -95,16 +98,24 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           role: user.role,
           verificationStatus: user.verificationStatus,
+          avatarUrl: user.avatarUrl ?? null,
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session: sessionUpdate }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.verificationStatus = user.verificationStatus;
+        token.avatarUrl = user.avatarUrl ?? null;
+      }
+      // Handle explicit session updates (e.g. after avatar or profile save)
+      if (trigger === "update" && sessionUpdate) {
+        if (sessionUpdate.avatarUrl !== undefined) token.avatarUrl = sessionUpdate.avatarUrl;
+        if (sessionUpdate.verificationStatus) token.verificationStatus = sessionUpdate.verificationStatus;
+        if (sessionUpdate.name) token.name = sessionUpdate.name;
       }
       return token;
     },
@@ -113,6 +124,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.verificationStatus = token.verificationStatus;
+        session.user.avatarUrl = token.avatarUrl ?? null;
       }
       return session;
     },

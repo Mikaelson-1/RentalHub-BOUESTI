@@ -11,6 +11,7 @@ export default function DashboardNavbar() {
   const userInitial = session?.user?.name?.charAt(0).toUpperCase() || "U";
   const userName = session?.user?.name || "User";
   const userRole = session?.user?.role?.toLowerCase() || "user";
+  const avatarUrl = (session?.user as { avatarUrl?: string | null })?.avatarUrl;
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -71,8 +72,18 @@ export default function DashboardNavbar() {
 
             {/* User Profile */}
             <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-              <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                {userInitial}
+              <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-orange-500 flex items-center justify-center text-white font-semibold text-sm">
+                {avatarUrl ? (
+                  <Image
+                    src={avatarUrl}
+                    alt={userName}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  userInitial
+                )}
               </div>
               <div className="hidden lg:block">
                 <p className="font-sans text-sm font-medium text-gray-900">

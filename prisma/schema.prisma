@@ -64,6 +64,9 @@ model User {
   verificationNote         String?   @db.Text /// Admin feedback on rejection
   verificationSubmittedAt  DateTime? /// When all docs were submitted
 
+  // Profile
+  avatarUrl         String?   /// Profile photo URL
+
   // AI Pre-screening fields
   aiPreScreenScore  String?
   aiPreScreenNote   String?

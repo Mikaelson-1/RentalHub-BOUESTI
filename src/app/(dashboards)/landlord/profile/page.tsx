@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   User, Mail, Phone, ShieldCheck, ShieldAlert, Clock, ShieldX,
-  Edit2, Save, X, ChevronLeft, Calendar, Home, CheckCircle,
+  Edit2, Save, X, ChevronLeft, Calendar, Home, CheckCircle, Camera,
 } from "lucide-react";
 
 interface Profile {
@@ -13,6 +14,7 @@ interface Profile {
   name: string;
   email: string;
   phoneNumber: string | null;
+  avatarUrl: string | null;
   role: string;
   verificationStatus: string;
   createdAt: string;
@@ -63,8 +65,10 @@ export default function LandlordProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({ name: "", email: "", phoneNumber: "" });
 
@@ -89,6 +93,40 @@ export default function LandlordProfilePage() {
     };
     load();
   }, []);
+
+  const handleAvatarUpload = async (file: File) => {
+    setAvatarUploading(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("category", "avatar");
+      const res = await fetch("/api/uploads", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Upload failed");
+      const url = json.data.url as string;
+      // Save avatarUrl to profile
+      const patchRes = await fetch("/api/landlord/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profile?.name ?? "",
+          email: profile?.email ?? "",
+          phoneNumber: profile?.phoneNumber ?? "",
+          avatarUrl: url,
+        }),
+      });
+      const patchJson = await patchRes.json();
+      if (!patchRes.ok || !patchJson.success) throw new Error(patchJson.error || "Failed to save avatar");
+      setProfile((prev) => prev ? { ...prev, avatarUrl: url } : prev);
+      await updateSession({ avatarUrl: url });
+      setSuccess("Profile photo updated!");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Avatar upload failed.");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     setError("");
@@ -154,9 +192,42 @@ export default function LandlordProfilePage() {
       {/* Avatar + stats card */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-5">
         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-          {/* Avatar */}
-          <div className="w-20 h-20 rounded-full bg-[#192F59] flex items-center justify-center flex-shrink-0">
-            <span className="text-2xl font-bold text-white">{initials}</span>
+          {/* Avatar with upload */}
+          <div className="relative flex-shrink-0 group">
+            <div className="w-20 h-20 rounded-full bg-[#192F59] flex items-center justify-center overflow-hidden">
+              {profile?.avatarUrl ? (
+                <Image
+                  src={profile.avatarUrl}
+                  alt={profile.name}
+                  width={80}
+                  height={80}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-2xl font-bold text-white">{initials}</span>
+              )}
+            </div>
+            {/* Upload overlay */}
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarUploading}
+              className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+              title="Change photo"
+            >
+              {avatarUploading ? (
+                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Camera className="w-5 h-5 text-white" />
+              )}
+            </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => { if (e.target.files?.[0]) handleAvatarUpload(e.target.files[0]); }}
+            />
           </div>
 
           <div className="flex-1 min-w-0">

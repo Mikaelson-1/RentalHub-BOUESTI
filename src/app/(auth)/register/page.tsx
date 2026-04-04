@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -34,13 +35,11 @@ export default function RegisterPage() {
     setError("");
     setSuccess("");
 
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
       return;
     }
 
-    // Validate password length
     if (formData.password.length < 8) {
       setError("Password must be at least 8 characters long");
       return;
@@ -51,9 +50,7 @@ export default function RegisterPage() {
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
@@ -64,11 +61,30 @@ export default function RegisterPage() {
       const result = await response.json();
 
       if (response.ok && result?.success) {
-        setSuccess(result.message || "Account created successfully!");
-        setTimeout(() => {
-          const loginUrl = callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login";
-          router.push(loginUrl);
-        }, 2000);
+        if (formData.role === "LANDLORD") {
+          // Auto sign-in and redirect straight to verification — no login screen
+          setSuccess("Account created! Setting up your account...");
+          const signInResult = await signIn("credentials", {
+            email: formData.email,
+            password: formData.password,
+            redirect: false,
+          });
+          if (signInResult?.ok) {
+            router.push("/landlord/verification");
+          } else {
+            // Fallback in case sign-in fails
+            router.push("/login?registered=landlord");
+          }
+        } else {
+          // Students go to login as usual
+          setSuccess(result.message || "Account created successfully!");
+          setTimeout(() => {
+            const loginUrl = callbackUrl
+              ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
+              : "/login";
+            router.push(loginUrl);
+          }, 1500);
+        }
       } else {
         setError(result?.error || "Registration failed");
       }
@@ -104,39 +120,34 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label
-                htmlFor="role"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
                 I am a
               </label>
               <select
                 id="role"
                 value={formData.role}
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] focus:border-transparent"
               >
                 <option value="STUDENT">Student</option>
-                <option value="LANDLORD">Landlord</option>
+                <option value="LANDLORD">Landlord / Property Agent</option>
               </select>
+              {formData.role === "LANDLORD" && (
+                <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  After creating your account you&apos;ll be taken directly to verify your identity and property — this keeps the platform trusted and safe for students.
+                </p>
+              )}
             </div>
 
             <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                 Full Name
               </label>
               <input
                 type="text"
                 id="name"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] focus:border-transparent"
                 placeholder="John Doe"
                 required
@@ -144,19 +155,14 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email Address
               </label>
               <input
                 type="email"
                 id="email"
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] focus:border-transparent"
                 placeholder="you@example.com"
                 required
@@ -164,19 +170,14 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
               </label>
               <input
                 type="password"
                 id="password"
                 value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] focus:border-transparent"
                 placeholder="••••••••"
                 required
@@ -184,19 +185,14 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                 Confirm Password
               </label>
               <input
                 type="password"
                 id="confirmPassword"
                 value={formData.confirmPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, confirmPassword: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] focus:border-transparent"
                 placeholder="••••••••"
                 required
@@ -230,7 +226,7 @@ export default function RegisterPage() {
               {isLoading
                 ? "Creating Account..."
                 : success
-                ? "Account Created!"
+                ? "Setting up..."
                 : "Create Account"}
             </button>
           </form>
@@ -238,10 +234,7 @@ export default function RegisterPage() {
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               Already have an account?{" "}
-              <Link
-                href="/login"
-                className="text-[#E67E22] hover:text-[#D35400] font-medium"
-              >
+              <Link href="/login" className="text-[#E67E22] hover:text-[#D35400] font-medium">
                 Sign in
               </Link>
             </p>

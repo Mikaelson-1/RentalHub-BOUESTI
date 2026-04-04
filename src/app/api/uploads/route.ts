@@ -64,6 +64,7 @@ export async function POST(request: Request) {
       governmentId:         { types: DOCUMENT_TYPES, maxBytes: MAX_DOCUMENT_BYTES },
       selfie:               { types: IMAGE_TYPES,    maxBytes: MAX_IMAGE_BYTES    },
       ownershipProof:       { types: DOCUMENT_TYPES, maxBytes: MAX_DOCUMENT_BYTES },
+      avatar:               { types: IMAGE_TYPES,    maxBytes: 2 * 1024 * 1024   }, // 2 MB
     } as const;
 
     const rules = limitsByCategory[category as keyof typeof limitsByCategory];

@@ -24,6 +24,7 @@ export async function GET() {
         role: true,
         verificationStatus: true,
         phoneNumber: true,
+        avatarUrl: true,
         createdAt: true,
         governmentIdUrl: true,
         selfieUrl: true,
@@ -53,7 +54,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { name, email, phoneNumber } = body;
+    const { name, email, phoneNumber, avatarUrl } = body;
 
     if (!name?.trim()) {
       return NextResponse.json({ success: false, error: "Name is required." }, { status: 400 });
@@ -81,12 +82,14 @@ export async function PATCH(request: Request) {
         name: name.trim(),
         email: normalizedEmail,
         ...(phoneNumber !== undefined && { phoneNumber: phoneNumber.trim() || null }),
+        ...(avatarUrl !== undefined && { avatarUrl: avatarUrl || null }),
       },
       select: {
         id: true,
         name: true,
         email: true,
         phoneNumber: true,
+        avatarUrl: true,
         role: true,
         verificationStatus: true,
         createdAt: true,
