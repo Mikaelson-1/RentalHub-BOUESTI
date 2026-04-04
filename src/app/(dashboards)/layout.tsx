@@ -1,17 +1,10 @@
-"use client";
-
-import { usePathname } from "next/navigation";
 import DashboardNavbar from "@/components/DashboardNavbar";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const isAdmin = pathname.startsWith("/admin");
-
-  if (isAdmin) {
-    // Admin has its own full-screen layout — no navbar wrapper needed
-    return <>{children}</>;
-  }
-
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <>
       <DashboardNavbar />
