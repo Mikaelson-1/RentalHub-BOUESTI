@@ -111,7 +111,7 @@ export default function VerificationPage() {
             You can still use your dashboard and add listings in the meantime.
           </p>
           <button
-            onClick={() => router.push("/landlord")}
+            onClick={() => { window.location.href = "/landlord"; }}
             className="w-full bg-[#E67E22] hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition-colors"
           >
             Back to Dashboard

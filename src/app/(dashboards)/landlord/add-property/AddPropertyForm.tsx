@@ -23,6 +23,7 @@ import {
   Box
 } from "lucide-react";
 import Link from "next/link";
+import { SCHOOL_OPTIONS } from "@/lib/schools";
 
 // Validation Schema
 const toNumber = (value: unknown) => {
@@ -149,7 +150,7 @@ export default function AddPropertyForm() {
   const methods = useForm<PropertyFormInput, unknown, PropertyFormData>({
     resolver: zodResolver(propertySchema),
     defaultValues: {
-      targetUniversity: "BOUESTI",
+      targetUniversity: "BOUESTI - Ikere-Ekiti",
       vacantUnits: 1,
       amenities: {
         water: [],
@@ -655,10 +656,13 @@ export default function AddPropertyForm() {
                       </label>
                       <select
                         {...register("targetUniversity")}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all bg-gray-50"
-                        disabled
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all bg-white"
                       >
-                        <option value="BOUESTI">BOUESTI</option>
+                        {SCHOOL_OPTIONS.map((school) => (
+                          <option key={school.value} value={school.value}>
+                            {school.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
