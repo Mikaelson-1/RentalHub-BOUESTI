@@ -9,6 +9,7 @@ import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import type { PropertyStatus } from '@prisma/client';
 import { SCHOOL_LOCATION_KEYWORDS } from '@/lib/schools';
+import gemini from '@/lib/gemini';
 
 // ── GET — Browse approved properties ─────────────────────
 
@@ -135,26 +136,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Invalid location.' }, { status: 400 });
     }
 
-    // AI Scam check
+    // AI Scam check — run inline (no HTTP self-call) with a 7s timeout so it never blocks submission
     let aiScamFlag = false;
     let aiScamReason: string | null = null;
     try {
-      const scamRes = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/ai/check-listing`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description }),
-      });
-      if (scamRes.ok) {
-        const scamPayload = await scamRes.json();
-        if (scamPayload?.data?.flagged && scamPayload?.data?.confidence === 'high') {
+      const scamCheck = async () => {
+        const model = gemini.getGenerativeModel({
+          model: 'gemini-2.0-flash-lite',
+          systemInstruction:
+            'You are a fraud detection assistant for a Nigerian student housing platform. Analyze property listing text for scam signals commonly seen in Nigeria advance-fee fraud, particularly targeting students. Check for: urgency pressure ("pay now or lose it", "only today"), requests to pay via WhatsApp or personal bank transfer instead of platform, suspiciously low prices far below market rate for Nigerian student housing, promises that seem too good to be true, requests for advance payment before viewing, threats or emotional manipulation, unrealistic claims (mansion for ₦10k/month). Respond ONLY with valid JSON: { "flagged": boolean, "confidence": "low"|"medium"|"high", "reasons": string[] }. If not flagged, reasons should be empty array.',
+        });
+        const result = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: `Title: ${title}\nDescription: ${description}` }] }],
+          generationConfig: { maxOutputTokens: 300 },
+        });
+        const raw = result.response.text().replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+        return JSON.parse(raw) as { flagged: boolean; confidence: string; reasons: string[] };
+      };
+
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 7000));
+      const scamResult = await Promise.race([scamCheck(), timeout]);
+
+      if (scamResult) {
+        if (scamResult.flagged && scamResult.confidence === 'high') {
           return NextResponse.json(
-            { success: false, error: `Your listing was flagged for suspicious content: ${scamPayload.data.reasons.join('; ')}. Please revise your listing.` },
+            { success: false, error: `Your listing was flagged: ${scamResult.reasons.join('; ')}. Please revise.` },
             { status: 400 },
           );
         }
-        if (scamPayload?.data?.flagged) {
+        if (scamResult.flagged) {
           aiScamFlag = true;
-          aiScamReason = scamPayload.data.reasons.join('; ');
+          aiScamReason = scamResult.reasons.join('; ');
         }
       }
     } catch { /* don't block listing if AI fails */ }
