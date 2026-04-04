@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useSession } from "next-auth/react";
 import {
   ShieldCheck, Upload, User, Home, FileText,
   CheckCircle, AlertCircle, ChevronRight, ChevronLeft, Loader2,
@@ -25,6 +26,7 @@ const STEPS = [
 ];
 
 export default function VerificationPage() {
+  const { update } = useSession();
   const [step, setStep]         = useState<Step>(1);
   const [form, setForm]         = useState<FormState>({
     phoneNumber:       "",
@@ -87,6 +89,7 @@ export default function VerificationPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Submission failed");
+      await update({ verificationStatus: "UNDER_REVIEW" });
       setDone(true);
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Submission failed. Please try again.");
