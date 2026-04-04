@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import anthropic from "@/lib/anthropic";
+import gemini from "@/lib/gemini";
 
 export async function POST(request: Request) {
   try {
@@ -46,16 +46,18 @@ export async function POST(request: Request) {
       `Phone number provided: ${user.phoneNumber ? "Yes" : "No"}`,
     ].join("\n");
 
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 200,
-      system:
+    const model = gemini.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction:
         'You are a verification pre-screener for a Nigerian student housing platform. You assess landlord verification submissions based on the documents provided and declarations made. You cannot view the actual documents (they will be reviewed by a human admin), but you assess the overall completeness and risk profile of the submission. Respond ONLY with valid JSON: { "score": "PASS"|"REVIEW"|"FAIL", "note": string }. PASS = all required documents present, declarations consistent. REVIEW = documents present but some declarations need human attention. FAIL = missing critical documents or contradictory declarations.',
-      messages: [{ role: "user", content: submissionSummary }],
     });
 
-    const rawText =
-      message.content[0].type === "text" ? message.content[0].text : "{}";
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: submissionSummary }] }],
+      generationConfig: { maxOutputTokens: 200 },
+    });
+
+    const rawText = result.response.text();
 
     let parsed: { score: string; note: string };
     try {
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
       parsed = { score: "REVIEW", note: "Could not parse AI response. Manual review required." };
     }
 
-    // Update the user record with AI pre-screen result
+    // Save AI pre-screen result to the user record
     await prisma.user.update({
       where: { id: userId },
       data: {

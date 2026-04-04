@@ -6,7 +6,7 @@
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import anthropic from "@/lib/anthropic";
+import gemini from "@/lib/gemini";
 
 export async function GET(request: Request) {
   try {
@@ -64,18 +64,18 @@ export async function GET(request: Request) {
 
     const statsText = `Property type: ${propertyType || "general"}\nListings analysed: ${prices.length}\nMin: ₦${min.toLocaleString("en-NG")}\nMax: ₦${max.toLocaleString("en-NG")}\nAverage: ₦${average.toLocaleString("en-NG")}\nMedian: ₦${median.toLocaleString("en-NG")}`;
 
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 150,
-      system:
+    const model = gemini.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction:
         "You are a rental pricing advisor for Nigerian student housing. Given market statistics, write a friendly 1-2 sentence insight to help a landlord price their property competitively. Be concise and specific. Mention the median as the sweet spot.",
-      messages: [{ role: "user", content: statsText }],
     });
 
-    const insight =
-      message.content[0].type === "text"
-        ? message.content[0].text.trim()
-        : "Price competitively around the market median for best results.";
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: statsText }] }],
+      generationConfig: { maxOutputTokens: 150 },
+    });
+
+    const insight = result.response.text().trim() || "Price competitively around the market median for best results.";
 
     return NextResponse.json({
       success: true,

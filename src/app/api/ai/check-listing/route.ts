@@ -1,10 +1,10 @@
 /**
  * POST /api/ai/check-listing
- * Detects potential scam/fraud signals in a property listing using Claude claude-haiku-4-5
+ * Detects potential scam/fraud signals in a property listing using Gemini 1.5 Flash (free tier)
  */
 
 import { NextResponse } from "next/server";
-import anthropic from "@/lib/anthropic";
+import gemini from "@/lib/gemini";
 
 export async function POST(request: Request) {
   try {
@@ -18,25 +18,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 300,
-      system:
-        "You are a fraud detection assistant for a Nigerian student housing platform. Analyze property listing text for scam signals commonly seen in Nigeria advance-fee fraud, particularly targeting students. Check for: urgency pressure ('pay now or lose it', 'only today'), requests to pay via WhatsApp or personal bank transfer instead of platform, suspiciously low prices far below market rate for Nigerian student housing, promises that seem too good to be true, requests for advance payment before viewing, threats or emotional manipulation, unrealistic claims (mansion for ₦10k/month). Respond ONLY with valid JSON: { \"flagged\": boolean, \"confidence\": \"low\"|\"medium\"|\"high\", \"reasons\": string[] }. If not flagged, reasons should be empty array.",
-      messages: [
-        {
-          role: "user",
-          content: `Title: ${title}\nDescription: ${description}`,
-        },
-      ],
+    const model = gemini.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction:
+        'You are a fraud detection assistant for a Nigerian student housing platform. Analyze property listing text for scam signals commonly seen in Nigeria advance-fee fraud, particularly targeting students. Check for: urgency pressure ("pay now or lose it", "only today"), requests to pay via WhatsApp or personal bank transfer instead of platform, suspiciously low prices far below market rate for Nigerian student housing, promises that seem too good to be true, requests for advance payment before viewing, threats or emotional manipulation, unrealistic claims (mansion for ₦10k/month). Respond ONLY with valid JSON: { "flagged": boolean, "confidence": "low"|"medium"|"high", "reasons": string[] }. If not flagged, reasons should be empty array.',
     });
 
-    const rawText =
-      message.content[0].type === "text" ? message.content[0].text : "{}";
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: `Title: ${title}\nDescription: ${description}` }] }],
+      generationConfig: { maxOutputTokens: 300 },
+    });
+
+    const rawText = result.response.text();
 
     let parsed: { flagged: boolean; confidence: string; reasons: string[] };
     try {
-      // Strip markdown code fences if present
       const clean = rawText.replace(/```(?:json)?/g, "").replace(/```/g, "").trim();
       parsed = JSON.parse(clean);
     } catch {
