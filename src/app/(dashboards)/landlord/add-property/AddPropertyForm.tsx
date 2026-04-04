@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { upload } from "@vercel/blob/client";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -236,10 +237,31 @@ export default function AddPropertyForm() {
     loadLocations();
   }, []);
 
+  /**
+   * Images go through the server route (needs AI + hash analysis).
+   * Videos and documents go directly to Vercel Blob from the browser
+   * to avoid the 4.5 MB serverless body limit.
+   */
   const uploadFile = async (
     file: File,
     category: "image" | "video" | "verificationDocument",
   ) => {
+    if (category === "video" || category === "verificationDocument") {
+      // Client-side upload — browser → Vercel Blob directly
+      const blob = await upload(`uploads/${category}/${Date.now()}-${file.name}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/uploads/client-token",
+      });
+      return {
+        name: file.name,
+        type: category,
+        mimeType: file.type,
+        size: file.size,
+        url: blob.url,
+      };
+    }
+
+    // Images: server route (AI analysis + duplicate hash check)
     const formData = new FormData();
     formData.append("file", file);
     formData.append("category", category);
