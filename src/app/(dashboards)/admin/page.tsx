@@ -295,6 +295,213 @@ export default function AdminDashboard() {
     if (activePanel === "forecast") loadForecast();
   }, [activePanel, loadForecast]);
 
+  // ── Verifications panel — built outside JSX to avoid IIFE parsing issues ──
+  const awaitingReview  = verificationLandlords.filter(l => l.verificationStatus === "UNDER_REVIEW");
+  const rejectedLandlords = verificationLandlords.filter(l => l.verificationStatus === "REJECTED");
+  const suspendedLandlords = verificationLandlords.filter(l => l.verificationStatus === "SUSPENDED");
+  const notYetSubmitted = verificationLandlords.filter(l => l.verificationStatus === "UNVERIFIED");
+  const verifiedNoDocs  = verificationLandlords.filter(l => l.verificationStatus === "VERIFIED" && !l.governmentIdUrl);
+
+  const LandlordCard = ({ landlord, showApproveReject }: { landlord: VerificationLandlord; showApproveReject: boolean }) => {
+    const isUpdating = verificationUpdatingId === landlord.id;
+    return (
+      <div className="border border-gray-200 rounded-xl p-5 bg-white">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <h3 className="font-semibold text-navy">{landlord.name}</h3>
+              {landlord.aiPreScreenScore && (
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  landlord.aiPreScreenScore === "PASS"   ? "bg-green-100 text-green-700" :
+                  landlord.aiPreScreenScore === "FAIL"   ? "bg-red-100 text-red-700" :
+                  "bg-yellow-100 text-yellow-700"
+                }`}>AI: {landlord.aiPreScreenScore}</span>
+              )}
+            </div>
+            <p className="text-sm text-gray-500">{landlord.email}</p>
+            {landlord.aiPreScreenNote && (
+              <p className="text-xs text-gray-400 mt-1 italic">&quot;{landlord.aiPreScreenNote}&quot;</p>
+            )}
+            <div className="flex flex-wrap gap-3 mt-3">
+              {landlord.governmentIdUrl ? (
+                <a href={landlord.governmentIdUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                  📄 View Gov ID
+                </a>
+              ) : <span className="text-xs text-gray-400 italic">No Gov ID uploaded</span>}
+              {landlord.selfieUrl ? (
+                <a href={landlord.selfieUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                  🤳 View Selfie
+                </a>
+              ) : <span className="text-xs text-gray-400 italic">No selfie uploaded</span>}
+              {landlord.ownershipProofUrl ? (
+                <a href={landlord.ownershipProofUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                  🏠 View Ownership Proof
+                </a>
+              ) : <span className="text-xs text-gray-400 italic">No ownership proof uploaded</span>}
+            </div>
+            {landlord.verificationSubmittedAt && (
+              <p className="text-xs text-gray-400 mt-2">
+                Submitted: {new Date(landlord.verificationSubmittedAt).toLocaleDateString("en-NG", { dateStyle: "medium" })}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            {showApproveReject && (
+              <>
+                <button
+                  disabled={isUpdating}
+                  onClick={() => updateVerification(landlord.id, "APPROVE")}
+                  className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
+                >{isUpdating ? "Saving…" : "✓ Approve"}</button>
+                <button
+                  disabled={isUpdating}
+                  onClick={async () => {
+                    const note = prompt("Enter rejection reason (will be emailed to the landlord):");
+                    if (!note?.trim()) return;
+                    await updateVerification(landlord.id, "REJECT", note.trim());
+                  }}
+                  className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
+                >{isUpdating ? "Saving…" : "✕ Reject"}</button>
+              </>
+            )}
+            {landlord.verificationStatus === "SUSPENDED" ? (
+              <button
+                disabled={isUpdating}
+                onClick={() => updateVerification(landlord.id, "UNSUSPEND")}
+                className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >{isUpdating ? "Saving…" : "Unsuspend"}</button>
+            ) : (
+              <button
+                disabled={isUpdating}
+                onClick={async () => {
+                  if (!confirm(`Suspend ${landlord.name}? They will lose dashboard access.`)) return;
+                  await updateVerification(landlord.id, "SUSPEND");
+                }}
+                className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >{isUpdating ? "Saving…" : "Suspend"}</button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const verificationsPanel = (
+    <div className="space-y-8">
+      {verificationError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{verificationError}</div>
+      )}
+      {verificationSuccess && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{verificationSuccess}</div>
+      )}
+      {verificationLandlords.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">No landlords need attention</p>
+          <p className="text-gray-400 text-sm mt-1">All verification submissions have been reviewed</p>
+        </div>
+      )}
+      {awaitingReview.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+            <h3 className="font-semibold text-gray-800">Awaiting Your Review ({awaitingReview.length})</h3>
+            <span className="text-xs text-gray-400">— Open the document links, then Approve or Reject</span>
+          </div>
+          <div className="space-y-3">
+            {awaitingReview.map(l => <LandlordCard key={l.id} landlord={l} showApproveReject={true} />)}
+          </div>
+        </div>
+      )}
+      {rejectedLandlords.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-400 shrink-0" />
+            <h3 className="font-semibold text-gray-800">Previously Rejected ({rejectedLandlords.length})</h3>
+            <span className="text-xs text-gray-400">— Check if they have resubmitted new documents</span>
+          </div>
+          <div className="space-y-3">
+            {rejectedLandlords.map(l => <LandlordCard key={l.id} landlord={l} showApproveReject={!!l.governmentIdUrl} />)}
+          </div>
+        </div>
+      )}
+      {suspendedLandlords.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-gray-500 shrink-0" />
+            <h3 className="font-semibold text-gray-800">Suspended ({suspendedLandlords.length})</h3>
+          </div>
+          <div className="space-y-3">
+            {suspendedLandlords.map(l => <LandlordCard key={l.id} landlord={l} showApproveReject={false} />)}
+          </div>
+        </div>
+      )}
+      {verifiedNoDocs.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0" />
+            <h3 className="font-semibold text-gray-800">Verified Without Documents ({verifiedNoDocs.length})</h3>
+            <span className="text-xs text-gray-400">— Marked verified before document submission was required</span>
+          </div>
+          <div className="space-y-3">
+            {verifiedNoDocs.map(l => {
+              const isUpdating = verificationUpdatingId === l.id;
+              return (
+                <div key={l.id} className="border border-amber-200 rounded-xl p-5 bg-amber-50 flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <p className="font-semibold text-gray-800">{l.name}</p>
+                    <p className="text-sm text-gray-500">{l.email}</p>
+                  </div>
+                  <button
+                    disabled={isUpdating}
+                    onClick={async () => {
+                      if (!confirm(`Reset ${l.name}'s verification? They must re-submit documents before being re-approved.`)) return;
+                      await updateVerification(l.id, "RESET");
+                    }}
+                    className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >{isUpdating ? "Saving…" : "Reset & Require Documents"}</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {notYetSubmitted.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 shrink-0" />
+            <h3 className="font-semibold text-gray-800">Not Yet Submitted ({notYetSubmitted.length})</h3>
+            <span className="text-xs text-gray-400">— Waiting for landlord to complete the verification form</span>
+          </div>
+          <div className="space-y-3">
+            {notYetSubmitted.map(l => {
+              const isUpdating = verificationUpdatingId === l.id;
+              return (
+                <div key={l.id} className="border border-gray-200 rounded-xl p-4 bg-white flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <p className="font-semibold text-gray-800">{l.name}</p>
+                    <p className="text-sm text-gray-500">{l.email}</p>
+                    <p className="text-xs text-yellow-600 mt-1">No documents submitted yet — no action required until they apply</p>
+                  </div>
+                  <button
+                    disabled={isUpdating}
+                    onClick={async () => {
+                      if (!confirm(`Suspend ${l.name}?`)) return;
+                      await updateVerification(l.id, "SUSPEND");
+                    }}
+                    className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >{isUpdating ? "Saving…" : "Suspend"}</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -669,233 +876,8 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
-          ) : activePanel === "verifications" ? (() => {
-              const awaitingReview   = verificationLandlords.filter(l => l.verificationStatus === "UNDER_REVIEW");
-              const rejected         = verificationLandlords.filter(l => l.verificationStatus === "REJECTED");
-              const suspended        = verificationLandlords.filter(l => l.verificationStatus === "SUSPENDED");
-              const notYetSubmitted  = verificationLandlords.filter(l => l.verificationStatus === "UNVERIFIED");
-              const verifiedNoDocs   = verificationLandlords.filter(l => l.verificationStatus === "VERIFIED" && !l.governmentIdUrl);
-
-              const LandlordCard = ({ landlord, showApproveReject }: { landlord: VerificationLandlord; showApproveReject: boolean }) => {
-                const isUpdating = verificationUpdatingId === landlord.id;
-                return (
-                  <div className="border border-gray-200 rounded-xl p-5 bg-white">
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h3 className="font-semibold text-navy">{landlord.name}</h3>
-                          {landlord.aiPreScreenScore && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              landlord.aiPreScreenScore === "PASS"   ? "bg-green-100 text-green-700" :
-                              landlord.aiPreScreenScore === "FAIL"   ? "bg-red-100 text-red-700" :
-                              "bg-yellow-100 text-yellow-700"
-                            }`}>AI: {landlord.aiPreScreenScore}</span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-500">{landlord.email}</p>
-                        {landlord.aiPreScreenNote && (
-                          <p className="text-xs text-gray-400 mt-1 italic">&quot;{landlord.aiPreScreenNote}&quot;</p>
-                        )}
-
-                        {/* Document links */}
-                        <div className="flex flex-wrap gap-3 mt-3">
-                          {landlord.governmentIdUrl ? (
-                            <a href={landlord.governmentIdUrl} target="_blank" rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
-                              📄 View Gov ID
-                            </a>
-                          ) : <span className="text-xs text-gray-400 italic">No Gov ID uploaded</span>}
-                          {landlord.selfieUrl ? (
-                            <a href={landlord.selfieUrl} target="_blank" rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
-                              🤳 View Selfie
-                            </a>
-                          ) : <span className="text-xs text-gray-400 italic">No selfie uploaded</span>}
-                          {landlord.ownershipProofUrl ? (
-                            <a href={landlord.ownershipProofUrl} target="_blank" rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
-                              🏠 View Ownership Proof
-                            </a>
-                          ) : <span className="text-xs text-gray-400 italic">No ownership proof uploaded</span>}
-                        </div>
-
-                        {landlord.verificationSubmittedAt && (
-                          <p className="text-xs text-gray-400 mt-2">
-                            Submitted: {new Date(landlord.verificationSubmittedAt).toLocaleDateString("en-NG", { dateStyle: "medium" })}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 shrink-0">
-                        {/* Approve + Reject — only for landlords who have submitted documents */}
-                        {showApproveReject && (
-                          <>
-                            <button
-                              disabled={isUpdating}
-                              onClick={() => updateVerification(landlord.id, "APPROVE")}
-                              className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
-                            >{isUpdating ? "Saving…" : "✓ Approve"}</button>
-                            <button
-                              disabled={isUpdating}
-                              onClick={async () => {
-                                const note = prompt("Enter rejection reason (will be emailed to the landlord):");
-                                if (!note?.trim()) return;
-                                await updateVerification(landlord.id, "REJECT", note.trim());
-                              }}
-                              className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
-                            >{isUpdating ? "Saving…" : "✕ Reject"}</button>
-                          </>
-                        )}
-
-                        {/* Suspend / Unsuspend */}
-                        {landlord.verificationStatus === "SUSPENDED" ? (
-                          <button
-                            disabled={isUpdating}
-                            onClick={() => updateVerification(landlord.id, "UNSUSPEND")}
-                            className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                          >{isUpdating ? "Saving…" : "Unsuspend"}</button>
-                        ) : (
-                          <button
-                            disabled={isUpdating}
-                            onClick={async () => {
-                              if (!confirm(`Suspend ${landlord.name}? They will lose dashboard access.`)) return;
-                              await updateVerification(landlord.id, "SUSPEND");
-                            }}
-                            className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                          >{isUpdating ? "Saving…" : "Suspend"}</button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              };
-
-              return (
-                <div className="space-y-8">
-                  {verificationError && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{verificationError}</div>
-                  )}
-                  {verificationSuccess && (
-                    <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{verificationSuccess}</div>
-                  )}
-
-                  {verificationLandlords.length === 0 && (
-                    <div className="text-center py-12">
-                      <p className="text-gray-500 text-lg">No landlords need attention</p>
-                      <p className="text-gray-400 text-sm mt-1">All verification submissions have been reviewed</p>
-                    </div>
-                  )}
-
-                  {/* ── Section 1: Awaiting your review ── */}
-                  {awaitingReview.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                        <h3 className="font-semibold text-gray-800">Awaiting Your Review ({awaitingReview.length})</h3>
-                        <span className="text-xs text-gray-400">— Open the document links, then Approve or Reject</span>
-                      </div>
-                      <div className="space-y-3">
-                        {awaitingReview.map(l => <LandlordCard key={l.id} landlord={l} showApproveReject={true} />)}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── Section 2: Previously rejected, may have resubmitted ── */}
-                  {rejected.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                        <h3 className="font-semibold text-gray-800">Previously Rejected ({rejected.length})</h3>
-                        <span className="text-xs text-gray-400">— Check if they have resubmitted new documents</span>
-                      </div>
-                      <div className="space-y-3">
-                        {rejected.map(l => <LandlordCard key={l.id} landlord={l} showApproveReject={!!l.governmentIdUrl} />)}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── Section 3: Suspended ── */}
-                  {suspended.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="w-2.5 h-2.5 rounded-full bg-gray-500" />
-                        <h3 className="font-semibold text-gray-800">Suspended ({suspended.length})</h3>
-                      </div>
-                      <div className="space-y-3">
-                        {suspended.map(l => <LandlordCard key={l.id} landlord={l} showApproveReject={false} />)}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── Section 4: Verified without documents ── */}
-                  {verifiedNoDocs.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                        <h3 className="font-semibold text-gray-800">Verified Without Documents ({verifiedNoDocs.length})</h3>
-                        <span className="text-xs text-gray-400">— These accounts were marked verified before documents were required</span>
-                      </div>
-                      <div className="space-y-3">
-                        {verifiedNoDocs.map(l => {
-                          const isUpdating = verificationUpdatingId === l.id;
-                          return (
-                            <div key={l.id} className="border border-amber-200 rounded-xl p-5 bg-amber-50">
-                              <div className="flex items-center justify-between flex-wrap gap-3">
-                                <div>
-                                  <p className="font-semibold text-gray-800">{l.name}</p>
-                                  <p className="text-sm text-gray-500">{l.email}</p>
-                                </div>
-                                <button
-                                  disabled={isUpdating}
-                                  onClick={async () => {
-                                    if (!confirm(`Reset ${l.name}'s verification? They must re-submit documents before being re-approved.`)) return;
-                                    await updateVerification(l.id, "RESET");
-                                  }}
-                                  className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                                >{isUpdating ? "Saving…" : "Reset & Require Documents"}</button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── Section 5: Not yet submitted ── */}
-                  {notYetSubmitted.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                        <h3 className="font-semibold text-gray-800">Not Yet Submitted ({notYetSubmitted.length})</h3>
-                        <span className="text-xs text-gray-400">— Waiting for landlord to complete the verification form</span>
-                      </div>
-                      <div className="space-y-3">
-                        {notYetSubmitted.map(l => {
-                          const isUpdating = verificationUpdatingId === l.id;
-                          return (
-                            <div key={l.id} className="border border-gray-200 rounded-xl p-4 bg-white flex items-center justify-between flex-wrap gap-3">
-                              <div>
-                                <p className="font-semibold text-gray-800">{l.name}</p>
-                                <p className="text-sm text-gray-500">{l.email}</p>
-                                <p className="text-xs text-yellow-600 mt-1">No documents submitted yet — no action required until they apply</p>
-                              </div>
-                              <button
-                                disabled={isUpdating}
-                                onClick={async () => {
-                                  if (!confirm(`Suspend ${l.name}?`)) return;
-                                  await updateVerification(l.id, "SUSPEND");
-                                }}
-                                className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                              >{isUpdating ? "Saving…" : "Suspend"}</button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })()
+          ) : activePanel === "verifications" ? (
+              verificationsPanel
           ) : activePanel === "forecast" ? (
             <div>
               {forecastLoading ? (
