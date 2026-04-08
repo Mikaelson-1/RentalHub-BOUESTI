@@ -38,6 +38,7 @@ function createTransporter() {
 
 const FROM = process.env.EMAIL_FROM ?? "RentalHub <no-reply@rentalhub.ng>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 // ── Shared send helper ───────────────────────────────────────────────────────
 
@@ -46,8 +47,39 @@ async function sendMail(options: {
   subject: string;
   html: string;
 }) {
+  // Preferred path: Resend API (if configured)
+  if (RESEND_API_KEY) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: FROM,
+          to: [options.to],
+          subject: options.subject,
+          html: options.html,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.text();
+        console.error("[email] Resend send failed:", response.status, payload);
+      }
+      return;
+    } catch (err) {
+      console.error("[email] Resend transport error:", err);
+      // fall through to SMTP attempt
+    }
+  }
+
   const transporter = createTransporter();
-  if (!transporter) return; // silently skip if not configured
+  if (!transporter) {
+    console.warn("[email] No email provider configured. Set RESEND_API_KEY or SMTP vars.");
+    return;
+  }
 
   try {
     await transporter.sendMail({ from: FROM, ...options });
