@@ -73,11 +73,19 @@ export async function POST(request: Request) {
     if (existing) {
       if (!existing.emailVerified) {
         const otp = await createEmailOtp(existing.id, existing.email);
-        sendEmailVerificationOtp({
+        const sent = await sendEmailVerificationOtp({
           to: existing.email,
           name: existing.name,
           otpCode: otp,
-        }).catch((err) => logger.error("[REGISTER OTP RESEND ERROR]", { error: String(err) }));
+        });
+
+        if (!sent) {
+          logger.error("[REGISTER OTP RESEND ERROR]", { error: "Email provider returned unsuccessful delivery status." });
+          return NextResponse.json(
+            { success: false, error: "We couldn't send OTP right now. Please use Resend OTP on the verify page in a few seconds." },
+            { status: 502 },
+          );
+        }
 
         await notifyUser({
           userId: existing.id,
@@ -124,11 +132,22 @@ export async function POST(request: Request) {
     });
 
     const otp = await createEmailOtp(user.id, user.email);
-    sendEmailVerificationOtp({
+    const sent = await sendEmailVerificationOtp({
       to: user.email,
       name: user.name,
       otpCode: otp,
-    }).catch((err) => logger.error("[REGISTER OTP EMAIL ERROR]", { error: String(err) }));
+    });
+
+    if (!sent) {
+      logger.error("[REGISTER OTP EMAIL ERROR]", { error: "Email provider returned unsuccessful delivery status." });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Account created, but OTP email could not be sent right now. Please open verify-email and tap Resend OTP.",
+        },
+        { status: 502 },
+      );
+    }
 
     await notifyUser({
       userId: user.id,

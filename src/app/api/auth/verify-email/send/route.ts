@@ -37,11 +37,18 @@ export async function POST(request: Request) {
     }
 
     const otp = await createEmailOtp(user.id, user.email);
-    sendEmailVerificationOtp({
+    const sent = await sendEmailVerificationOtp({
       to: user.email,
       name: user.name,
       otpCode: otp,
-    }).catch((err) => console.error("[email] verify otp send failed:", err));
+    });
+
+    if (!sent) {
+      return NextResponse.json(
+        { success: false, error: "Unable to send OTP right now. Please try again shortly." },
+        { status: 502 },
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -52,4 +59,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Failed to send verification OTP." }, { status: 500 });
   }
 }
-

@@ -46,7 +46,7 @@ async function sendMail(options: {
   to: string;
   subject: string;
   html: string;
-}) {
+}): Promise<boolean> {
   // Preferred path: Resend API (if configured)
   if (RESEND_API_KEY) {
     try {
@@ -67,8 +67,9 @@ async function sendMail(options: {
       if (!response.ok) {
         const payload = await response.text();
         console.error("[email] Resend send failed:", response.status, payload);
+        return false;
       }
-      return;
+      return true;
     } catch (err) {
       console.error("[email] Resend transport error:", err);
       // fall through to SMTP attempt
@@ -78,14 +79,16 @@ async function sendMail(options: {
   const transporter = createTransporter();
   if (!transporter) {
     console.warn("[email] No email provider configured. Set RESEND_API_KEY or SMTP vars.");
-    return;
+    return false;
   }
 
   try {
     await transporter.sendMail({ from: FROM, ...options });
+    return true;
   } catch (err) {
     // Log but never throw — email errors must not break primary flows
     console.error("[email] Failed to send email:", err);
+    return false;
   }
 }
 
@@ -166,7 +169,7 @@ export async function sendEmailVerificationOtp(options: {
   const { to, name, otpCode } = options;
   const verifyUrl = `${APP_URL}/verify-email?email=${encodeURIComponent(to)}`;
 
-  await sendMail({
+  return await sendMail({
     to,
     subject: "Verify your RentalHub account",
     html: wrap("Email Verification", `
