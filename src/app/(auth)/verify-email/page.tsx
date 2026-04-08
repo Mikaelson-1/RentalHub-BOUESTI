@@ -3,11 +3,9 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 
 function VerifyEmailContent() {
   const params = useSearchParams();
-  const router = useRouter();
 
   const initialEmail = useMemo(() => params.get("email") ?? "", [params]);
   const [email, setEmail] = useState(initialEmail);
@@ -16,6 +14,7 @@ function VerifyEmailContent() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -34,7 +33,7 @@ function VerifyEmailContent() {
         throw new Error(payload?.error || "Failed to verify OTP.");
       }
       setSuccess(payload.message || "Email verified successfully.");
-      setTimeout(() => router.push("/login"), 1800);
+      setIsVerified(true);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Failed to verify OTP.");
     } finally {
@@ -106,20 +105,29 @@ function VerifyEmailContent() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isVerified}
             className="w-full bg-[#E67E22] hover:bg-[#D35400] disabled:opacity-50 text-white font-semibold py-3 rounded-lg"
           >
-            {loading ? "Verifying..." : "Verify Email"}
+            {loading ? "Verifying..." : isVerified ? "Verified" : "Verify Email"}
           </button>
 
           <button
             type="button"
             onClick={() => void onResend()}
-            disabled={resending}
+            disabled={resending || isVerified}
             className="w-full border border-[#192F59] text-[#192F59] hover:bg-gray-50 disabled:opacity-50 font-semibold py-3 rounded-lg"
           >
             {resending ? "Resending..." : "Resend OTP"}
           </button>
+
+          {isVerified && (
+            <Link
+              href={`/login?email=${encodeURIComponent(email)}`}
+              className="block w-full bg-[#192F59] hover:bg-[#152647] text-white text-center font-semibold py-3 rounded-lg"
+            >
+              Continue to Login
+            </Link>
+          )}
         </form>
 
         <p className="mt-6 text-sm text-gray-600 text-center">

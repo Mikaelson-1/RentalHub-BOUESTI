@@ -684,3 +684,31 @@ export async function sendBookingExpiredToStudent(options: {
     `),
   });
 }
+
+/** Admin-only utility for checking provider delivery from runtime */
+export async function sendTestEmail(options: {
+  to: string;
+  requestedBy?: string;
+}) {
+  const { to, requestedBy } = options;
+  const dashboardUrl = `${APP_URL}/admin`;
+
+  await sendMail({
+    to,
+    subject: "RentalHub email test",
+    html: wrap("Email Test", `
+      <p>This is a test email from RentalHub.</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:160px;">Recipient</td><td style="padding:8px 0;">${to}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Provider mode</td><td style="padding:8px 0;">${RESEND_API_KEY ? "Resend API" : "SMTP fallback"}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Requested by</td><td style="padding:8px 0;">${requestedBy ?? "Unknown"}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Time</td><td style="padding:8px 0;">${new Date().toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</td></tr>
+      </table>
+      <p style="margin:28px 0;">
+        <a href="${dashboardUrl}" style="background:#192F59;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          Open Admin Dashboard
+        </a>
+      </p>
+    `),
+  });
+}
