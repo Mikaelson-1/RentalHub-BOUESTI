@@ -88,7 +88,12 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     // Fetch the booking and verify the landlord owns the property
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        bidAmount: true,
+        amount: true,
+        studentId: true,
         property: {
           select: {
             id: true,
@@ -112,45 +117,129 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       return NextResponse.json({ success: false, error: 'You can only manage bookings for your own properties.' }, { status: 403 });
     }
 
-    // Can only update bookings that are still PENDING
-    if (booking.status !== 'PENDING') {
+    if (status === "CONFIRMED" && booking.status !== "PENDING") {
       return NextResponse.json(
-        { success: false, error: `Cannot update a booking that is already ${booking.status}.` },
+        { success: false, error: `Cannot confirm a booking that is already ${booking.status}.` },
         { status: 409 },
       );
     }
 
-    if (status === "CONFIRMED") {
-      const pendingForProperty = await prisma.booking.findMany({
-        where: {
-          propertyId: booking.property.id,
-          status: "PENDING",
-        },
-        select: { id: true, bidAmount: true },
-      });
-
-      if (pendingForProperty.length >= 2) {
-        const highestBid = Math.max(...pendingForProperty.map((entry) => Number(entry.bidAmount ?? booking.property.price)));
-        const currentBid = Number(booking.bidAmount ?? booking.property.price);
-        if (currentBid < highestBid) {
-          return NextResponse.json(
-            { success: false, error: `Only highest bid can be accepted. Highest bid is ₦${Math.round(highestBid).toLocaleString("en-NG")}.` },
-            { status: 409 },
-          );
-        }
-      }
-    }
+    let transactionError: { status: number; error: string } | null = null;
+    let autoCancelledLosingBids: {
+      id: string;
+      student: { id: string; name: string; email: string };
+      property: { title: string; location: { name: string } };
+    }[] = [];
 
     const updated = await prisma.$transaction(async (tx) => {
-      const selected = await tx.booking.update({
+      if (status === "CONFIRMED") {
+        await tx.$queryRaw`SELECT id FROM "properties" WHERE id = ${booking.property.id} FOR UPDATE`;
+
+        const currentBooking = await tx.booking.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            status: true,
+            propertyId: true,
+            bidAmount: true,
+            amount: true,
+            property: { select: { price: true } },
+          },
+        });
+
+        if (!currentBooking) {
+          transactionError = { status: 404, error: "Booking not found." };
+          return null;
+        }
+
+        if (currentBooking.status !== "PENDING") {
+          transactionError = { status: 409, error: `Cannot confirm a booking that is already ${currentBooking.status}.` };
+          return null;
+        }
+
+        const [pendingForProperty, acceptedBooking] = await Promise.all([
+          tx.booking.findMany({
+            where: { propertyId: currentBooking.propertyId, status: "PENDING" },
+            select: { id: true, bidAmount: true },
+          }),
+          tx.booking.findFirst({
+            where: {
+              propertyId: currentBooking.propertyId,
+              id: { not: currentBooking.id },
+              status: { in: ["AWAITING_PAYMENT", "PAID"] },
+            },
+            select: { id: true },
+          }),
+        ]);
+
+        if (acceptedBooking) {
+          transactionError = {
+            status: 409,
+            error: "A booking for this property is already accepted. Cancel it first to accept another bid.",
+          };
+          return null;
+        }
+
+        if (pendingForProperty.length >= 2) {
+          const highestBid = Math.max(...pendingForProperty.map((entry) => Number(entry.bidAmount ?? currentBooking.property.price)));
+          const currentBid = Number(currentBooking.bidAmount ?? currentBooking.property.price);
+          if (currentBid < highestBid) {
+            transactionError = {
+              status: 409,
+              error: `Only highest bid can be accepted. Highest bid is ₦${Math.round(highestBid).toLocaleString("en-NG")}.`,
+            };
+            return null;
+          }
+        }
+
+        autoCancelledLosingBids = await tx.booking.findMany({
+          where: {
+            propertyId: currentBooking.propertyId,
+            id: { not: currentBooking.id },
+            status: "PENDING",
+          },
+          select: {
+            id: true,
+            student: { select: { id: true, name: true, email: true } },
+            property: { select: { title: true, location: { select: { name: true } } } },
+          },
+        });
+
+        const selected = await tx.booking.update({
+          where: { id },
+          data: {
+            status: "AWAITING_PAYMENT",
+            amount: currentBooking.bidAmount ?? currentBooking.amount ?? currentBooking.property.price,
+            expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+          },
+          include: {
+            student:  { select: { id: true, name: true, email: true } },
+            property: {
+              select: {
+                id: true,
+                title: true,
+                location: { select: { name: true } },
+                landlord: { select: { id: true, name: true } },
+              },
+            },
+          },
+        });
+
+        await tx.booking.updateMany({
+          where: {
+            propertyId: currentBooking.propertyId,
+            id: { not: currentBooking.id },
+            status: "PENDING",
+          },
+          data: { status: "CANCELLED" },
+        });
+
+        return selected;
+      }
+
+      return tx.booking.update({
         where: { id },
-        data: status === "CONFIRMED"
-          ? {
-              status: "AWAITING_PAYMENT",
-              amount: booking.bidAmount ?? booking.amount ?? booking.property.price,
-              expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
-            }
-          : { status },
+        data: { status },
         include: {
           student:  { select: { id: true, name: true, email: true } },
           property: {
@@ -163,20 +252,16 @@ export async function PATCH(request: Request, { params }: RouteContext) {
           },
         },
       });
-
-      if (status === "CONFIRMED") {
-        await tx.booking.updateMany({
-          where: {
-            propertyId: booking.property.id,
-            id: { not: id },
-            status: "PENDING",
-          },
-          data: { status: "CANCELLED" },
-        });
-      }
-
-      return selected;
     });
+
+    const txError = transactionError as { status: number; error: string } | null;
+    if (txError) {
+      return NextResponse.json({ success: false, error: txError.error }, { status: txError.status });
+    }
+
+    if (!updated) {
+      return NextResponse.json({ success: false, error: "Failed to update booking." }, { status: 500 });
+    }
 
     if (status === "CONFIRMED") {
       sendBookingConfirmedToStudent({
@@ -194,6 +279,27 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         message: `${updated.property.title} was confirmed. Complete payment within 48 hours.`,
         link: `/student/bookings/${updated.id}`,
       });
+
+      if (autoCancelledLosingBids.length > 0) {
+        await Promise.all(
+          autoCancelledLosingBids.map(async (loser) => {
+            await notifyUser({
+              userId: loser.student.id,
+              type: "BOOKING",
+              title: "Bid not selected",
+              message: `Another student placed a higher winning bid for ${loser.property.title}.`,
+              link: "/student?tab=bookings",
+            });
+            await sendBookingCancelledToStudent({
+              studentEmail: loser.student.email,
+              studentName: loser.student.name,
+              propertyTitle: loser.property.title,
+              propertyLocation: loser.property.location.name,
+              cancelledBy: "landlord",
+            });
+          }),
+        );
+      }
     }
 
     if (status === "CANCELLED") {
