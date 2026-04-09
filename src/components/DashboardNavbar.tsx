@@ -38,7 +38,7 @@ export default function DashboardNavbar() {
           <Link href="/" className="flex items-center flex-shrink-0">
             <Image
               src="/logo.png"
-              alt="RentalHub NG"
+              alt="RentalHub"
               width={180}
               height={40}
               className="h-10 w-auto"

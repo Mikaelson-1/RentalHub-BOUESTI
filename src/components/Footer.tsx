@@ -9,7 +9,7 @@ export default function Footer() {
           <div>
             <Image
               src="/logo.png"
-              alt="RentalHub NG"
+              alt="RentalHub"
               width={180}
               height={40}
               className="h-9 w-auto"
@@ -46,7 +46,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 pt-6 border-t border-gray-200 text-xs text-black">
-          © {new Date().getFullYear()} RentalHub NG. All rights reserved.
+          © {new Date().getFullYear()} RentalHub. All rights reserved.
         </div>
       </div>
     </footer>

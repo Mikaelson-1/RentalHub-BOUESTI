@@ -24,6 +24,7 @@ interface PropertyDetail {
 interface BookingItem {
   id: string;
   status: BookingStatus;
+  bidAmount: number | null;
   paymentStatus: PaymentStatus | null;
   createdAt: string;
   expiresAt: string | null;
@@ -154,6 +155,7 @@ function StudentDashboardInner() {
   const [bookingPropertyId, setBookingPropertyId] = useState("");
   const [updatingBookingId, setUpdatingBookingId] = useState("");
   const [payingBookingId, setPayingBookingId] = useState("");
+  const [bidDrafts, setBidDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
 
   const loadStudentData = useCallback(async () => {
@@ -189,14 +191,18 @@ function StudentDashboardInner() {
     loadStudentData();
   }, [loadStudentData]);
 
-  const bookProperty = async (propertyId: string) => {
+  const bookProperty = async (propertyId: string, fallbackPrice: number | string) => {
     setBookingPropertyId(propertyId);
     setError("");
     try {
+      const bidValue = bidDrafts[propertyId] === undefined || bidDrafts[propertyId] === ""
+        ? Number(fallbackPrice)
+        : Number(bidDrafts[propertyId]);
+
       const response = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ propertyId }),
+        body: JSON.stringify({ propertyId, bidAmount: bidValue }),
       });
       const payload = await response.json();
       if (!response.ok || !payload?.success) throw new Error(payload?.error || "Failed to create booking.");
@@ -351,12 +357,25 @@ function StudentDashboardInner() {
                           <MapPin className="w-3 h-3" /> {property.location.name}
                         </p>
                         <p className="text-primary-green font-bold mt-2">{formatPrice(property.price)}<span className="text-xs text-gray-400 font-normal">/yr</span></p>
+                        <div className="mt-3">
+                          <label className="text-[11px] text-gray-500 block mb-1">Your bid (naira)</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={bidDrafts[property.id] ?? ""}
+                            onChange={(event) =>
+                              setBidDrafts((prev) => ({ ...prev, [property.id]: event.target.value }))
+                            }
+                            placeholder={`${Number(property.price)}`}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E67E22]/20 focus:border-[#E67E22]"
+                          />
+                        </div>
                         <div className="flex gap-2 mt-3">
                           <Link href={`/properties/${property.id}`} className="flex-1 text-center text-sm border border-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-colors">
                             View
                           </Link>
                           <button
-                            onClick={() => bookProperty(property.id)}
+                            onClick={() => bookProperty(property.id, property.price)}
                             disabled={booked || bookingPropertyId === property.id}
                             className="flex-1 bg-amber-400 hover:bg-amber-500 disabled:bg-gray-200 disabled:text-gray-400 text-gray-900 font-semibold py-2 rounded-lg transition-colors text-sm"
                           >
@@ -412,6 +431,9 @@ function StudentDashboardInner() {
                         <span className="text-xs text-gray-400">{Number(booking.property.distanceToCampus)} km to campus</span>
                       )}
                     </div>
+                    <p className="mt-2 text-sm text-gray-700">
+                      Your bid: <span className="font-semibold text-[#00A553]">{formatPrice(booking.bidAmount ?? booking.property.price)}</span>
+                    </p>
 
                     {/* Description */}
                     {booking.property.description && (

@@ -4,7 +4,7 @@ export default function TermsPage() {
       <div className="max-w-3xl mx-auto bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
         <h1 className="text-3xl font-bold text-[#192F59]">Terms of Service</h1>
         <p className="text-gray-600 mt-4">
-          By using RentalHub NG, you agree to the terms below. These terms govern platform use by students, landlords,
+          By using RentalHub, you agree to the terms below. These terms govern platform use by students, landlords,
           and administrators.
         </p>
 

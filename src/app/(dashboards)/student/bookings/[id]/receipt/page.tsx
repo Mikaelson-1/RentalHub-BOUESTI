@@ -92,7 +92,7 @@ export default function ReceiptPage() {
         <div className="bg-[#192F59] text-white px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">RentalHub NG</h1>
+              <h1 className="text-2xl font-bold">RentalHub</h1>
               <p className="text-blue-200 text-sm mt-0.5">Student Housing Platform</p>
             </div>
             <div className="text-right">
@@ -199,7 +199,7 @@ export default function ReceiptPage() {
 
           {/* Footer */}
           <div className="text-center text-xs text-gray-400 pt-2">
-            <p>This is an official payment receipt from RentalHub NG.</p>
+            <p>This is an official payment receipt from RentalHub.</p>
             <p className="mt-0.5">Booking ID: {booking.id}</p>
           </div>
         </div>

@@ -21,6 +21,7 @@ interface Listing {
 interface BookingRequest {
   id: string;
   status: "PENDING" | "CONFIRMED" | "AWAITING_PAYMENT" | "PAID" | "CANCELLED" | "EXPIRED";
+  bidAmount: number | null;
   createdAt: string;
   student: {
     name: string;
@@ -28,6 +29,7 @@ interface BookingRequest {
   property: {
     id: string;
     title: string;
+    price: number | string;
   };
 }
 
@@ -227,6 +229,31 @@ export default function LandlordDashboard() {
     return map[status] ?? "bg-gray-100 text-gray-600";
   };
 
+  const bidAmountValue = (request: BookingRequest) => Number(request.bidAmount ?? request.property.price);
+
+  const highestBidByProperty = useMemo(() => {
+    const pendingGroups = requests.filter((request) => request.status === "PENDING").reduce<Record<string, BookingRequest[]>>((acc, request) => {
+      acc[request.property.id] = acc[request.property.id] ? [...acc[request.property.id], request] : [request];
+      return acc;
+    }, {});
+
+    return Object.fromEntries(
+      Object.entries(pendingGroups).map(([propertyId, entries]) => [
+        propertyId,
+        {
+          total: entries.length,
+          maxBid: Math.max(...entries.map((entry) => bidAmountValue(entry))),
+        },
+      ]),
+    );
+  }, [requests]);
+
+  const canAcceptRequest = (request: BookingRequest) => {
+    const metrics = highestBidByProperty[request.property.id];
+    if (!metrics || metrics.total < 2) return true;
+    return bidAmountValue(request) >= metrics.maxBid;
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
@@ -393,16 +420,26 @@ export default function LandlordDashboard() {
                     <div>
                       <h3 className="font-semibold text-navy">{request.student.name}</h3>
                       <p className="text-gray-600 text-sm">Interested in: {request.property.title}</p>
+                      <p className="text-gray-700 text-sm mt-1">
+                        Bid: <span className="font-semibold text-[#00A553]">{formatPrice(bidAmountValue(request))}</span>
+                      </p>
+                      <p className="text-gray-500 text-xs mt-1">Listed price: {formatPrice(request.property.price)}</p>
                       <p className="text-gray-500 text-xs mt-1">
                         Requested on {new Date(request.createdAt).toLocaleDateString()}
                       </p>
+                      {(highestBidByProperty[request.property.id]?.total ?? 0) >= 2 && (
+                        <p className="text-xs text-orange-700 mt-1">
+                          Multiple bids detected. Only highest bid can be accepted.
+                        </p>
+                      )}
                     </div>
                     {request.status === "PENDING" ? (
                       <div className="flex gap-2">
                         <button
                           onClick={() => updateRequestStatus(request.id, "CONFIRMED")}
-                          disabled={updatingRequestId === request.id}
-                          className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-3 py-1 rounded-md text-sm"
+                          disabled={updatingRequestId === request.id || !canAcceptRequest(request)}
+                          className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1 rounded-md text-sm"
+                          title={!canAcceptRequest(request) ? "Only highest bid can be accepted when there are multiple requests." : undefined}
                         >
                           Accept
                         </button>

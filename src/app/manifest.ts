@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "RentalHub NG",
+    name: "RentalHub",
     short_name: "RentalHub",
     description: "Verified off-campus accommodation platform for students in Nigeria.",
     start_url: "/",

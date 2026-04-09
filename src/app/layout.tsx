@@ -7,15 +7,15 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://rentalhub.ng"),
-  applicationName: "RentalHub NG",
+  applicationName: "RentalHub",
   title: {
-    default: "RentalHub NG - Off-Campus Accommodation",
-    template: "%s | RentalHub NG",
+    default: "RentalHub - Off-Campus Accommodation",
+    template: "%s | RentalHub",
   },
   description:
     "Find verified off-campus accommodation for Nigerian students. Browse properties near BOUESTI, book rooms, and manage your listings.",
   keywords: ["student accommodation", "off-campus housing", "BOUESTI", "Nigeria student housing", "rental", "RentalHub"],
-  authors: [{ name: "RentalHub NG" }],
+  authors: [{ name: "RentalHub" }],
   alternates: {
     canonical: "https://rentalhub.ng",
   },
@@ -33,15 +33,15 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_NG",
     url: "https://rentalhub.ng",
-    siteName: "RentalHub NG",
-    title: "RentalHub NG - Off-Campus Accommodation",
+    siteName: "RentalHub",
+    title: "RentalHub - Off-Campus Accommodation",
     description:
       "Find verified off-campus accommodation for Nigerian students. Browse properties near BOUESTI, book rooms, and manage your listings.",
-    images: [{ url: "/logo.png", width: 670, height: 338, alt: "RentalHub NG" }],
+    images: [{ url: "/logo.png", width: 670, height: 338, alt: "RentalHub" }],
   },
   twitter: {
     card: "summary",
-    title: "RentalHub NG - Off-Campus Accommodation",
+    title: "RentalHub - Off-Campus Accommodation",
     description: "Find verified off-campus accommodation for Nigerian students.",
     images: ["/logo.png"],
   },
@@ -60,7 +60,7 @@ export default function RootLayout({
   const organizationJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "RentalHub NG",
+    name: "RentalHub",
     url: "https://rentalhub.ng",
     logo: "https://rentalhub.ng/favicon-512.png",
   };

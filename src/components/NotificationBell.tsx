@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Bell } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -26,6 +25,7 @@ export default function NotificationBell() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const loadNotifications = async () => {
@@ -124,23 +124,25 @@ export default function NotificationBell() {
               <div className="px-4 py-6 text-sm text-gray-500">No notifications yet.</div>
             ) : (
               items.map((item) => (
-                <Link
+                <button
                   key={item.id}
-                  href={item.link || "#"}
                   onClick={async () => {
                     await fetch(`/api/notifications/${item.id}`, { method: "PATCH" });
                     void loadNotifications();
-                    setOpen(false);
+                    setExpandedId((prev) => (prev === item.id ? null : item.id));
                   }}
-                  className="block px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                  className="w-full text-left px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-medium text-gray-900">{item.title}</p>
                     {!item.readAt && <span className="mt-1 w-2 h-2 rounded-full bg-[#E67E22] flex-shrink-0" />}
                   </div>
-                  <p className="mt-1 text-xs text-gray-600 line-clamp-2">{item.message}</p>
+                  <p className={`mt-1 text-xs text-gray-600 ${expandedId === item.id ? "" : "line-clamp-2"}`}>{item.message}</p>
+                  {expandedId === item.id && item.link && (
+                    <p className="mt-1 text-[11px] text-gray-500">Related area: {item.link}</p>
+                  )}
                   <p className="mt-1 text-[11px] text-gray-400">{formatSince(item.createdAt)}</p>
-                </Link>
+                </button>
               ))
             )}
           </div>
@@ -149,4 +151,3 @@ export default function NotificationBell() {
     </div>
   );
 }
-

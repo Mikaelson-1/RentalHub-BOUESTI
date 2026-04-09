@@ -8,14 +8,16 @@ type ActiveBookingStatus = "PENDING" | "CONFIRMED" | "AWAITING_PAYMENT" | "PAID"
 
 interface BookButtonProps {
   propertyId: string;
+  propertyPrice?: number;
   existingBookingStatus?: ActiveBookingStatus | null;
   userRole: string | null;
 }
 
-export default function BookButton({ propertyId, existingBookingStatus, userRole }: BookButtonProps) {
+export default function BookButton({ propertyId, propertyPrice, existingBookingStatus, userRole }: BookButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [booked, setBooked] = useState<ActiveBookingStatus | null>(existingBookingStatus ?? null);
+  const [bidAmount, setBidAmount] = useState(propertyPrice ? String(Number(propertyPrice)) : "");
   const [error, setError] = useState("");
 
   // Landlords and admins don't see this button
@@ -29,10 +31,16 @@ export default function BookButton({ propertyId, existingBookingStatus, userRole
     setLoading(true);
     setError("");
     try {
+      const normalizedBidAmount =
+        bidAmount === "" ? Number(propertyPrice ?? 0) : Number(bidAmount);
+      if (!Number.isFinite(normalizedBidAmount) || normalizedBidAmount <= 0) {
+        throw new Error("Enter a valid bid amount.");
+      }
+
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ propertyId }),
+        body: JSON.stringify({ propertyId, bidAmount: normalizedBidAmount }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || "Booking failed");
@@ -90,6 +98,14 @@ export default function BookButton({ propertyId, existingBookingStatus, userRole
 
   return (
     <div className="mt-6">
+      <label className="text-sm text-gray-600 block mb-2">Your bid (naira)</label>
+      <input
+        type="number"
+        min="1"
+        value={bidAmount}
+        onChange={(event) => setBidAmount(event.target.value)}
+        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#E67E22]/20 focus:border-[#E67E22]"
+      />
       <button
         onClick={handleBook}
         disabled={loading}

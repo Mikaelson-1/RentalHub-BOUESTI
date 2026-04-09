@@ -101,7 +101,7 @@ function LoginPageContent() {
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-[#192F59]">Welcome Back</h1>
             <p className="text-gray-600 mt-2">
-              Sign in to your RentalHub NG account
+              Sign in to your RentalHub account
             </p>
           </div>
 

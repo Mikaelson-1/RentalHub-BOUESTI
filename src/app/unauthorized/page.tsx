@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ShieldX } from "lucide-react";
 
-export const metadata: Metadata = { title: "Access Denied | RentalHub NG" };
+export const metadata: Metadata = { title: "Access Denied | RentalHub" };
 
 export default function UnauthorizedPage() {
   return (

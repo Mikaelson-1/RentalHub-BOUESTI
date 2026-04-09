@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description:
     "Browse verified off-campus apartments, self-contains, and rooms near BOUESTI. Book directly with trusted landlords — no agent fees.",
   openGraph: {
-    title: "RentalHub NG — Verified Student Housing Near BOUESTI",
+    title: "RentalHub — Verified Student Housing Near BOUESTI",
     description:
       "Browse verified off-campus apartments, self-contains, and rooms near BOUESTI. Book directly with trusted landlords — no agent fees.",
     url: "https://rentalhub.ng",
@@ -383,7 +383,7 @@ export default async function HomePage() {
             <span className="italic">Perfect Hostel?</span>
           </h2>
           <p className="text-orange-100 text-base mb-10 max-w-lg mx-auto">
-            Join students and landlords already using RentalHub NG to make housing decisions easier and safer.
+            Join students and landlords already using RentalHub to make housing decisions easier and safer.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/properties" className="bg-white text-[#E67E22] font-bold px-10 py-4 rounded-xl hover:bg-orange-50 transition-colors text-sm">

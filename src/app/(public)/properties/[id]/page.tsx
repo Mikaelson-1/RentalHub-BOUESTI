@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: PropertyDetailsPageProps): Pr
     title: property.title,
     description: `${property.description?.slice(0, 155) ?? property.title} — ${price}/year in ${property.location.name}.`,
     openGraph: {
-      title: `${property.title} | RentalHub NG`,
+      title: `${property.title} | RentalHub`,
       description: `${property.description?.slice(0, 155) ?? property.title} — ${price}/year in ${property.location.name}.`,
       url: `https://rentalhub.ng/properties/${id}`,
       images: [{ url: image, width: 800, height: 400, alt: property.title }],
@@ -151,7 +151,7 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
             <p className="text-sm text-gray-500 mt-1">Verification: {property.landlord.verificationStatus}</p>
           </div>
 
-          <BookButton propertyId={property.id} existingBookingStatus={existingBookingStatus} userRole={userRole} />
+          <BookButton propertyId={property.id} propertyPrice={Number(property.price)} existingBookingStatus={existingBookingStatus} userRole={userRole} />
         </div>
       </div>
     </div>

@@ -120,26 +120,62 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       );
     }
 
-    const updated = await prisma.booking.update({
-      where: { id },
-      data: status === "CONFIRMED"
-        ? {
-            status: "AWAITING_PAYMENT",
-            amount: booking.amount ?? booking.property.price,
-            expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
-          }
-        : { status },
-      include: {
-        student:  { select: { id: true, name: true, email: true } },
-        property: {
-          select: {
-            id: true,
-            title: true,
-            location: { select: { name: true } },
-            landlord: { select: { id: true, name: true } },
+    if (status === "CONFIRMED") {
+      const pendingForProperty = await prisma.booking.findMany({
+        where: {
+          propertyId: booking.property.id,
+          status: "PENDING",
+        },
+        select: { id: true, bidAmount: true },
+      });
+
+      if (pendingForProperty.length >= 2) {
+        const highestBid = Math.max(...pendingForProperty.map((entry) => Number(entry.bidAmount ?? booking.property.price)));
+        const currentBid = Number(booking.bidAmount ?? booking.property.price);
+        if (currentBid < highestBid) {
+          return NextResponse.json(
+            { success: false, error: `Only highest bid can be accepted. Highest bid is ₦${Math.round(highestBid).toLocaleString("en-NG")}.` },
+            { status: 409 },
+          );
+        }
+      }
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const selected = await tx.booking.update({
+        where: { id },
+        data: status === "CONFIRMED"
+          ? {
+              status: "AWAITING_PAYMENT",
+              amount: booking.bidAmount ?? booking.amount ?? booking.property.price,
+              expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+            }
+          : { status },
+        include: {
+          student:  { select: { id: true, name: true, email: true } },
+          property: {
+            select: {
+              id: true,
+              title: true,
+              location: { select: { name: true } },
+              landlord: { select: { id: true, name: true } },
+            },
           },
         },
-      },
+      });
+
+      if (status === "CONFIRMED") {
+        await tx.booking.updateMany({
+          where: {
+            propertyId: booking.property.id,
+            id: { not: id },
+            status: "PENDING",
+          },
+          data: { status: "CANCELLED" },
+        });
+      }
+
+      return selected;
     });
 
     if (status === "CONFIRMED") {

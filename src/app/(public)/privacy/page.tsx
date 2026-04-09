@@ -4,7 +4,7 @@ export default function PrivacyPage() {
       <div className="max-w-3xl mx-auto bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
         <h1 className="text-3xl font-bold text-[#192F59]">Privacy Policy</h1>
         <p className="text-gray-600 mt-4">
-          This policy explains how RentalHub NG collects, uses, stores, and protects personal data for students,
+          This policy explains how RentalHub collects, uses, stores, and protects personal data for students,
           landlords, and administrators.
         </p>
 

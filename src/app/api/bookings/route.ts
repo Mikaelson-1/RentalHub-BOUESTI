@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Only students can make bookings.' }, { status: 403 });
     }
 
-    const { propertyId } = await request.json();
+    const { propertyId, bidAmount } = await request.json();
 
     if (!propertyId) {
       return NextResponse.json({ success: false, error: 'Property ID is required.' }, { status: 400 });
@@ -94,11 +94,21 @@ export async function POST(request: Request) {
       );
     }
 
+    const normalizedBidAmount =
+      bidAmount === undefined || bidAmount === null || bidAmount === ""
+        ? Number(property.price)
+        : Number(bidAmount);
+
+    if (!Number.isFinite(normalizedBidAmount) || normalizedBidAmount <= 0) {
+      return NextResponse.json({ success: false, error: "Bid amount must be a valid number greater than 0." }, { status: 400 });
+    }
+
     const booking = await prisma.booking.create({
       data: {
         studentId:  session.user.id,
         propertyId,
         status:     'PENDING',
+        bidAmount:  normalizedBidAmount,
       },
       include: {
         student:  { select: { id: true, name: true, email: true } },
@@ -133,7 +143,7 @@ export async function POST(request: Request) {
         userId: booking.student.id,
         type: "BOOKING",
         title: "Booking request submitted",
-        message: `Your request for ${booking.property.title} was sent to the landlord.`,
+        message: `Your bid of ₦${Math.round(normalizedBidAmount).toLocaleString("en-NG")} for ${booking.property.title} was sent to the landlord.`,
         link: "/student",
       }),
       notifyRole(
@@ -190,11 +200,59 @@ export async function PATCH(request: Request) {
 
     let updateData: Record<string, unknown> = { status };
 
+    if (status === "CONFIRMED" && session.user.role === "LANDLORD") {
+      const [pendingForProperty, acceptedBooking] = await Promise.all([
+        prisma.booking.findMany({
+          where: {
+            propertyId: booking.propertyId,
+            status: "PENDING",
+          },
+          select: {
+            id: true,
+            bidAmount: true,
+            studentId: true,
+          },
+        }),
+        prisma.booking.findFirst({
+          where: {
+            propertyId: booking.propertyId,
+            id: { not: booking.id },
+            status: { in: ["AWAITING_PAYMENT", "PAID"] },
+          },
+          select: { id: true },
+        }),
+      ]);
+
+      if (acceptedBooking) {
+        return NextResponse.json(
+          { success: false, error: "A booking for this property is already accepted. Cancel it first to accept another bid." },
+          { status: 409 },
+        );
+      }
+
+      if (pendingForProperty.length >= 2) {
+        const highestBid = Math.max(
+          ...pendingForProperty.map((item) => Number(item.bidAmount ?? booking.property.price)),
+        );
+        const currentBid = Number(booking.bidAmount ?? booking.property.price);
+
+        if (currentBid < highestBid) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Only the highest bid can be accepted when there are multiple booking requests. Highest bid is ₦${Math.round(highestBid).toLocaleString("en-NG")}.`,
+            },
+            { status: 409 },
+          );
+        }
+      }
+    }
+
     // Landlord confirms → move to AWAITING_PAYMENT and snapshot costs
     if (status === "CONFIRMED" && session.user.role === "LANDLORD") {
       updateData = {
         status: "AWAITING_PAYMENT",
-        amount: booking.property.price,
+        amount: booking.bidAmount ?? booking.property.price,
         agencyFee: 0,
         cautionFee: 0,
         expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours
@@ -213,13 +271,28 @@ export async function PATCH(request: Request) {
       } catch { /* refund will handle its own DB updates */ }
     }
 
-    const updatedBooking = await prisma.booking.update({
-      where: { id: bookingId },
-      data: updateData,
-      include: {
-        student: { select: { id: true, name: true, email: true } },
-        property: { include: { location: true, landlord: { select: { id: true, name: true, email: true } } } },
-      },
+    const updatedBooking = await prisma.$transaction(async (tx) => {
+      const confirmedBooking = await tx.booking.update({
+        where: { id: bookingId },
+        data: updateData,
+        include: {
+          student: { select: { id: true, name: true, email: true } },
+          property: { include: { location: true, landlord: { select: { id: true, name: true, email: true } } } },
+        },
+      });
+
+      if (status === "CONFIRMED" && session.user.role === "LANDLORD") {
+        await tx.booking.updateMany({
+          where: {
+            propertyId: booking.propertyId,
+            id: { not: bookingId },
+            status: "PENDING",
+          },
+          data: { status: "CANCELLED" },
+        });
+      }
+
+      return confirmedBooking;
     });
 
     const { student, property } = updatedBooking;
@@ -238,9 +311,17 @@ export async function PATCH(request: Request) {
         userId: student.id,
         type: "BOOKING",
         title: "Booking confirmed",
-        message: `${property.title} was confirmed. Complete payment within 48 hours.`,
+        message: `${property.title} was confirmed at ₦${Math.round(Number(updatedBooking.amount ?? booking.property.price)).toLocaleString("en-NG")}. Complete payment within 48 hours.`,
         link: `/student/bookings/${updatedBooking.id}`,
       });
+
+      await notifyRole(
+        "ADMIN",
+        "Winning bid accepted",
+        `${property.landlord.name} accepted a bid for ${property.title}.`,
+        "BOOKING",
+        "/admin",
+      );
     }
 
     if (status === "CANCELLED") {

@@ -148,6 +148,7 @@ model Booking {
   status          BookingStatus @default(PENDING)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  bidAmount       Decimal?      @db.Decimal(10, 2)
 
   // Snapshotted at booking time
   amount          Decimal?      @db.Decimal(10, 2)

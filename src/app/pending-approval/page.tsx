@@ -30,7 +30,7 @@ export default function PendingApprovalPage() {
 
         {/* Message */}
         <p className="text-gray-600 mb-6 leading-relaxed">
-          Thank you for registering as a landlord on RentalHub NG. 
+          Thank you for registering as a landlord on RentalHub. 
           Your account is currently being reviewed by our admin team to ensure 
           the safety and quality of our platform.
         </p>

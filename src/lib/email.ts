@@ -111,7 +111,7 @@ function wrap(title: string, body: string) {
         <tr>
           <td style="background:#192F59;padding:24px 32px;">
             <p style="margin:0;font-size:20px;font-weight:bold;color:#ffffff;letter-spacing:0.5px;">
-              RentalHub <span style="color:#E67E22;">NG</span>
+              RentalHub
             </p>
           </td>
         </tr>
@@ -125,7 +125,7 @@ function wrap(title: string, body: string) {
         <tr>
           <td style="background:#f9fafb;padding:20px 32px;border-top:1px solid #e5e7eb;">
             <p style="margin:0;font-size:12px;color:#9ca3af;">
-              © ${new Date().getFullYear()} RentalHub NG · Ikere-Ekiti, Ekiti State
+              © ${new Date().getFullYear()} RentalHub · Ikere-Ekiti, Ekiti State
             </p>
           </td>
         </tr>
@@ -174,7 +174,7 @@ export async function sendEmailVerificationOtp(options: {
     subject: "Verify your RentalHub account",
     html: wrap("Email Verification", `
       <p>Hi <strong>${name}</strong>,</p>
-      <p>Welcome to RentalHub NG. Use the OTP code below to verify your account:</p>
+      <p>Welcome to RentalHub. Use the OTP code below to verify your account:</p>
       <p style="margin:20px 0;">
         <span style="display:inline-block;font-size:28px;letter-spacing:6px;font-weight:700;background:#fff7ed;color:#c2410c;padding:12px 18px;border-radius:10px;border:1px solid #fdba74;">
           ${otpCode}

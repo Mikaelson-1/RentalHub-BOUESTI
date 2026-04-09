@@ -468,7 +468,7 @@ export default function AddPropertyForm() {
             </Link>
             <h1 className="text-3xl font-bold text-gray-900">List Your Property</h1>
             <p className="text-gray-600 mt-2">
-              Complete the form below to add your property to RentalHub NG
+              Complete the form below to add your property to RentalHub
             </p>
           </div>
 

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description:
     "Browse all verified off-campus accommodation near BOUESTI. Filter by location and find your perfect student room or apartment.",
   openGraph: {
-    title: "Available Properties | RentalHub NG",
+    title: "Available Properties | RentalHub",
     description:
       "Browse all verified off-campus accommodation near BOUESTI. Filter by location and find your perfect student room or apartment.",
     url: "https://rentalhub.ng/properties",
