@@ -8,6 +8,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notifications";
+import {
+  sendPayoutReleasedToLandlord,
+  sendPayoutReleasedToStudent,
+  sendPayoutFailedToLandlord,
+  sendPayoutFailedToStudent,
+} from "@/lib/email";
 
 export async function GET() {
   try {
@@ -74,12 +80,25 @@ export async function PATCH(request: NextRequest) {
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: {
-        student: { select: { id: true, name: true } },
+      select: {
+        id: true,
+        amount: true,
+        movedInConfirmedAt: true,
+        payoutStatus: true,
+        student: { select: { id: true, name: true, email: true } },
         property: {
           select: {
             title: true,
-            landlord: { select: { id: true, name: true } },
+            price: true,
+            landlord: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                bankName: true,
+                bankAccountName: true,
+              },
+            },
           },
         },
       },
@@ -102,9 +121,13 @@ export async function PATCH(request: NextRequest) {
       data: { payoutStatus: newStatus },
     });
 
-    // Notify landlord
+    const landlord = booking.property.landlord;
+    const amountNaira = Number(booking.amount ?? booking.property.price);
+    const amountStr = amountNaira.toLocaleString("en-NG");
+
+    // Notify landlord (in-app)
     notifyUser({
-      userId: booking.property.landlord.id,
+      userId: landlord.id,
       type: "PAYMENT",
       title: action === "COMPLETE" ? "Rent payment received" : "Payout issue",
       message:
@@ -114,7 +137,7 @@ export async function PATCH(request: NextRequest) {
       link: "/landlord",
     }).catch(console.error);
 
-    // Notify student
+    // Notify student (in-app)
     notifyUser({
       userId: booking.student.id,
       type: "PAYMENT",
@@ -125,6 +148,40 @@ export async function PATCH(request: NextRequest) {
           : `There was an issue releasing the payment for ${booking.property.title}. RentalHub support will reach out.`,
       link: "/student",
     }).catch(console.error);
+
+    // Send emails
+    if (action === "COMPLETE") {
+      sendPayoutReleasedToLandlord({
+        landlordEmail: landlord.email,
+        landlordName: landlord.name,
+        studentName: booking.student.name,
+        propertyTitle: booking.property.title,
+        amount: amountStr,
+        bankName: landlord.bankName ?? "your registered bank",
+        accountName: landlord.bankAccountName ?? landlord.name,
+      }).catch(console.error);
+
+      sendPayoutReleasedToStudent({
+        studentEmail: booking.student.email,
+        studentName: booking.student.name,
+        propertyTitle: booking.property.title,
+        landlordName: landlord.name,
+        amount: amountStr,
+      }).catch(console.error);
+    } else {
+      sendPayoutFailedToLandlord({
+        landlordEmail: landlord.email,
+        landlordName: landlord.name,
+        propertyTitle: booking.property.title,
+        amount: amountStr,
+      }).catch(console.error);
+
+      sendPayoutFailedToStudent({
+        studentEmail: booking.student.email,
+        studentName: booking.student.name,
+        propertyTitle: booking.property.title,
+      }).catch(console.error);
+    }
 
     return NextResponse.json({
       success: true,

@@ -688,6 +688,184 @@ export async function sendBookingExpiredToStudent(options: {
   });
 }
 
+/** Sent to student when they confirm move-in */
+export async function sendMoveInConfirmedToStudent(options: {
+  studentEmail: string;
+  studentName: string;
+  propertyTitle: string;
+  propertyLocation: string;
+  landlordName: string;
+  movedInDate: string;
+}) {
+  const { studentEmail, studentName, propertyTitle, propertyLocation, landlordName, movedInDate } = options;
+  const dashboardUrl = `${APP_URL}/student`;
+
+  await sendMail({
+    to: studentEmail,
+    subject: `Move-in confirmed — ${propertyTitle}`,
+    html: wrap("Move-In Confirmed", `
+      <p>Hi <strong>${studentName}</strong>,</p>
+      <p>We have received your move-in confirmation. RentalHub will now process the release of your rent payment to the landlord.</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:160px;">Property</td><td style="padding:8px 0;font-weight:600;color:#192F59;">${propertyTitle}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Location</td><td style="padding:8px 0;">${propertyLocation}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Landlord</td><td style="padding:8px 0;">${landlordName}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Move-in Date</td><td style="padding:8px 0;font-weight:600;">${movedInDate}</td></tr>
+      </table>
+      <p style="color:#6b7280;font-size:13px;">Your landlord will be notified. You will receive a confirmation once the payment has been released.</p>
+      <p style="margin:28px 0;">
+        <a href="${dashboardUrl}" style="background:#192F59;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          View Dashboard
+        </a>
+      </p>
+    `),
+  });
+}
+
+/** Sent to landlord when a student confirms move-in */
+export async function sendMoveInConfirmedToLandlord(options: {
+  landlordEmail: string;
+  landlordName: string;
+  studentName: string;
+  propertyTitle: string;
+  amount: string;
+  movedInDate: string;
+}) {
+  const { landlordEmail, landlordName, studentName, propertyTitle, amount, movedInDate } = options;
+  const dashboardUrl = `${APP_URL}/landlord`;
+
+  await sendMail({
+    to: landlordEmail,
+    subject: `Tenant moved in — ${propertyTitle}`,
+    html: wrap("Tenant Has Moved In", `
+      <p>Hi <strong>${landlordName}</strong>,</p>
+      <p>Your tenant <strong>${studentName}</strong> has confirmed their move-in. RentalHub is processing the release of their rent payment to your bank account.</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:160px;">Property</td><td style="padding:8px 0;font-weight:600;color:#192F59;">${propertyTitle}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Tenant</td><td style="padding:8px 0;">${studentName}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Amount</td><td style="padding:8px 0;font-weight:600;">&#8358;${amount}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Move-in Date</td><td style="padding:8px 0;">${movedInDate}</td></tr>
+      </table>
+      <p style="color:#6b7280;font-size:13px;">You will receive a separate email once the payment has been transferred to your bank account.</p>
+      <p style="margin:28px 0;">
+        <a href="${dashboardUrl}" style="background:#192F59;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          View Dashboard
+        </a>
+      </p>
+    `),
+  });
+}
+
+/** Sent to landlord when admin releases the payout */
+export async function sendPayoutReleasedToLandlord(options: {
+  landlordEmail: string;
+  landlordName: string;
+  studentName: string;
+  propertyTitle: string;
+  amount: string;
+  bankName: string;
+  accountName: string;
+}) {
+  const { landlordEmail, landlordName, studentName, propertyTitle, amount, bankName, accountName } = options;
+  const dashboardUrl = `${APP_URL}/landlord`;
+
+  await sendMail({
+    to: landlordEmail,
+    subject: `Rent payment transferred — ${propertyTitle}`,
+    html: wrap("Rent Payment Transferred", `
+      <p>Hi <strong>${landlordName}</strong>,</p>
+      <p>Your rent payment has been released and transferred to your bank account.</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:160px;">Property</td><td style="padding:8px 0;font-weight:600;color:#192F59;">${propertyTitle}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Tenant</td><td style="padding:8px 0;">${studentName}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Amount</td><td style="padding:8px 0;font-weight:600;color:#16a34a;">&#8358;${amount}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Bank</td><td style="padding:8px 0;">${bankName}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Account Name</td><td style="padding:8px 0;">${accountName}</td></tr>
+      </table>
+      <p style="color:#6b7280;font-size:13px;">Please allow 1–3 business days for the funds to reflect in your account. If you have questions, contact <a href="mailto:support@rentalhub.ng" style="color:#E67E22;">support@rentalhub.ng</a>.</p>
+      <p style="margin:28px 0;">
+        <a href="${dashboardUrl}" style="background:#192F59;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          View Dashboard
+        </a>
+      </p>
+    `),
+  });
+}
+
+/** Sent to student when admin releases the payout to landlord */
+export async function sendPayoutReleasedToStudent(options: {
+  studentEmail: string;
+  studentName: string;
+  propertyTitle: string;
+  landlordName: string;
+  amount: string;
+}) {
+  const { studentEmail, studentName, propertyTitle, landlordName, amount } = options;
+  const dashboardUrl = `${APP_URL}/student`;
+
+  await sendMail({
+    to: studentEmail,
+    subject: `Payment released to landlord — ${propertyTitle}`,
+    html: wrap("Payment Released to Landlord", `
+      <p>Hi <strong>${studentName}</strong>,</p>
+      <p>Your rent payment has been successfully released to your landlord. Your tenancy is now fully active.</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:160px;">Property</td><td style="padding:8px 0;font-weight:600;color:#192F59;">${propertyTitle}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Landlord</td><td style="padding:8px 0;">${landlordName}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Amount</td><td style="padding:8px 0;font-weight:600;">&#8358;${amount}</td></tr>
+      </table>
+      <p style="margin:28px 0;">
+        <a href="${dashboardUrl}" style="background:#192F59;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          View Dashboard
+        </a>
+      </p>
+    `),
+  });
+}
+
+/** Sent to landlord when a payout fails */
+export async function sendPayoutFailedToLandlord(options: {
+  landlordEmail: string;
+  landlordName: string;
+  propertyTitle: string;
+  amount: string;
+}) {
+  const { landlordEmail, landlordName, propertyTitle, amount } = options;
+
+  await sendMail({
+    to: landlordEmail,
+    subject: `Payout issue — ${propertyTitle}`,
+    html: wrap("Payout Issue", `
+      <p>Hi <strong>${landlordName}</strong>,</p>
+      <p>We encountered an issue releasing your rent payment for <strong>${propertyTitle}</strong>. Our support team is investigating and will contact you shortly.</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:160px;">Property</td><td style="padding:8px 0;font-weight:600;color:#192F59;">${propertyTitle}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Amount</td><td style="padding:8px 0;font-weight:600;">&#8358;${amount}</td></tr>
+      </table>
+      <p>Please contact us at <a href="mailto:support@rentalhub.ng" style="color:#E67E22;">support@rentalhub.ng</a> if you do not hear back within 24 hours.</p>
+    `),
+  });
+}
+
+/** Sent to student when a payout to their landlord fails */
+export async function sendPayoutFailedToStudent(options: {
+  studentEmail: string;
+  studentName: string;
+  propertyTitle: string;
+}) {
+  const { studentEmail, studentName, propertyTitle } = options;
+
+  await sendMail({
+    to: studentEmail,
+    subject: `Payment release issue — ${propertyTitle}`,
+    html: wrap("Payment Release Issue", `
+      <p>Hi <strong>${studentName}</strong>,</p>
+      <p>There was an issue releasing the payment for <strong>${propertyTitle}</strong> to your landlord. Our support team is on it and will resolve this as soon as possible.</p>
+      <p>Please contact us at <a href="mailto:support@rentalhub.ng" style="color:#E67E22;">support@rentalhub.ng</a> if you have concerns.</p>
+    `),
+  });
+}
+
 /** Admin-only utility for checking provider delivery from runtime */
 export async function sendTestEmail(options: {
   to: string;

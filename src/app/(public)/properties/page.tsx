@@ -62,6 +62,25 @@ export default async function PropertiesPage({ searchParams }: PropertiesPagePro
     orderBy: { createdAt: "desc" },
   });
 
+  /** Extract the first uploaded image URL from a property's images JSON field */
+  function getFirstUploadedImage(images: unknown): string | null {
+    if (!Array.isArray(images)) return null;
+    for (const item of images) {
+      if (typeof item === "string") return item;
+      if (
+        typeof item === "object" &&
+        item !== null &&
+        "url" in item &&
+        typeof (item as { url: unknown }).url === "string"
+      ) {
+        const typed = item as { url: string; type?: string };
+        // Only use image-type uploads, not videos or docs
+        if (!typed.type || typed.type === "image") return typed.url;
+      }
+    }
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -95,12 +114,19 @@ export default async function PropertiesPage({ searchParams }: PropertiesPagePro
             {properties.map((property) => (
               <div key={property.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="relative h-48">
-                  <Image
-                    src={getPropertyImage(property.id)}
-                    alt={property.title}
-                    fill
-                    className="object-cover"
-                  />
+                  {(() => {
+                    const uploadedSrc = getFirstUploadedImage(property.images);
+                    const src = uploadedSrc ?? getPropertyImage(property.id);
+                    return (
+                      <Image
+                        src={src}
+                        alt={property.title}
+                        fill
+                        className="object-cover"
+                        unoptimized={!!uploadedSrc}
+                      />
+                    );
+                  })()}
                 </div>
                 <div className="p-5">
                   <p className="text-sm text-gray-500">{property.location.name}</p>

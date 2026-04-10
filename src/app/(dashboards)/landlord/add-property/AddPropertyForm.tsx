@@ -231,15 +231,36 @@ export default function AddPropertyForm() {
     };
 
     if (category === "video" || category === "verificationDocument") {
-      // Client-side upload — browser → Vercel Blob directly
-      const blob = await withTimeout(
-        upload(`uploads/${category}/${Date.now()}-${file.name}`, file, {
-          access: "public",
-          handleUploadUrl: "/api/uploads/client-token",
-        }),
-        60_000,
-        `${file.name} upload timed out. Please retry.`,
-      );
+      // Pre-validate size before hitting the upload service
+      const limitBytes = category === "video" ? 100 * 1024 * 1024 : 5 * 1024 * 1024;
+      const limitLabel = category === "video" ? "100 MB" : "5 MB";
+      if (file.size > limitBytes) {
+        throw new Error(`${file.name} is too large. The maximum allowed size for ${category === "video" ? "videos" : "documents"} is ${limitLabel}.`);
+      }
+
+      // Client-side upload — browser → storage directly
+      let blob;
+      try {
+        blob = await withTimeout(
+          upload(`uploads/${category}/${Date.now()}-${file.name}`, file, {
+            access: "public",
+            handleUploadUrl: "/api/uploads/client-token",
+          }),
+          60_000,
+          `${file.name} upload timed out. Please retry.`,
+        );
+      } catch (uploadError) {
+        const raw = uploadError instanceof Error ? uploadError.message : String(uploadError);
+        // Sanitise storage-provider error messages before showing them to the user
+        if (/too large|file length|maximum.*size|size.*exceed|bytes/i.test(raw)) {
+          throw new Error(`${file.name} is too large. The maximum allowed size is ${limitLabel}.`);
+        }
+        if (/content.?type|mime|not allowed/i.test(raw)) {
+          throw new Error(`${file.name} has an unsupported file type. Please upload a valid ${category === "video" ? "video (MP4, WebM, MOV)" : "document (PDF)"}.`);
+        }
+        throw new Error(`${file.name} could not be uploaded. Please try again.`);
+      }
+
       return {
         name: file.name,
         type: category,
@@ -265,7 +286,12 @@ export default function AddPropertyForm() {
 
     const payload = await response.json();
     if (!response.ok || !payload?.success || !payload?.data) {
-      throw new Error(payload?.error || `Failed to upload ${file.name}`);
+      const raw = payload?.error ?? `Failed to upload ${file.name}`;
+      // Sanitise any storage-provider details from the error message
+      if (/too large|file length|maximum.*size|size.*exceed|bytes/i.test(raw)) {
+        throw new Error(`${file.name} is too large. The maximum allowed size for photos is 2 MB.`);
+      }
+      throw new Error(raw);
     }
 
     return payload.data as {

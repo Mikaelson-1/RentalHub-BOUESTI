@@ -10,6 +10,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notifications";
+import { sendMoveInConfirmedToStudent, sendMoveInConfirmedToLandlord } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,10 +32,12 @@ export async function POST(request: NextRequest) {
       include: {
         property: {
           include: {
+            location: { select: { name: true } },
             landlord: {
               select: {
                 id: true,
                 name: true,
+                email: true,
                 bankAccountNumber: true,
                 bankName: true,
                 bankAccountName: true,
@@ -42,7 +45,7 @@ export async function POST(request: NextRequest) {
             },
           },
         },
-        student: { select: { id: true, name: true } },
+        student: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -71,7 +74,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Notify landlord
+    const amountNaira = Number(booking.amount ?? booking.property.price);
+    const movedInDateStr = new Date().toLocaleDateString("en-NG", { dateStyle: "medium" });
+
+    // Notify landlord (in-app)
     notifyUser({
       userId: landlord.id,
       type: "PAYMENT",
@@ -80,8 +86,27 @@ export async function POST(request: NextRequest) {
       link: "/landlord",
     }).catch(console.error);
 
+    // Email landlord
+    sendMoveInConfirmedToLandlord({
+      landlordEmail: landlord.email,
+      landlordName: landlord.name,
+      studentName: booking.student.name,
+      propertyTitle: booking.property.title,
+      amount: amountNaira.toLocaleString("en-NG"),
+      movedInDate: movedInDateStr,
+    }).catch(console.error);
+
+    // Email student
+    sendMoveInConfirmedToStudent({
+      studentEmail: booking.student.email,
+      studentName: booking.student.name,
+      propertyTitle: booking.property.title,
+      propertyLocation: booking.property.location?.name ?? "",
+      landlordName: landlord.name,
+      movedInDate: movedInDateStr,
+    }).catch(console.error);
+
     // Notify all admins so they can manually process the payout
-    const amountNaira = Number(booking.amount ?? booking.property.price);
     const admins = await prisma.user.findMany({
       where: { role: "ADMIN" },
       select: { id: true },
