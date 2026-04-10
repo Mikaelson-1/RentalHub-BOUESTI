@@ -85,6 +85,32 @@ interface AdminBookingItem {
   };
 }
 
+interface PayoutBookingItem {
+  id: string;
+  payoutStatus: "PENDING" | "PROCESSING";
+  movedInConfirmedAt: string;
+  amount: string | number | null;
+  agencyFee: string | number | null;
+  cautionFee: string | number | null;
+  student: { id: string; name: string; email: string };
+  property: {
+    id: string;
+    title: string;
+    price: string | number;
+    location: { name: string };
+    landlord: {
+      id: string;
+      name: string;
+      email: string;
+      phoneNumber: string | null;
+      bankAccountNumber: string | null;
+      bankName: string | null;
+      bankAccountName: string | null;
+    };
+  };
+  payments: { amount: string | number; paidAt: string | null }[];
+}
+
 interface AdminSummaryResponse {
   success: boolean;
   data?: AdminSummary;
@@ -112,7 +138,7 @@ interface BookingsResponse {
   error?: string;
 }
 
-type AdminPanel = "properties" | "pending" | "users" | "bookings" | "verifications" | "forecast";
+type AdminPanel = "properties" | "pending" | "users" | "bookings" | "verifications" | "forecast" | "payouts";
 type PropertyFilter = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
 
 const initialSummary: AdminSummary = {
@@ -140,6 +166,10 @@ export default function AdminDashboard() {
   const [verificationUpdatingId, setVerificationUpdatingId] = useState("");
   const [verificationError, setVerificationError] = useState("");
   const [verificationSuccess, setVerificationSuccess] = useState("");
+  const [payouts, setPayouts] = useState<PayoutBookingItem[]>([]);
+  const [payoutUpdatingId, setPayoutUpdatingId] = useState("");
+  const [payoutError, setPayoutError] = useState("");
+  const [payoutSuccess, setPayoutSuccess] = useState("");
 
   const loadAdminData = useCallback(async (school: string) => {
     setIsLoading(true);
@@ -157,6 +187,7 @@ export default function AdminDashboard() {
         usersResponse,
         bookingsResponse,
         landlordsResponse,
+        payoutsResponse,
       ] = await Promise.all([
         fetch(`/api/admin/summary?t=${Date.now()}${schoolParam}`, { cache: "no-store" }),
         fetch(`/api/properties?status=PENDING&pageSize=100${propSchoolParam}`, { cache: "no-store" }),
@@ -165,6 +196,7 @@ export default function AdminDashboard() {
         fetch("/api/admin/users", { cache: "no-store" }),
         fetch(`/api/admin/bookings?t=${Date.now()}${schoolParam}`, { cache: "no-store" }),
         fetch("/api/admin/landlords", { cache: "no-store" }),
+        fetch("/api/admin/payouts", { cache: "no-store" }),
       ]);
 
       const summaryPayload = (await summaryResponse.json()) as AdminSummaryResponse;
@@ -174,6 +206,7 @@ export default function AdminDashboard() {
       const usersPayload = (await usersResponse.json()) as UsersResponse;
       const bookingsPayload = (await bookingsResponse.json()) as BookingsResponse;
       const landlordsPayload = (await landlordsResponse.json()) as { success: boolean; data?: VerificationLandlord[] };
+      const payoutsPayload = (await payoutsResponse.json()) as { success: boolean; data?: PayoutBookingItem[] };
 
       if (!summaryResponse.ok || !summaryPayload.success || !summaryPayload.data) {
         throw new Error(summaryPayload.error || "Could not load admin summary.");
@@ -205,6 +238,7 @@ export default function AdminDashboard() {
       setUsers(usersPayload.data ?? []);
       setBookings(bookingsPayload.data ?? []);
       setVerificationLandlords(landlordsPayload.data ?? []);
+      setPayouts(payoutsPayload.data ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load admin data.");
     } finally {
@@ -303,6 +337,27 @@ export default function AdminDashboard() {
       setError(accountError instanceof Error ? accountError.message : "Failed to update user account.");
     } finally {
       setUserUpdatingId("");
+    }
+  };
+
+  const handleMarkPayout = async (bookingId: string, action: "COMPLETE" | "FAIL") => {
+    setPayoutUpdatingId(bookingId);
+    setPayoutError("");
+    setPayoutSuccess("");
+    try {
+      const res = await fetch("/api/admin/payouts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, action }),
+      });
+      const payload = await res.json();
+      if (!res.ok || !payload.success) throw new Error(payload.error || "Failed to update payout.");
+      setPayoutSuccess(action === "COMPLETE" ? "Payout marked as completed. Landlord has been notified." : "Payout marked as failed. Support has been notified.");
+      await loadAdminData(selectedSchool);
+    } catch (e) {
+      setPayoutError(e instanceof Error ? e.message : "Failed to update payout.");
+    } finally {
+      setPayoutUpdatingId("");
     }
   };
 
@@ -579,7 +634,7 @@ export default function AdminDashboard() {
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-6 mb-8">
         <button
           onClick={() => setActivePanel("properties")}
           className={`bg-white p-6 rounded-xl shadow-sm text-left hover:shadow-md transition-shadow ${
@@ -635,6 +690,14 @@ export default function AdminDashboard() {
           <div className="text-3xl font-bold text-indigo-600">AI</div>
           <div className="text-gray-600">Demand Forecast</div>
         </button>
+
+        <button
+          onClick={() => setActivePanel("payouts")}
+          className={`bg-white p-6 rounded-xl shadow-sm border-2 border-emerald-200 text-left hover:shadow-md transition-shadow ${activePanel === "payouts" ? "ring-2 ring-emerald-400/30" : ""}`}
+        >
+          <div className="text-3xl font-bold text-emerald-600">{payouts.length}</div>
+          <div className="text-gray-600">Pending Payouts</div>
+        </button>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm">
@@ -647,11 +710,17 @@ export default function AdminDashboard() {
               {activePanel === "bookings" && "All Bookings"}
               {activePanel === "verifications" && "Landlord Verifications"}
               {activePanel === "forecast" && "AI Demand Forecast"}
+              {activePanel === "payouts" && "Pending Payouts"}
             </h2>
 
             {activePanel === "pending" && pendingProperties.length > 0 && (
               <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
                 {pendingProperties.length} pending
+              </span>
+            )}
+            {activePanel === "payouts" && payouts.length > 0 && (
+              <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm font-medium">
+                {payouts.length} awaiting transfer
               </span>
             )}
           </div>
@@ -967,6 +1036,99 @@ export default function AdminDashboard() {
             </div>
           ) : activePanel === "verifications" ? (
               verificationsPanel
+          ) : activePanel === "payouts" ? (
+            <div className="space-y-4">
+              {payoutError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{payoutError}</div>
+              )}
+              {payoutSuccess && (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{payoutSuccess}</div>
+              )}
+              {payouts.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 text-lg">No pending payouts</p>
+                  <p className="text-gray-400 text-sm mt-1">All landlord payments have been released</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    ⚠️ These landlords are waiting for payment. After manually transferring funds to their bank account, click <strong>Mark as Paid</strong> to notify them.
+                  </div>
+                  {payouts.map((payout) => {
+                    const isUpdating = payoutUpdatingId === payout.id;
+                    const totalPaid = Number(payout.payments[0]?.amount ?? payout.amount ?? payout.property.price);
+                    const landlord = payout.property.landlord;
+                    const hasBankDetails = landlord.bankAccountNumber && landlord.bankName;
+                    return (
+                      <div key={payout.id} className="border border-gray-200 rounded-xl p-5 bg-white">
+                        <div className="flex flex-col md:flex-row gap-4 justify-between">
+                          <div className="flex-1 space-y-3">
+                            {/* Property & student */}
+                            <div>
+                              <h3 className="font-semibold text-navy text-base">{payout.property.title}</h3>
+                              <p className="text-sm text-gray-500">{payout.property.location.name}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                Tenant: <span className="font-medium text-gray-600">{payout.student.name}</span> — moved in {new Date(payout.movedInConfirmedAt).toLocaleDateString("en-NG", { dateStyle: "medium" })}
+                              </p>
+                            </div>
+
+                            {/* Amount */}
+                            <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                              <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Amount to transfer</span>
+                              <span className="text-lg font-bold text-emerald-700">{formatPrice(totalPaid)}</span>
+                            </div>
+
+                            {/* Bank details */}
+                            <div className={`rounded-lg p-3 text-sm ${hasBankDetails ? "bg-blue-50 border border-blue-100" : "bg-gray-50 border border-gray-200"}`}>
+                              <p className="text-xs font-semibold uppercase tracking-wide mb-1.5 text-gray-500">Landlord Bank Details</p>
+                              <p className="font-semibold text-gray-800">{landlord.name}</p>
+                              {hasBankDetails ? (
+                                <>
+                                  <p className="text-gray-700">{landlord.bankAccountName ?? landlord.name}</p>
+                                  <p className="text-gray-700 font-mono">{landlord.bankAccountNumber}</p>
+                                  <p className="text-gray-600">{landlord.bankName}</p>
+                                </>
+                              ) : (
+                                <p className="text-amber-600 text-xs mt-1">⚠️ No bank account set up yet — contact landlord at {landlord.email}{landlord.phoneNumber ? ` / ${landlord.phoneNumber}` : ""}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex flex-col gap-2 justify-start md:items-end shrink-0 mt-2 md:mt-0">
+                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                              payout.payoutStatus === "PROCESSING" ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"
+                            }`}>
+                              {payout.payoutStatus === "PROCESSING" ? "Processing" : "Awaiting transfer"}
+                            </span>
+                            <button
+                              disabled={isUpdating}
+                              onClick={async () => {
+                                if (!confirm(`Mark payout for ${payout.property.title} as COMPLETED?\n\nThis will notify the landlord that their payment has been sent.`)) return;
+                                await handleMarkPayout(payout.id, "COMPLETE");
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
+                            >
+                              {isUpdating ? "Saving…" : "✓ Mark as Paid"}
+                            </button>
+                            <button
+                              disabled={isUpdating}
+                              onClick={async () => {
+                                if (!confirm(`Mark payout for ${payout.property.title} as FAILED?\n\nThis will notify both the landlord and student of an issue.`)) return;
+                                await handleMarkPayout(payout.id, "FAIL");
+                              }}
+                              className="bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-700 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              {isUpdating ? "Saving…" : "✕ Mark as Failed"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           ) : activePanel === "forecast" ? (
             <div>
               {forecastLoading ? (

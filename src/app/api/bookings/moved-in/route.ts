@@ -2,7 +2,7 @@
  * POST /api/bookings/moved-in
  * Student confirms they have moved in.
  * Sets movedInConfirmedAt, updates moveInDate if provided,
- * then initiates a Paystack transfer to the landlord's bank account.
+ * then notifies all admins so they can manually release the payout to the landlord.
  * Body: { bookingId, moveInDate? }
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -35,16 +35,14 @@ export async function POST(request: NextRequest) {
               select: {
                 id: true,
                 name: true,
-                email: true,
-                paystackRecipientCode: true,
-                bankAccountName: true,
+                bankAccountNumber: true,
                 bankName: true,
+                bankAccountName: true,
               },
             },
           },
         },
         student: { select: { id: true, name: true } },
-        payments: { where: { status: "SUCCESS" }, orderBy: { createdAt: "desc" }, take: 1 },
       },
     });
 
@@ -62,49 +60,13 @@ export async function POST(request: NextRequest) {
     }
 
     const landlord = booking.property.landlord;
-    if (!landlord.paystackRecipientCode) {
-      return NextResponse.json(
-        { success: false, error: "The landlord has not set up their payout account yet. Please contact them to set it up before confirming move-in." },
-        { status: 409 }
-      );
-    }
 
-    // Amount to transfer — the rent amount paid
-    const amountNaira = Number(booking.amount ?? booking.property.price);
-    const amountKobo = Math.round(amountNaira * 100);
-
-    // Initiate Paystack transfer
-    const transferRes = await fetch("https://api.paystack.co/transfer", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        source: "balance",
-        amount: amountKobo,
-        recipient: landlord.paystackRecipientCode,
-        reason: `Rent payment — ${booking.property.title} (Booking ${bookingId})`,
-        reference: `PAYOUT-${bookingId}-${Date.now()}`,
-      }),
-    });
-
-    const transferData = await transferRes.json();
-
-    if (!transferData.status) {
-      console.error("[MOVED-IN TRANSFER ERROR]", transferData);
-      return NextResponse.json(
-        { success: false, error: transferData.message || "Failed to initiate landlord payout. Please try again." },
-        { status: 500 }
-      );
-    }
-
-    // Update booking: confirmed move-in + payout PROCESSING
+    // Update booking: confirmed move-in, payout stays PENDING until admin releases it
     await prisma.booking.update({
       where: { id: bookingId },
       data: {
         movedInConfirmedAt: new Date(),
-        payoutStatus: "PROCESSING",
+        payoutStatus: "PENDING",
         ...(moveInDate && { moveInDate: new Date(moveInDate) }),
       },
     });
@@ -114,14 +76,33 @@ export async function POST(request: NextRequest) {
       userId: landlord.id,
       type: "PAYMENT",
       title: "Tenant has moved in",
-      message: `${booking.student.name} confirmed move-in for ${booking.property.title}. Your payout is being processed.`,
+      message: `${booking.student.name} confirmed move-in for ${booking.property.title}. RentalHub will release your payment shortly.`,
       link: "/landlord",
     }).catch(console.error);
 
+    // Notify all admins so they can manually process the payout
+    const amountNaira = Number(booking.amount ?? booking.property.price);
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true },
+    });
+
+    await Promise.all(
+      admins.map((admin) =>
+        notifyUser({
+          userId: admin.id,
+          type: "PAYMENT",
+          title: "Payout action required",
+          message: `${booking.student.name} has moved into ${booking.property.title}. Please release ₦${amountNaira.toLocaleString("en-NG")} to ${landlord.name}${landlord.bankAccountName ? ` (${landlord.bankAccountName}` : ""}${landlord.bankName ? ` — ${landlord.bankName}` : ""}${landlord.bankAccountNumber ? `, ${landlord.bankAccountNumber}` : ""}${landlord.bankAccountName || landlord.bankName ? ")" : ""}.`,
+          link: "/admin",
+        }).catch(console.error),
+      ),
+    );
+
     return NextResponse.json({
       success: true,
-      message: "Move-in confirmed! The landlord payout is now being processed.",
-      data: { payoutStatus: "PROCESSING", transferReference: transferData.data?.reference },
+      message: "Move-in confirmed! RentalHub will release the payment to your landlord shortly.",
+      data: { payoutStatus: "PENDING" },
     });
   } catch (error) {
     console.error("[MOVED-IN ERROR]", error);

@@ -121,10 +121,10 @@ function ApartmentManagementCard({ booking, onRefresh }: { booking: BookingItem;
   };
 
   const payoutLabel: Record<PayoutStatus, { text: string; className: string }> = {
-    PENDING:    { text: "Awaiting move-in confirmation", className: "text-gray-500" },
-    PROCESSING: { text: "Payout processing…", className: "text-blue-600 font-medium" },
+    PENDING:    { text: "Payment release pending — RentalHub will transfer to your landlord", className: "text-amber-600 font-medium" },
+    PROCESSING: { text: "Payout in progress…", className: "text-blue-600 font-medium" },
     COMPLETED:  { text: "Landlord paid ✓", className: "text-green-600 font-semibold" },
-    FAILED:     { text: "Payout failed — contact support", className: "text-red-600 font-medium" },
+    FAILED:     { text: "Payout issue — RentalHub support will contact you", className: "text-red-600 font-medium" },
   };
 
   return (
