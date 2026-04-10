@@ -66,7 +66,7 @@ interface AdminUserItem {
 
 interface AdminBookingItem {
   id: string;
-  status: "PENDING" | "CONFIRMED" | "CANCELLED";
+  status: "PENDING" | "CONFIRMED" | "AWAITING_PAYMENT" | "PAID" | "CANCELLED" | "EXPIRED";
   createdAt: string;
   student: {
     name: string;
@@ -1012,10 +1012,16 @@ export default function AdminDashboard() {
                         <td className="py-4 px-4">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              booking.status === "CONFIRMED"
+                              booking.status === "PAID"
+                                ? "bg-green-100 text-green-800"
+                                : booking.status === "AWAITING_PAYMENT"
+                                ? "bg-orange-100 text-orange-800"
+                                : booking.status === "CONFIRMED"
                                 ? "bg-green-100 text-green-800"
                                 : booking.status === "PENDING"
                                 ? "bg-yellow-100 text-yellow-800"
+                                : booking.status === "EXPIRED"
+                                ? "bg-gray-200 text-gray-700"
                                 : "bg-red-100 text-red-800"
                             }`}
                           >

@@ -238,13 +238,25 @@ export async function PATCH(request: Request) {
     // Student/landlord cancels a PAID booking → trigger refund
     if (status === "CANCELLED" && booking.status === "PAID") {
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/payments/refund`, {
+        const refundResponse = await fetch(new URL("/api/payments/refund", request.url), {
           method: "POST",
           headers: { "Content-Type": "application/json", Cookie: request.headers.get("cookie") ?? "" },
           body: JSON.stringify({ bookingId }),
         });
+        const refundPayload = await refundResponse.json().catch(() => null);
+        if (!refundResponse.ok || !refundPayload?.success) {
+          return NextResponse.json(
+            { success: false, error: refundPayload?.error || "Failed to initiate refund." },
+            { status: refundResponse.status || 500 },
+          );
+        }
         return NextResponse.json({ success: true, message: "Cancellation and refund initiated." });
-      } catch { /* refund will handle its own DB updates */ }
+      } catch {
+        return NextResponse.json(
+          { success: false, error: "Failed to initiate refund. Please try again." },
+          { status: 500 },
+        );
+      }
     }
 
     let updatedBooking: BookingWithRelations | null = null;

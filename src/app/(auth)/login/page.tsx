@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function LoginPageContent() {
@@ -54,11 +54,7 @@ function LoginPageContent() {
       const actualRole = session?.user?.role;
 
       if (actualRole && selectedRole !== actualRole) {
-        await fetch("/api/auth/signout", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ callbackUrl: "/login" }),
-        });
+        await signOut({ redirect: false });
         setError(`This account is ${actualRole.toLowerCase()}, not ${selectedRole.toLowerCase()}.`);
         setIsLoading(false);
         return;

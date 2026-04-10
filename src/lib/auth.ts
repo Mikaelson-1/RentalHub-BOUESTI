@@ -114,6 +114,24 @@ export const authOptions: NextAuthOptions = {
         token.verificationStatus = user.verificationStatus;
         token.avatarUrl = user.avatarUrl ?? null;
       }
+      // Keep role/verification fresh after admin-side account changes.
+      if (!user && token.id) {
+        const latest = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: {
+            role: true,
+            verificationStatus: true,
+            avatarUrl: true,
+            name: true,
+          },
+        });
+        if (latest) {
+          token.role = latest.role;
+          token.verificationStatus = latest.verificationStatus;
+          token.avatarUrl = latest.avatarUrl ?? null;
+          token.name = latest.name;
+        }
+      }
       // Handle explicit session updates (e.g. after avatar or profile save)
       if (trigger === "update" && sessionUpdate) {
         if (sessionUpdate.avatarUrl !== undefined) token.avatarUrl = sessionUpdate.avatarUrl;

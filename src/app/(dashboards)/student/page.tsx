@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { MapPin, Wifi, Zap, Shield, Droplets, Car, Sun, CheckCircle, Home, Phone, Calendar, FileText, Clock, ScrollText } from "lucide-react";
+import { MapPin, Wifi, Zap, Shield, Droplets, Car, Sun, CheckCircle, Home, Phone, Calendar, FileText, Clock } from "lucide-react";
 import { getPropertyImage } from "@/lib/property-image";
 
 type BookingStatus = "PENDING" | "CONFIRMED" | "AWAITING_PAYMENT" | "PAID" | "CANCELLED" | "EXPIRED";
