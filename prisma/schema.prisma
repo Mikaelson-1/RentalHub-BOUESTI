@@ -48,6 +48,13 @@ enum PaymentStatus {
   PARTIAL_REFUND
 }
 
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id                 String             @id @default(cuid())
   name               String
@@ -73,6 +80,13 @@ model User {
   avatarUrl         String?
   aiPreScreenScore  String?
   aiPreScreenNote   String?
+
+  // Bank account for landlord payouts (Paystack transfer)
+  bankAccountNumber     String?
+  bankCode              String?
+  bankName              String?
+  bankAccountName       String?  // Auto-resolved by Paystack
+  paystackRecipientCode String?  // Paystack transfer recipient code
 
   properties         Property[]         @relation("LandlordProperties")
   reviewedProperties Property[]         @relation("PropertyReviews")
@@ -161,8 +175,14 @@ model Booking {
   expiresAt       DateTime?     // auto-cancel if unpaid after this
 
   // Tenancy
-  moveInDate      DateTime?
-  leaseEndDate    DateTime?
+  moveInDate          DateTime?
+  leaseEndDate        DateTime?
+  movedInConfirmedAt  DateTime?           // set when student clicks "I've Moved In"
+  payoutStatus        PayoutStatus @default(PENDING)
+
+  // Tenancy agreement
+  agreementSignedAt   DateTime?           // set when student signs before payment
+  agreementSignedName String?             // full name typed at signing
 
   studentId  String
   propertyId String

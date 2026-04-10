@@ -61,7 +61,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // Update booking to PAID
+    // Update booking to PAID (student sets moveInDate themselves)
     await prisma.booking.update({
       where: { id: bookingId },
       data: {

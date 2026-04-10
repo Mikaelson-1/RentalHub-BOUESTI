@@ -104,6 +104,30 @@ export async function POST(request: Request) {
       ]);
     }
 
+    if (event.event === "transfer.success") {
+      const { reference } = event.data;
+      // Mark payout as completed on the booking that triggered this transfer
+      await prisma.booking.updateMany({
+        where: {
+          payoutStatus: "PROCESSING",
+          // reference is embedded as "PAYOUT-{bookingId}-{timestamp}"
+          id: { in: reference?.startsWith("PAYOUT-") ? [reference.split("-")[1]] : [] },
+        },
+        data: { payoutStatus: "COMPLETED" },
+      });
+    }
+
+    if (event.event === "transfer.failed" || event.event === "transfer.reversed") {
+      const { reference } = event.data;
+      if (reference?.startsWith("PAYOUT-")) {
+        const bookingId = reference.split("-")[1];
+        await prisma.booking.update({
+          where: { id: bookingId },
+          data: { payoutStatus: "FAILED" },
+        }).catch(console.error);
+      }
+    }
+
     if (event.event === "refund.processed") {
       const { transaction_reference, amount } = event.data;
       await prisma.payment.updateMany({

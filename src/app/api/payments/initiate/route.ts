@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     if (!booking) return NextResponse.json({ success: false, error: "Booking not found." }, { status: 404 });
     if (booking.studentId !== session.user.id) return NextResponse.json({ success: false, error: "Not your booking." }, { status: 403 });
     if (booking.status !== "AWAITING_PAYMENT") return NextResponse.json({ success: false, error: "Booking is not awaiting payment." }, { status: 400 });
+    if (!booking.agreementSignedAt) return NextResponse.json({ success: false, error: "You must sign the tenancy agreement before making payment." }, { status: 403 });
 
     const totalAmount = Number(booking.amount ?? booking.property.price) +
       Number(booking.agencyFee ?? 0) +
