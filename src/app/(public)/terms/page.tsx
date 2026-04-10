@@ -35,7 +35,7 @@ export default function TermsPage() {
                 <span className="font-medium">Funds are held by RentalHub.</span> The rent payment is received and held by RentalHub until the student confirms they have physically moved in to the property.
               </li>
               <li>
-                <span className="font-medium">Student confirms move-in.</span> After collecting the keys and moving in, the student must click <em>"I&apos;ve Moved In"</em> on their dashboard. This is what triggers the payment release process.
+                <span className="font-medium">Student confirms move-in.</span> After collecting the keys and moving in, the student must click <em>&ldquo;I&apos;ve Moved In&rdquo;</em> on their dashboard. This is what triggers the payment release process.
               </li>
               <li>
                 <span className="font-medium">RentalHub releases payment to landlord.</span> Upon the student&apos;s move-in confirmation, RentalHub manually verifies and transfers the rent payment to the landlord&apos;s registered bank account. Both parties are notified by email.
