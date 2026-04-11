@@ -26,6 +26,46 @@ export async function GET(request: Request) {
 
     if (!reference || !bookingId) return NextResponse.json({ success: false, error: "Reference and bookingId required." }, { status: 400 });
 
+    // ── Ownership + idempotency check BEFORE hitting Paystack ──────────────
+    // Fetch just the fields needed to authorise and short-circuit on already-paid.
+    const bookingOwnership = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { studentId: true, status: true, paymentStatus: true, amount: true },
+    });
+
+    if (!bookingOwnership) {
+      return NextResponse.json({ success: false, error: "Booking not found." }, { status: 404 });
+    }
+
+    // Students may only verify their own bookings.
+    if (session.user.role === "STUDENT" && bookingOwnership.studentId !== session.user.id) {
+      return NextResponse.json({ success: false, error: "You are not allowed to verify this booking payment." }, { status: 403 });
+    }
+
+    // Confirm the payment record belongs to this booking before calling Paystack.
+    const paymentRecord = await prisma.payment.findFirst({
+      where: { bookingId, paystackRef: reference },
+      select: { id: true },
+    });
+    if (!paymentRecord) {
+      return NextResponse.json({ success: false, error: "Invalid payment reference for this booking." }, { status: 400 });
+    }
+
+    // Early idempotency: if already paid, skip the Paystack round-trip entirely.
+    if (bookingOwnership.status === "PAID" || bookingOwnership.paymentStatus === "SUCCESS") {
+      return NextResponse.json({
+        success: true,
+        data: {
+          paymentStatus: "SUCCESS",
+          amountPaid: Number(bookingOwnership.amount),
+          reference,
+          alreadyVerified: true,
+        },
+      });
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
+    // Now safe to call Paystack.
     const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
       headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
     });
@@ -36,11 +76,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: "Payment was not successful.", data: { paymentStatus: "FAILED" } }, { status: 400 });
     }
 
+    // Cross-check metadata bookingId if present.
     const metadataBookingId = verifyData?.data?.metadata?.bookingId as string | undefined;
     if (metadataBookingId && metadataBookingId !== bookingId) {
       return NextResponse.json({ success: false, error: "Payment reference does not match this booking." }, { status: 400 });
     }
 
+    // Full booking fetch (needed for emails / notifications).
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -55,34 +97,8 @@ export async function GET(request: Request) {
     });
 
     if (!booking) return NextResponse.json({ success: false, error: "Booking not found." }, { status: 404 });
-    const paymentRecord = await prisma.payment.findFirst({
-      where: {
-        bookingId,
-        paystackRef: reference,
-      },
-      select: { id: true },
-    });
-    if (!paymentRecord) {
-      return NextResponse.json({ success: false, error: "Invalid payment reference for this booking." }, { status: 400 });
-    }
-    if (session.user.role === "STUDENT" && booking.studentId !== session.user.id) {
-      return NextResponse.json({ success: false, error: "You are not allowed to verify this booking payment." }, { status: 403 });
-    }
 
     const amountPaid = verifyData.data.amount / 100; // convert kobo back to naira
-
-    // Idempotency guard: if this booking is already paid, return success without mutating stock/payment again.
-    if (booking.status === "PAID" || booking.paymentStatus === "SUCCESS") {
-      return NextResponse.json({
-        success: true,
-        data: {
-          paymentStatus: "SUCCESS",
-          amountPaid: Number(booking.amount ?? amountPaid),
-          reference,
-          alreadyVerified: true,
-        },
-      });
-    }
 
     const txResult = await prisma.$transaction(async (tx) => {
       const freshBooking = await tx.booking.findUnique({
@@ -100,6 +116,7 @@ export async function GET(request: Request) {
         return { alreadyVerified: false, amountPaid };
       }
 
+      // Inner idempotency guard inside the transaction (race-condition safety).
       if (freshBooking.status === "PAID" || freshBooking.paymentStatus === "SUCCESS") {
         return { alreadyVerified: true, amountPaid: Number(freshBooking.amount ?? amountPaid) };
       }

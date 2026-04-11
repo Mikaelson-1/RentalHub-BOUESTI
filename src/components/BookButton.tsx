@@ -48,6 +48,7 @@ export default function BookButton({ propertyId, propertyPrice, existingBookingS
       router.push("/student?tab=bookings");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Booking failed. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
