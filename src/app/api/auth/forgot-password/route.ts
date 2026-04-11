@@ -43,6 +43,8 @@ export async function POST(request: Request) {
 
     // Include the first 8 chars of the current hash so the token is invalidated
     // the moment the password is changed.
+    // Google-only accounts have no password — password reset is not applicable
+    if (!user.password) return ok;
     const pwdFragment = user.password.slice(0, 8);
 
     const token = await new SignJWT({ sub: user.id, email: user.email, pwdFragment })

@@ -1,19 +1,20 @@
 import { NextAuthOptions } from "next-auth";
-import type { Adapter } from "next-auth/adapters";
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { Role, VerificationStatus } from "@prisma/client";
 import { rateLimit } from "./rate-limit";
 
-// Extend the NextAuth types to include role and id
+// ── NextAuth type extensions ──────────────────────────────────
+
 declare module "next-auth" {
   interface User {
     id: string;
     role: Role;
     verificationStatus: VerificationStatus;
     avatarUrl?: string | null;
+    needsRoleSetup?: boolean; // true for brand-new Google OAuth users
   }
 
   interface Session {
@@ -24,6 +25,7 @@ declare module "next-auth" {
       role: Role;
       verificationStatus: VerificationStatus;
       avatarUrl?: string | null;
+      needsRoleSetup?: boolean;
     };
   }
 }
@@ -34,11 +36,16 @@ declare module "next-auth/jwt" {
     role: Role;
     verificationStatus: VerificationStatus;
     avatarUrl?: string | null;
+    needsRoleSetup?: boolean;
   }
 }
 
+// ── Auth config ───────────────────────────────────────────────
+
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as Adapter,
+  // No PrismaAdapter — we handle OAuth user creation manually in the
+  // signIn callback so we don't need the adapter's expected schema shape
+  // (which conflicts with our custom emailVerified: Boolean field).
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -48,10 +55,17 @@ export const authOptions: NextAuthOptions = {
     error: "/login",
   },
   providers: [
+    // ── Google OAuth ──────────────────────────────────────────
+    GoogleProvider({
+      clientId:     process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+
+    // ── Email / password ──────────────────────────────────────
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        email:    { label: "Email",    type: "email" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
@@ -59,34 +73,34 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid credentials");
         }
 
-        // Rate limit: 10 login attempts per email per 15 minutes
-        const rl = rateLimit(`login:${credentials.email.toLowerCase()}`, { limit: 10, windowSeconds: 900 });
+        // Rate limit: 10 attempts per email per 15 minutes
+        const rl = rateLimit(`login:${credentials.email.toLowerCase()}`, {
+          limit: 10,
+          windowSeconds: 900,
+        });
         if (!rl.success) {
-          throw new Error(`Too many login attempts. Please try again in ${rl.retryAfter} seconds.`);
+          throw new Error(
+            `Too many login attempts. Please try again in ${rl.retryAfter} seconds.`,
+          );
         }
 
-        // Find user by email
         const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email,
-          },
+          where: { email: credentials.email },
         });
 
-        if (!user) {
-          throw new Error("Invalid credentials");
+        if (!user) throw new Error("Invalid credentials");
+
+        // Google-only accounts have no password — block credentials login
+        if (!user.password) {
+          throw new Error("GOOGLE_ACCOUNT_NO_PASSWORD");
         }
 
-        // Verify password
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
-          user.password
+          user.password,
         );
+        if (!isPasswordValid) throw new Error("Invalid credentials");
 
-        if (!isPasswordValid) {
-          throw new Error("Invalid credentials");
-        }
-
-        // Check if user is verified
         if (user.verificationStatus === VerificationStatus.SUSPENDED) {
           throw new Error("Account has been suspended");
         }
@@ -94,61 +108,140 @@ export const authOptions: NextAuthOptions = {
           throw new Error("EMAIL_NOT_VERIFIED");
         }
 
-        // Return user object
         return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
+          id:                 user.id,
+          name:               user.name,
+          email:              user.email,
+          role:               user.role,
           verificationStatus: user.verificationStatus,
-          avatarUrl: user.avatarUrl ?? null,
+          avatarUrl:          user.avatarUrl ?? null,
         };
       },
     }),
   ],
+
   callbacks: {
-    async jwt({ token, user, trigger, session: sessionUpdate }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.verificationStatus = user.verificationStatus;
-        token.avatarUrl = user.avatarUrl ?? null;
+    // ── signIn ────────────────────────────────────────────────
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== "google") return true;
+
+      const email = user.email;
+      if (!email) return false;
+
+      // Find or create our DB user for this Google account
+      let dbUser = await prisma.user.findUnique({ where: { email } });
+      let isNewUser = false;
+
+      if (!dbUser) {
+        // Brand-new user — default to STUDENT, flag for role setup
+        dbUser = await prisma.user.create({
+          data: {
+            name:               user.name  ?? "User",
+            email,
+            password:           null,         // no password for OAuth users
+            emailVerified:      true,         // Google has already verified the email
+            role:               "STUDENT",    // user can change this on setup-role page
+            verificationStatus: "UNVERIFIED",
+            avatarUrl:          (profile as { picture?: string })?.picture ?? null,
+          },
+        });
+        isNewUser = true;
       }
-      // Keep role/verification fresh after admin-side account changes.
+
+      // Upsert the OAuth account link so the same Google UID always maps
+      // to this user (prevents duplicates if email changes on Google side)
+      const existingLink = await prisma.oAuthAccount.findUnique({
+        where: {
+          provider_providerAccountId: {
+            provider:          account.provider,
+            providerAccountId: account.providerAccountId,
+          },
+        },
+      });
+      if (!existingLink) {
+        await prisma.oAuthAccount.create({
+          data: {
+            userId:            dbUser.id,
+            provider:          account.provider,
+            providerAccountId: account.providerAccountId,
+            accessToken:       account.access_token  ?? null,
+            refreshToken:      account.refresh_token ?? null,
+            expiresAt:         account.expires_at    ?? null,
+          },
+        });
+      }
+
+      // Attach DB fields onto the NextAuth user object so the JWT
+      // callback can pick them up in the `if (user)` branch
+      user.id                 = dbUser.id;
+      user.role               = dbUser.role;
+      user.verificationStatus = dbUser.verificationStatus;
+      user.avatarUrl          = dbUser.avatarUrl ?? null;
+      user.needsRoleSetup     = isNewUser;
+
+      return true;
+    },
+
+    // ── jwt ───────────────────────────────────────────────────
+    async jwt({ token, user, trigger, session: sessionUpdate }) {
+      // First sign-in (credentials and Google both land here)
+      if (user) {
+        token.id                 = user.id;
+        token.role               = user.role;
+        token.verificationStatus = user.verificationStatus;
+        token.avatarUrl          = user.avatarUrl ?? null;
+        token.needsRoleSetup     = user.needsRoleSetup ?? false;
+      }
+
+      // Keep role/verification fresh on subsequent requests
       if (!user && token.id) {
         const latest = await prisma.user.findUnique({
-          where: { id: token.id },
+          where:  { id: token.id },
           select: {
-            role: true,
+            role:               true,
             verificationStatus: true,
-            avatarUrl: true,
-            name: true,
+            avatarUrl:          true,
+            name:               true,
           },
         });
         if (latest) {
-          token.role = latest.role;
+          token.role               = latest.role;
           token.verificationStatus = latest.verificationStatus;
-          token.avatarUrl = latest.avatarUrl ?? null;
-          token.name = latest.name;
+          token.avatarUrl          = latest.avatarUrl ?? null;
+          token.name               = latest.name;
         }
       }
-      // Handle explicit session updates (e.g. after avatar or profile save)
+
+      // Handle explicit session updates (avatar, role setup, etc.)
       if (trigger === "update" && sessionUpdate) {
-        if (sessionUpdate.avatarUrl !== undefined) token.avatarUrl = sessionUpdate.avatarUrl;
-        if (sessionUpdate.verificationStatus) token.verificationStatus = sessionUpdate.verificationStatus;
-        if (sessionUpdate.name) token.name = sessionUpdate.name;
+        if (sessionUpdate.avatarUrl !== undefined)
+          token.avatarUrl = sessionUpdate.avatarUrl;
+        if (sessionUpdate.verificationStatus)
+          token.verificationStatus = sessionUpdate.verificationStatus;
+        if (sessionUpdate.name)
+          token.name = sessionUpdate.name;
+        // Role-setup completion clears the flag and applies the chosen role
+        if (sessionUpdate.needsRoleSetup === false)
+          token.needsRoleSetup = false;
+        if (sessionUpdate.role)
+          token.role = sessionUpdate.role;
       }
+
       return token;
     },
+
+    // ── session ───────────────────────────────────────────────
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.id;
-        session.user.role = token.role;
+        session.user.id                 = token.id;
+        session.user.role               = token.role;
         session.user.verificationStatus = token.verificationStatus;
-        session.user.avatarUrl = token.avatarUrl ?? null;
+        session.user.avatarUrl          = token.avatarUrl ?? null;
+        session.user.needsRoleSetup     = token.needsRoleSetup ?? false;
       }
       return session;
     },
   },
+
   events: {},
 };

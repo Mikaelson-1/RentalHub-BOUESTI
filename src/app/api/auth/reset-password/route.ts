@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
     // Check that the token hasn't already been used
     // (pwdFragment changes as soon as the password is updated)
-    if (user.password.slice(0, 8) !== payload.pwdFragment) {
+    if (!user.password || user.password.slice(0, 8) !== payload.pwdFragment) {
       return NextResponse.json(
         {
           success: false,

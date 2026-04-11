@@ -44,6 +44,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // New Google OAuth users must pick a role before accessing any dashboard
+  if (token.needsRoleSetup) {
+    return NextResponse.redirect(new URL("/setup-role", request.url));
+  }
+
   const userRole = token.role as string;
   const verificationStatus = token.verificationStatus as string | undefined;
 

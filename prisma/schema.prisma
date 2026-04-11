@@ -59,7 +59,7 @@ model User {
   id                 String             @id @default(cuid())
   name               String
   email              String             @unique
-  password           String
+  password           String?   // null for Google OAuth users
   role               Role               @default(STUDENT)
   verificationStatus VerificationStatus @default(UNVERIFIED)
   emailVerified      Boolean            @default(false)
@@ -94,11 +94,30 @@ model User {
   imageHashes        ImageHash[]
   notifications      Notification[]
   emailOtps          EmailOtp[]
+  oauthAccounts      OAuthAccount[]
 
   @@index([email])
   @@index([role])
   @@index([verificationStatus])
   @@map("users")
+}
+
+// Stores OAuth provider account links (e.g. Google) for a user.
+// Allows one user to sign in via multiple OAuth providers.
+model OAuthAccount {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String  // e.g. "google"
+  providerAccountId String  // Google's unique user ID
+  accessToken       String? @db.Text
+  refreshToken      String? @db.Text
+  expiresAt         Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
 }
 
 enum NotificationType {

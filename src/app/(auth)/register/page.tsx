@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -203,6 +205,29 @@ export default function RegisterPage() {
               {isLoading ? "Creating Account..." : success ? "Redirecting..." : "Create Account"}
             </button>
           </form>
+
+          {/* Divider */}
+          <div className="mt-6 flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-xs text-gray-400 font-medium">OR</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+          {/* Google sign-up */}
+          <button
+            type="button"
+            onClick={() => signIn("google", { callbackUrl: "/setup-role" })}
+            className="mt-4 w-full flex items-center justify-center gap-3 border border-gray-300 rounded-lg py-3 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Image
+              src="https://www.google.com/favicon.ico"
+              alt="Google"
+              width={18}
+              height={18}
+              className="w-[18px] h-[18px]"
+            />
+            Sign up with Google
+          </button>
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">
