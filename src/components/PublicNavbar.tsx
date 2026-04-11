@@ -8,9 +8,9 @@ import { useSession, signOut } from "next-auth/react";
 import { Menu, X, Plus, User } from "lucide-react";
 
 const navLinks = [
-  { href: "#how-it-works", label: "How it Works" },
+  { href: "/#how-it-works", label: "How it Works" },
   { href: "/properties", label: "Browse" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/#faq", label: "FAQ" },
 ];
 
 export default function PublicNavbar() {

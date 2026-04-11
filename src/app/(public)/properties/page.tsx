@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import prisma from "@/lib/prisma";
 import { SCHOOL_LOCATION_KEYWORDS } from "@/lib/schools";
-import { getPropertyImage } from "@/lib/property-image";
+import { Building2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -115,18 +115,21 @@ export default async function PropertiesPage({ searchParams }: PropertiesPagePro
               const isFullyBooked = property.vacantUnits <= 0;
               return (
                 <div key={property.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="relative h-48">
+                  <div className="relative h-48 bg-gray-100">
                     {(() => {
                       const uploadedSrc = getFirstUploadedImage(property.images);
-                      const src = uploadedSrc ?? getPropertyImage(property.id);
-                      return (
+                      return uploadedSrc ? (
                         <Image
-                          src={src}
+                          src={uploadedSrc}
                           alt={property.title}
                           fill
                           className={`object-cover${isFullyBooked ? " opacity-60" : ""}`}
-                          unoptimized={!!uploadedSrc}
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Building2 className="w-10 h-10 text-gray-300" />
+                        </div>
                       );
                     })()}
                     {isFullyBooked && (

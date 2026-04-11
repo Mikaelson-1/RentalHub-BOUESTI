@@ -40,7 +40,7 @@ export default function Footer() {
             <h4 className="text-sm font-semibold uppercase tracking-wide text-[#E67E22]">Support</h4>
             <div className="mt-3 flex flex-col gap-2 text-sm text-black">
               <a href="mailto:support@rentalhub.ng" className="hover:text-gray-700 transition-colors">support@rentalhub.ng</a>
-              <a href="tel:+2340000000000" className="hover:text-gray-700 transition-colors">+234 000 000 0000</a>
+              <a href="tel:+2348146916177" className="hover:text-gray-700 transition-colors">+234 814 691 6177</a>
             </div>
           </div>
         </div>

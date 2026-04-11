@@ -1,6 +1,7 @@
 /**
  * GET /api/properties/[id]  — Fetch a single property
  * PUT /api/properties/[id]  — Update a property (landlord owner or admin only)
+ * DELETE /api/properties/[id] — Delete a property (landlord owner or admin only)
  */
 
 import { NextResponse } from 'next/server';
@@ -8,6 +9,8 @@ import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { sanitizeText, sanitizeStringArray } from '@/lib/sanitize';
+import { notifyUser } from '@/lib/notifications';
+import { sendBookingCancelledToStudent } from '@/lib/email';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -117,7 +120,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
     const existing = await prisma.property.findUnique({
       where: { id },
-      select: { landlordId: true, status: true, _count: { select: { bookings: true } } },
+      select: { landlordId: true, title: true, location: { select: { name: true } } },
     });
 
     if (!existing) {
@@ -131,18 +134,61 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ success: false, error: 'You are not authorised to delete this property.' }, { status: 403 });
     }
 
-    // Prevent deletion if there are active (non-cancelled) bookings
-    const activeBookings = await prisma.booking.count({
-      where: { propertyId: id, status: { notIn: ['CANCELLED', 'EXPIRED'] } },
+    // Only block deletion when a student has *already paid* (CONFIRMED booking).
+    // AWAITING_PAYMENT bookings (student hasn't paid yet) are cancelled automatically below.
+    const confirmedCount = await prisma.booking.count({
+      where: { propertyId: id, status: 'CONFIRMED' },
     });
 
-    if (activeBookings > 0 && !isAdmin) {
+    if (confirmedCount > 0 && !isAdmin) {
       return NextResponse.json(
-        { success: false, error: 'Cannot delete a property with active bookings. Cancel all bookings first or contact support.' },
+        {
+          success: false,
+          error: 'Cannot delete a property with a confirmed, paid booking. Contact support to resolve the tenancy first.',
+        },
         { status: 400 },
       );
     }
 
+    // Find unpaid bookings so we can notify those students before the cascade delete
+    const unpaidBookings = await prisma.booking.findMany({
+      where: { propertyId: id, status: { in: ['PENDING', 'AWAITING_PAYMENT'] } },
+      select: {
+        id: true,
+        student: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    if (unpaidBookings.length > 0) {
+      await prisma.booking.updateMany({
+        where: { id: { in: unpaidBookings.map((b) => b.id) } },
+        data: { status: 'CANCELLED' },
+      });
+
+      // Notify students in parallel — don't let a notification failure block deletion
+      await Promise.allSettled(
+        unpaidBookings.map((b) =>
+          Promise.allSettled([
+            notifyUser({
+              userId:  b.student.id,
+              type:    'BOOKING',
+              title:   'Booking cancelled',
+              message: `Your booking for ${existing.title} has been cancelled because the landlord removed the listing.`,
+              link:    '/student',
+            }),
+            sendBookingCancelledToStudent({
+              studentName:     b.student.name ?? 'Student',
+              studentEmail:    b.student.email,
+              propertyTitle:   existing.title,
+              propertyLocation: existing.location.name,
+              cancelledBy:     'landlord',
+            }),
+          ]),
+        ),
+      );
+    }
+
+    // Cascade in schema handles remaining Booking → Payment rows automatically
     await prisma.property.delete({ where: { id } });
 
     return NextResponse.json({ success: true, message: 'Property deleted successfully.' });

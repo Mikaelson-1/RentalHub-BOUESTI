@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import prisma from "@/lib/prisma";
-import { getPropertyImage } from "@/lib/property-image";
 import FAQAccordion from "@/components/FAQAccordion";
 import FloatingCTA from "@/components/FloatingCTA";
+import HeroSlideshow from "@/components/HeroSlideshow";
+import { Building2 } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Verified Student Housing Near BOUESTI",
@@ -30,26 +31,75 @@ import {
   Star,
   Home,
   Users,
-  Building2,
 } from "lucide-react";
+
+// ── Image helper ──────────────────────────────────────────────
+
+/**
+ * Returns the first uploaded image URL from a property's images JSON field.
+ * Only returns images that were actually uploaded — never falls back to
+ * placeholder / stock images. Returns null if no uploaded image exists.
+ */
+function getFirstUploadedImage(images: unknown): string | null {
+  if (!Array.isArray(images)) return null;
+  for (const item of images) {
+    if (typeof item === "string" && item.startsWith("http")) return item;
+    if (
+      typeof item === "object" &&
+      item !== null &&
+      "url" in item &&
+      typeof (item as { url: unknown }).url === "string"
+    ) {
+      const typed = item as { url: string; type?: string };
+      if (!typed.type || typed.type === "image") return typed.url;
+    }
+  }
+  return null;
+}
 
 // ── Data fetching ─────────────────────────────────────────────
 
 async function getPageData() {
   try {
-    const [propertyCount, locationCount, featured] = await Promise.all([
+    const [propertyCount, locationCount, featured, slideshowCandidates] = await Promise.all([
       prisma.property.count({ where: { status: "APPROVED" } }),
       prisma.location.count(),
       prisma.property.findMany({
         where: { status: "APPROVED" },
-        include: { location: true },
+        select: {
+          id: true,
+          title: true,
+          price: true,
+          distanceToCampus: true,
+          amenities: true,
+          images: true,
+          location: { select: { name: true } },
+        },
         orderBy: { createdAt: "desc" },
         take: 4,
       }),
+      // Fetch more properties to populate the hero slideshow
+      prisma.property.findMany({
+        where: { status: "APPROVED" },
+        select: { id: true, title: true, images: true },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
     ]);
+
+    // Collect up to 8 distinct uploaded images for the slideshow
+    const slideImages: { src: string; alt: string }[] = [];
+    for (const p of slideshowCandidates) {
+      const img = getFirstUploadedImage(p.images);
+      if (img) {
+        slideImages.push({ src: img, alt: p.title });
+        if (slideImages.length >= 8) break;
+      }
+    }
 
     return {
       stats: { propertyCount, locationCount },
+      slideImages,
       featured: featured.map((p) => ({
         id: p.id,
         title: p.title,
@@ -57,11 +107,13 @@ async function getPageData() {
         distanceToCampus: p.distanceToCampus ? Number(p.distanceToCampus) : null,
         amenities: Array.isArray(p.amenities) ? (p.amenities as string[]) : [],
         location: p.location.name,
+        image: getFirstUploadedImage(p.images),
       })),
     };
   } catch {
     return {
       stats: { propertyCount: 0, locationCount: 8 },
+      slideImages: [],
       featured: [],
     };
   }
@@ -121,7 +173,7 @@ const FAQS = [
 // ── Page ──────────────────────────────────────────────────────
 
 export default async function HomePage() {
-  const { featured } = await getPageData();
+  const { featured, slideImages } = await getPageData();
 
   return (
     <div className="min-h-screen bg-[#fafafa] overflow-x-hidden">
@@ -140,7 +192,7 @@ export default async function HomePage() {
               </h1>
 
               <p className="font-sans text-base text-gray-500 mt-6 ml-1">
-                / Verified off-campus student housing /
+                Verified off-campus student housing
               </p>
 
               <form action="/properties" method="GET" className="mt-8 flex flex-col sm:flex-row gap-3 max-w-md">
@@ -173,27 +225,16 @@ export default async function HomePage() {
             <div className="relative">
               <div className="bg-white rounded-[2rem] shadow-xl shadow-gray-200/50 p-6 lg:p-8">
                 <div className="flex flex-wrap gap-2 mb-5">
-                  <span className="px-4 py-1.5 border border-gray-200 rounded-full font-sans text-xs text-gray-600">Verified</span>
-                  <span className="px-4 py-1.5 border border-gray-200 rounded-full font-sans text-xs text-gray-600">Secure</span>
-                  <span className="px-4 py-1.5 bg-[#192F59] rounded-full font-sans text-xs text-white">Close to Campus</span>
+                  {/* Non-interactive informational badges */}
+                  <span className="px-4 py-1.5 border border-gray-200 rounded-full font-sans text-xs text-gray-600 select-none">Verified</span>
+                  <span className="px-4 py-1.5 border border-gray-200 rounded-full font-sans text-xs text-gray-600 select-none">Secure</span>
+                  <span className="px-4 py-1.5 border border-gray-200 rounded-full font-sans text-xs text-gray-600 select-none">Close to Campus</span>
                 </div>
 
                 <h2 className="font-sans text-2xl font-semibold text-[#192F59] mb-1">Premium Student Living</h2>
                 <p className="font-sans text-sm text-gray-500 mb-6">From single rooms to shared apartments.</p>
 
-                <div className="relative">
-                  <div className="rounded-2xl h-[280px] overflow-hidden relative">
-                    <Image
-                      src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&h=280&fit=crop&auto=format"
-                      alt="Student apartment"
-                      fill
-                      className="object-cover"
-                    />
-                    <div className="absolute top-4 left-4 w-3 h-3 bg-[#E67E22] rounded-full" />
-                    <div className="absolute top-8 right-8 w-2 h-2 bg-[#192F59] rounded-full" />
-                  </div>
-
-                </div>
+                <HeroSlideshow images={slideImages} />
               </div>
             </div>
           </div>
@@ -223,12 +264,19 @@ export default async function HomePage() {
               {featured.map((p) => (
                 <div key={p.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex flex-col">
                   <div className="relative h-40 bg-gray-100">
-                    <Image
-                      src={getPropertyImage(p.id)}
-                      alt={p.title}
-                      fill
-                      className="object-cover"
-                    />
+                    {p.image ? (
+                      <Image
+                        src={p.image}
+                        alt={p.title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Building2 className="w-8 h-8 text-gray-300" />
+                      </div>
+                    )}
                   </div>
                   <div className="p-5 flex flex-col flex-1">
                     <div className="flex items-center gap-1 text-xs text-gray-400 mb-1">
@@ -292,7 +340,7 @@ export default async function HomePage() {
       </section>
 
       {/* ── How it Works ─────────────────────────────────── */}
-      <section className="py-16 sm:py-20 bg-gray-50">
+      <section id="how-it-works" className="py-16 sm:py-20 bg-gray-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
             <p className="text-xs font-bold tracking-widest text-[#E67E22] uppercase mb-2">How It Works</p>
@@ -364,7 +412,7 @@ export default async function HomePage() {
       </section>
 
       {/* ── FAQ ──────────────────────────────────────────── */}
-      <section className="py-16 sm:py-20 bg-white">
+      <section id="faq" className="py-16 sm:py-20 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <p className="text-xs font-bold tracking-widest text-[#E67E22] uppercase mb-2">FAQ</p>
