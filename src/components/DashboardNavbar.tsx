@@ -30,25 +30,34 @@ export default function DashboardNavbar() {
     router.push(`/properties?location=${encodeURIComponent(searchQuery.trim())}`);
   };
 
+  // Clicking the logo signs the user out and returns them to the home page
+  const handleHomeClick = () => {
+    void signOut({ callbackUrl: "/" });
+  };
+
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
-          {/* Logo - Left Side */}
-          <Link href="/" className="flex items-center flex-shrink-0">
+        <div className="flex items-center justify-between h-16 sm:h-20">
+          {/* Logo – clicking signs out and goes home */}
+          <button
+            onClick={handleHomeClick}
+            className="flex items-center flex-shrink-0 focus:outline-none"
+            aria-label="Go to home and sign out"
+          >
             <Image
               src="/logo.png"
               alt="RentalHub"
               width={180}
               height={40}
-              className="h-10 w-auto"
+              className="h-8 sm:h-10 w-auto"
             />
-          </Link>
+          </button>
 
-          {/* Global Search Bar - Center */}
-          <form onSubmit={handleSearch} className="hidden md:flex absolute left-1/2 transform -translate-x-1/2 w-full max-w-md">
+          {/* Global Search Bar – center, desktop only */}
+          <form onSubmit={handleSearch} className="hidden md:flex absolute left-1/2 -translate-x-1/2 w-full max-w-md">
             <div className="relative w-full">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 value={searchQuery}
@@ -59,17 +68,13 @@ export default function DashboardNavbar() {
             </div>
           </form>
 
-          {/* Right Side - Actions & Profile */}
-          <div className="flex items-center gap-3">
-            {/* Action Icons */}
-            <div className="flex items-center gap-1">
-              <NotificationBell />
-            </div>
-
+          {/* Right Side – profile → logout → bell (bell must be rightmost so its
+              dropdown aligns correctly with right-0 on all screen sizes) */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* User Profile */}
-            <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-              <Link href={profileHref} className="flex items-center gap-3 group">
-                <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-orange-500 flex items-center justify-center text-white font-semibold text-sm">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Link href={profileHref} className="flex items-center gap-2 sm:gap-3 group">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0 bg-orange-500 flex items-center justify-center text-white font-semibold text-sm">
                   {avatarUrl ? (
                     <Image
                       src={avatarUrl}
@@ -93,15 +98,21 @@ export default function DashboardNavbar() {
                 </div>
               </Link>
 
-              {/* Logout Button */}
+              {/* Logout */}
               <button
-                onClick={() => signOut({ callbackUrl: "/" })}
-                className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100"
+                onClick={() => void signOut({ callbackUrl: "/" })}
+                className="p-1.5 sm:p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100"
                 title="Logout"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
+
+            {/* Divider */}
+            <div className="h-6 w-px bg-gray-200" />
+
+            {/* Notification Bell – rightmost so dropdown aligns to screen edge */}
+            <NotificationBell />
           </div>
         </div>
       </div>
