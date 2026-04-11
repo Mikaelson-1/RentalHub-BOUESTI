@@ -7,6 +7,8 @@ import FloatingCTA from "@/components/FloatingCTA";
 import HeroSlideshow from "@/components/HeroSlideshow";
 import { Building2 } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Verified Student Housing Near BOUESTI",
   description:
