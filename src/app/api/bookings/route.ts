@@ -111,12 +111,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Bid amount must be a valid number greater than 0." }, { status: 400 });
     }
 
+    // Skip PENDING — go straight to AWAITING_PAYMENT so the student can pay immediately.
+    // First to pay secures the unit; all other AWAITING_PAYMENT bookings for the same
+    // property are auto-cancelled when payment is confirmed (in the verify endpoint).
     const booking = await prisma.booking.create({
       data: {
         studentId:  session.user.id,
         propertyId,
-        status:     'PENDING',
+        status:     'AWAITING_PAYMENT',
         bidAmount:  normalizedBidAmount,
+        amount:     normalizedBidAmount,
+        expiresAt:  new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours to pay
       },
       include: {
         student:  { select: { id: true, name: true, email: true } },
@@ -129,7 +134,16 @@ export async function POST(request: Request) {
       },
     });
 
-    // Notify the landlord about the new booking request (fire-and-forget)
+    // Confirm to student immediately (fire-and-forget)
+    sendBookingConfirmedToStudent({
+      studentEmail:     booking.student.email,
+      studentName:      booking.student.name,
+      propertyTitle:    booking.property.title,
+      propertyLocation: booking.property.location.name,
+      landlordName:     booking.property.landlord.name,
+    }).catch((err) => console.error('[email] booking confirmed notification failed:', err));
+
+    // Also notify landlord that a student is ready to pay (fire-and-forget)
     sendBookingRequestToLandlord({
       landlordEmail:    booking.property.landlord.email,
       landlordName:     booking.property.landlord.name,
@@ -137,27 +151,27 @@ export async function POST(request: Request) {
       propertyTitle:    booking.property.title,
       propertyLocation: booking.property.location.name,
       bookingId:        booking.id,
-    }).catch((err) => console.error('[email] booking request notification failed:', err));
+    }).catch((err) => console.error('[email] landlord booking notification failed:', err));
 
     await Promise.all([
       notifyUser({
         userId: booking.property.landlord.id,
         type: "BOOKING",
-        title: "New booking request",
-        message: `${booking.student.name} requested to book ${booking.property.title}.`,
+        title: "New booking — payment pending",
+        message: `${booking.student.name} has booked ${booking.property.title} and is completing payment.`,
         link: "/landlord",
       }),
       notifyUser({
         userId: booking.student.id,
         type: "BOOKING",
-        title: "Booking request submitted",
-        message: `Your bid of ₦${Math.round(normalizedBidAmount).toLocaleString("en-NG")} for ${booking.property.title} was sent to the landlord.`,
-        link: "/student",
+        title: "Booking confirmed — pay now",
+        message: `Your booking for ${booking.property.title} is confirmed at ₦${Math.round(normalizedBidAmount).toLocaleString("en-NG")}. Complete payment within 48 hours to secure your room.`,
+        link: `/student?tab=bookings`,
       }),
       notifyRole(
         "ADMIN",
-        "New booking request",
-        `${booking.student.name} requested ${booking.property.title}.`,
+        "New booking (awaiting payment)",
+        `${booking.student.name} booked ${booking.property.title} — payment pending.`,
         "BOOKING",
         "/admin",
       ),

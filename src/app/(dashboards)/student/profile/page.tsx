@@ -137,9 +137,9 @@ export default function StudentProfilePage() {
       {success && <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{success}</div>}
 
       {/* Avatar + name banner */}
-      <div className="bg-white rounded-2xl shadow-sm p-6 mb-6 flex items-center gap-5">
+      <div className="bg-white rounded-2xl shadow-sm p-5 mb-6 flex items-center gap-4">
         <div className="relative flex-shrink-0">
-          <div className="w-20 h-20 rounded-full overflow-hidden bg-[#192F59] flex items-center justify-center text-white text-2xl font-bold">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-[#192F59] flex items-center justify-center text-white text-2xl font-bold">
             {profile?.avatarUrl ? (
               <Image src={profile.avatarUrl} alt={profile.name} width={80} height={80} className="w-full h-full object-cover" />
             ) : (
@@ -160,12 +160,13 @@ export default function StudentProfilePage() {
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-navy">{profile?.name}</h1>
-          <p className="text-gray-500 text-sm">{profile?.email}</p>
+        {/* min-w-0 + flex-1 lets this section shrink so email never overflows */}
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg sm:text-xl font-bold text-navy truncate">{profile?.name}</h1>
+          <p className="text-gray-500 text-sm truncate">{profile?.email}</p>
           <p className="text-xs text-gray-400 mt-0.5">Member since {memberSince}</p>
         </div>
-        <div className="ml-auto text-center">
+        <div className="flex-shrink-0 text-center pl-2">
           <div className="text-2xl font-bold text-primary-green">{profile?._count.bookings ?? 0}</div>
           <div className="text-xs text-gray-500">Bookings</div>
         </div>

@@ -9,6 +9,7 @@ import prisma from "@/lib/prisma";
 import {
   sendPaymentConfirmedToStudent,
   sendPaymentReceivedToLandlord,
+  sendBookingCancelledToStudent,
 } from "@/lib/email";
 import { notifyUser } from "@/lib/notifications";
 
@@ -146,7 +147,32 @@ export async function GET(request: Request) {
         data: { vacantUnits: { decrement: 1 } },
       });
 
-      return { alreadyVerified: false, amountPaid };
+      // First-to-pay wins: cancel every other AWAITING_PAYMENT booking for this property.
+      const cancelledCompetitors = await tx.booking.findMany({
+        where: {
+          propertyId: freshBooking.propertyId,
+          id: { not: bookingId },
+          status: "AWAITING_PAYMENT",
+        },
+        select: {
+          id: true,
+          student: { select: { id: true, name: true, email: true } },
+          property: { select: { title: true, location: { select: { name: true } } } },
+        },
+      });
+
+      if (cancelledCompetitors.length > 0) {
+        await tx.booking.updateMany({
+          where: {
+            propertyId: freshBooking.propertyId,
+            id: { not: bookingId },
+            status: "AWAITING_PAYMENT",
+          },
+          data: { status: "CANCELLED" },
+        });
+      }
+
+      return { alreadyVerified: false, amountPaid, cancelledCompetitors };
     });
 
     if (txResult.alreadyVerified) {
@@ -154,6 +180,29 @@ export async function GET(request: Request) {
         success: true,
         data: { paymentStatus: "SUCCESS", amountPaid: txResult.amountPaid, reference, alreadyVerified: true },
       });
+    }
+
+    // Notify any students whose competing AWAITING_PAYMENT bookings were auto-cancelled (fire-and-forget)
+    const competitors = (txResult as { cancelledCompetitors?: { id: string; student: { id: string; name: string; email: string }; property: { title: string; location: { name: string } } }[] }).cancelledCompetitors ?? [];
+    if (competitors.length > 0) {
+      Promise.all(
+        competitors.map(async (loser) => {
+          await notifyUser({
+            userId: loser.student.id,
+            type: "BOOKING",
+            title: "Property no longer available",
+            message: `Another student completed payment first for ${loser.property.title}. Your booking has been cancelled automatically.`,
+            link: "/student?tab=bookings",
+          });
+          sendBookingCancelledToStudent({
+            studentEmail: loser.student.email,
+            studentName: loser.student.name,
+            propertyTitle: loser.property.title,
+            propertyLocation: loser.property.location.name,
+            cancelledBy: "landlord",
+          }).catch(console.error);
+        }),
+      ).catch(console.error);
     }
 
     // Send confirmation emails (fire-and-forget)

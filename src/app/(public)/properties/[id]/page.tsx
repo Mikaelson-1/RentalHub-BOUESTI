@@ -60,6 +60,7 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
         },
       },
     },
+    // vacantUnits is a scalar field — included automatically
   });
 
   if (!property || property.status !== "APPROVED") {
@@ -151,7 +152,13 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
             <p className="text-sm text-gray-500 mt-1">Verification: {property.landlord.verificationStatus}</p>
           </div>
 
-          <BookButton propertyId={property.id} propertyPrice={Number(property.price)} existingBookingStatus={existingBookingStatus} userRole={userRole} />
+          <BookButton
+            propertyId={property.id}
+            propertyPrice={Number(property.price)}
+            existingBookingStatus={existingBookingStatus}
+            userRole={userRole}
+            isFullyBooked={property.vacantUnits <= 0}
+          />
         </div>
       </div>
     </div>

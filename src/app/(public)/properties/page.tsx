@@ -111,46 +111,62 @@ export default async function PropertiesPage({ searchParams }: PropertiesPagePro
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {properties.map((property) => (
-              <div key={property.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="relative h-48">
-                  {(() => {
-                    const uploadedSrc = getFirstUploadedImage(property.images);
-                    const src = uploadedSrc ?? getPropertyImage(property.id);
-                    return (
-                      <Image
-                        src={src}
-                        alt={property.title}
-                        fill
-                        className="object-cover"
-                        unoptimized={!!uploadedSrc}
-                      />
-                    );
-                  })()}
-                </div>
-                <div className="p-5">
-                  <p className="text-sm text-gray-500">{property.location.name}</p>
-                  <h2 className="text-lg font-semibold text-[#192F59] mt-1">{property.title}</h2>
-                  <p className="text-sm text-gray-600 mt-2 line-clamp-2">{property.description}</p>
+            {properties.map((property) => {
+              const isFullyBooked = property.vacantUnits <= 0;
+              return (
+                <div key={property.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="relative h-48">
+                    {(() => {
+                      const uploadedSrc = getFirstUploadedImage(property.images);
+                      const src = uploadedSrc ?? getPropertyImage(property.id);
+                      return (
+                        <Image
+                          src={src}
+                          alt={property.title}
+                          fill
+                          className={`object-cover${isFullyBooked ? " opacity-60" : ""}`}
+                          unoptimized={!!uploadedSrc}
+                        />
+                      );
+                    })()}
+                    {isFullyBooked && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="bg-red-600 text-white text-sm font-bold px-5 py-2 rounded-full shadow-lg tracking-wide">
+                          Fully Booked
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5">
+                    <p className="text-sm text-gray-500">{property.location.name}</p>
+                    <h2 className="text-lg font-semibold text-[#192F59] mt-1">{property.title}</h2>
+                    <p className="text-sm text-gray-600 mt-2 line-clamp-2">{property.description}</p>
 
-                  <div className="mt-4 flex items-center justify-between">
-                    <p className="text-[#00A553] font-bold text-xl">
-                      {new Intl.NumberFormat("en-NG", {
-                        style: "currency",
-                        currency: "NGN",
-                        maximumFractionDigits: 0,
-                      }).format(Number(property.price))}
-                    </p>
-                    <Link
-                      href={`/properties/${property.id}`}
-                      className="bg-[#192F59] hover:bg-[#0f1d3a] text-white text-sm px-4 py-2 rounded-lg transition-colors"
-                    >
-                      View Details
-                    </Link>
+                    <div className="mt-4 flex items-center justify-between">
+                      <p className={`font-bold text-xl ${isFullyBooked ? "text-gray-400" : "text-[#00A553]"}`}>
+                        {new Intl.NumberFormat("en-NG", {
+                          style: "currency",
+                          currency: "NGN",
+                          maximumFractionDigits: 0,
+                        }).format(Number(property.price))}
+                      </p>
+                      {isFullyBooked ? (
+                        <span className="text-red-600 text-sm font-semibold border border-red-200 bg-red-50 px-4 py-2 rounded-lg">
+                          Not Available
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/properties/${property.id}`}
+                          className="bg-[#192F59] hover:bg-[#0f1d3a] text-white text-sm px-4 py-2 rounded-lg transition-colors"
+                        >
+                          View Details
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -11,9 +11,10 @@ interface BookButtonProps {
   propertyPrice?: number;
   existingBookingStatus?: ActiveBookingStatus | null;
   userRole: string | null;
+  isFullyBooked?: boolean;
 }
 
-export default function BookButton({ propertyId, propertyPrice, existingBookingStatus, userRole }: BookButtonProps) {
+export default function BookButton({ propertyId, propertyPrice, existingBookingStatus, userRole, isFullyBooked }: BookButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [booked, setBooked] = useState<ActiveBookingStatus | null>(existingBookingStatus ?? null);
@@ -22,6 +23,16 @@ export default function BookButton({ propertyId, propertyPrice, existingBookingS
 
   // Landlords and admins don't see this button
   if (userRole === "LANDLORD" || userRole === "ADMIN") return null;
+
+  // Property fully booked — no existing personal booking either
+  if (isFullyBooked && !booked) {
+    return (
+      <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl text-center">
+        <p className="text-red-700 font-semibold text-sm">🔒 This property is fully booked</p>
+        <p className="text-red-500 text-xs mt-1">All available units have been taken. Check back later or browse other listings.</p>
+      </div>
+    );
+  }
 
   const handleBook = async () => {
     if (!userRole) {

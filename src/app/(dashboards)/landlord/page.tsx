@@ -185,7 +185,7 @@ export default function LandlordDashboard() {
   );
 
   const pendingRequests = useMemo(
-    () => requests.filter((request) => request.status === "PENDING").length,
+    () => requests.filter((r) => r.status === "PENDING" || r.status === "AWAITING_PAYMENT").length,
     [requests],
   );
 
@@ -256,10 +256,10 @@ export default function LandlordDashboard() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-navy">Landlord Dashboard</h1>
-          <p className="text-gray-600 mt-1">Manage your listings and tenant requests</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-navy">Landlord Dashboard</h1>
+          <p className="text-gray-600 mt-1 text-sm">Manage your listings and tenant requests</p>
         </div>
         <div className="flex items-center gap-3">
           <Link
@@ -270,7 +270,7 @@ export default function LandlordDashboard() {
           </Link>
           <Link
             href="/landlord/add-property"
-            className="bg-[#E67E22] hover:bg-[#D35400] text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            className="bg-[#E67E22] hover:bg-[#D35400] text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors"
           >
             Add Property
           </Link>
@@ -415,47 +415,62 @@ export default function LandlordDashboard() {
                 {requests.map((request) => (
                   <div
                     key={request.id}
-                    className="border border-gray-200 rounded-lg p-4 flex justify-between items-center"
+                    className="border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3"
                   >
-                    <div>
-                      <h3 className="font-semibold text-navy">{request.student.name}</h3>
-                      <p className="text-gray-600 text-sm">Interested in: {request.property.title}</p>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-navy truncate">{request.student.name}</h3>
+                      <p className="text-gray-600 text-sm truncate">Property: {request.property.title}</p>
                       <p className="text-gray-700 text-sm mt-1">
                         Bid: <span className="font-semibold text-[#00A553]">{formatPrice(bidAmountValue(request))}</span>
+                        <span className="text-gray-400 text-xs ml-2">(listed: {formatPrice(request.property.price)})</span>
                       </p>
-                      <p className="text-gray-500 text-xs mt-1">Listed price: {formatPrice(request.property.price)}</p>
                       <p className="text-gray-500 text-xs mt-1">
-                        Requested on {new Date(request.createdAt).toLocaleDateString()}
+                        Submitted {new Date(request.createdAt).toLocaleDateString()}
                       </p>
-                      {(highestBidByProperty[request.property.id]?.total ?? 0) >= 2 && (
+                      {request.status === "AWAITING_PAYMENT" && (
+                        <p className="text-xs text-orange-600 mt-1 font-medium">⏳ Student has 48 hours to complete payment</p>
+                      )}
+                      {request.status === "PENDING" && (highestBidByProperty[request.property.id]?.total ?? 0) >= 2 && (
                         <p className="text-xs text-orange-700 mt-1">
-                          Multiple bids detected. Only highest bid can be accepted.
+                          Multiple bids — only highest bid can be accepted.
                         </p>
                       )}
                     </div>
-                    {request.status === "PENDING" ? (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => updateRequestStatus(request.id, "CONFIRMED")}
-                          disabled={updatingRequestId === request.id || !canAcceptRequest(request)}
-                          className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1 rounded-md text-sm"
-                          title={!canAcceptRequest(request) ? "Only highest bid can be accepted when there are multiple requests." : undefined}
-                        >
-                          Accept
-                        </button>
+                    <div className="flex-shrink-0">
+                      {/* Legacy PENDING bookings: keep Accept/Decline */}
+                      {request.status === "PENDING" ? (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateRequestStatus(request.id, "CONFIRMED")}
+                            disabled={updatingRequestId === request.id || !canAcceptRequest(request)}
+                            className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm"
+                            title={!canAcceptRequest(request) ? "Only highest bid can be accepted when there are multiple requests." : undefined}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => updateRequestStatus(request.id, "CANCELLED")}
+                            disabled={updatingRequestId === request.id}
+                            className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-md text-sm"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      ) : request.status === "AWAITING_PAYMENT" ? (
+                        /* New flow: student is about to pay — landlord can only cancel */
                         <button
                           onClick={() => updateRequestStatus(request.id, "CANCELLED")}
                           disabled={updatingRequestId === request.id}
-                          className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-3 py-1 rounded-md text-sm"
+                          className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-md text-sm"
                         >
-                          Decline
+                          {updatingRequestId === request.id ? "Cancelling…" : "Cancel Booking"}
                         </button>
-                      </div>
-                    ) : (
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusBadge(request.status)}`}>
-                        {request.status.replace("_", " ")}
-                      </span>
-                    )}
+                      ) : (
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusBadge(request.status)}`}>
+                          {request.status.replace("_", " ")}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
