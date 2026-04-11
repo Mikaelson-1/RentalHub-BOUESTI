@@ -7,7 +7,7 @@ import FloatingCTA from "@/components/FloatingCTA";
 import HeroSlideshow from "@/components/HeroSlideshow";
 import { Building2 } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600; // ISR: cache for 1 hour, revalidate on-demand via API
 
 export const metadata: Metadata = {
   title: "Verified Student Housing Near BOUESTI",

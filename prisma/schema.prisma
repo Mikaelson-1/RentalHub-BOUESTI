@@ -171,6 +171,7 @@ model Property {
   @@index([landlordId])
   @@index([locationId])
   @@index([status])
+  @@index([status, createdAt(sort: Desc)])
   @@index([reviewedById])
   @@index([price])
   @@map("properties")
