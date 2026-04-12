@@ -10,41 +10,53 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://rentalhub.ng"),
   applicationName: "RentalHub",
   title: {
-    default: "RentalHub - Off-Campus Accommodation",
+    default: "RentalHub - Off-Campus Accommodation for Nigerian Students",
     template: "%s | RentalHub",
   },
   description:
-    "Find verified off-campus accommodation for students. Browse properties near BOUESTI, book rooms, and manage your listings.",
-  keywords: ["student accommodation", "off-campus housing", "BOUESTI", "student housing", "rental", "RentalHub"],
+    "Find verified off-campus accommodation for Nigerian students. Browse properties, book rooms, manage your listings, and discover housing near your school.",
+  keywords: [
+    "student accommodation",
+    "off-campus housing",
+    "student housing Nigeria",
+    "rental",
+    "RentalHub",
+    "Nigerian students",
+    "university housing",
+  ],
   authors: [{ name: "RentalHub" }],
   alternates: {
     canonical: "https://rentalhub.ng",
   },
   icons: {
-    icon: [
-      { url: "/favicon-48.png", type: "image/png", sizes: "48x48" },
-      { url: "/favicon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/favicon-512.png", type: "image/png", sizes: "512x512" },
-    ],
-    shortcut: [{ url: "/favicon-48.png", type: "image/png" }],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    icon: [{ url: "/icon.png", type: "image/png" }],
+    shortcut: [{ url: "/icon.png" }],
+    apple: [{ url: "/icon.png", sizes: "180x180", type: "image/png" }],
   },
-  manifest: "/site.webmanifest",
   openGraph: {
     type: "website",
     locale: "en_NG",
     url: "https://rentalhub.ng",
     siteName: "RentalHub",
-    title: "RentalHub - Off-Campus Accommodation",
+    title: "RentalHub - Off-Campus Accommodation for Nigerian Students",
     description:
-      "Find verified off-campus accommodation for students. Browse properties near BOUESTI, book rooms, and manage your listings.",
-    images: [{ url: "/logo.png", width: 670, height: 338, alt: "RentalHub" }],
+      "Find verified off-campus accommodation for Nigerian students. Browse properties, book rooms, and manage your listings.",
+    images: [
+      {
+        url: "https://rentalhub.ng/icon.png",
+        width: 200,
+        height: 200,
+        alt: "RentalHub Logo",
+        type: "image/png",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
-    title: "RentalHub - Off-Campus Accommodation",
-    description: "Find verified off-campus accommodation for students.",
-    images: ["/logo.png"],
+    card: "summary_large_image",
+    title: "RentalHub - Off-Campus Accommodation for Nigerian Students",
+    description:
+      "Find verified off-campus accommodation for Nigerian students.",
+    images: ["https://rentalhub.ng/icon.png"],
   },
   robots: {
     index: true,
