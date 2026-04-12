@@ -6,7 +6,7 @@ import { rateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
-    const rl = rateLimit(getRateLimitKey(request, "verify-email-confirm"), {
+    const rl = await rateLimit(getRateLimitKey(request, "verify-email-confirm"), {
       limit: 10,
       windowSeconds: 15 * 60,
     });
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Email and OTP are required." }, { status: 400 });
     }
     const normalizedEmail = email.trim().toLowerCase();
-    const emailRl = rateLimit(`verify-email-confirm:${normalizedEmail}`, {
+    const emailRl = await rateLimit(`verify-email-confirm:${normalizedEmail}`, {
       limit: 8,
       windowSeconds: 15 * 60,
     });

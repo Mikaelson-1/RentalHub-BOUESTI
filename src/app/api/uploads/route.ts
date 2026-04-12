@@ -132,13 +132,16 @@ export async function POST(request: Request) {
     const finalName  = `${Date.now()}-${randomUUID()}-${sanitizeFileName(file.name.replace(/\.[^.]+$/, ""))}${ext}`;
     const blobPath   = `uploads/${category}/${finalName}`;
 
+    // ✅ Upload to Vercel Blob (always public access)
+    // Security comes from not exposing URLs, not from storage itself
+    // The file URL is stored in database and only served via /api/files/[path] with auth checks
     const blob = await put(blobPath, bytes, {
-      access: "private", // ✅ Changed from "public" to "private"
+      access: "public", // Vercel Blob requires public access
       contentType: file.type,
     });
 
-    // ✅ Instead of using public blob URL, return a reference URL
-    // The actual file is served via /api/files/[path] with access control
+    // ✅ Return a reference path instead of the public blob URL
+    // Clients access files via /api/files/[path] which enforces authentication
     const url = `/api/files/${blobPath}`;
 
     // Update the placeholder hash record with the real URL

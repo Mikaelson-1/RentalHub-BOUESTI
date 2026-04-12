@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
-import { PropertyStatus } from "@prisma/client";
+import { Prisma, PropertyStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 // Type for property with relations
@@ -101,7 +100,7 @@ export async function createProperty(
 
     // Parse amenities and images with error handling
     let amenities: string[] = [];
-    let images: unknown[] = [];
+    let images: Prisma.JsonValue = [];
 
     try {
       amenities = amenitiesJson ? JSON.parse(amenitiesJson) : [];

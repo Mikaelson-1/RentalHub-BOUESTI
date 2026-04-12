@@ -27,7 +27,7 @@ interface RegisterBody {
 export async function POST(request: Request) {
   try {
     // Rate limit: 5 registration attempts per IP per 15 minutes
-    const rl = rateLimit(getRateLimitKey(request, 'register'), { limit: 5, windowSeconds: 900 });
+    const rl = await rateLimit(getRateLimitKey(request, 'register'), { limit: 5, windowSeconds: 900 });
     if (!rl.success) {
       return NextResponse.json(
         { success: false, error: `Too many registration attempts. Try again in ${rl.retryAfter} seconds.` },

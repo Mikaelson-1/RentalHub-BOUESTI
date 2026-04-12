@@ -6,7 +6,7 @@ import { rateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
-    const rl = rateLimit(getRateLimitKey(request, "verify-email-send"), {
+    const rl = await rateLimit(getRateLimitKey(request, "verify-email-send"), {
       limit: 5,
       windowSeconds: 15 * 60,
     });
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const emailRl = rateLimit(`verify-email-send:${normalizedEmail}`, {
+    const emailRl = await rateLimit(`verify-email-send:${normalizedEmail}`, {
       limit: 3,
       windowSeconds: 15 * 60,
     });
