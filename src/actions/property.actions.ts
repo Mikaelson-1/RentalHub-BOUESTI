@@ -99,9 +99,30 @@ export async function createProperty(
       throw new Error("Missing required fields");
     }
 
-    // Parse amenities and images
-    const amenities = amenitiesJson ? JSON.parse(amenitiesJson) : [];
-    const images = imagesJson ? JSON.parse(imagesJson) : [];
+    // Parse amenities and images with error handling
+    let amenities: string[] = [];
+    let images: unknown[] = [];
+
+    try {
+      amenities = amenitiesJson ? JSON.parse(amenitiesJson) : [];
+      if (!Array.isArray(amenities)) {
+        throw new Error("Amenities must be an array");
+      }
+    } catch (error) {
+      // ✅ Catch JSON parse errors and return a generic message
+      // Don't expose the actual error to prevent info leakage
+      throw new Error("Invalid amenities format. Please provide a valid JSON array.");
+    }
+
+    try {
+      images = imagesJson ? JSON.parse(imagesJson) : [];
+      if (!Array.isArray(images)) {
+        throw new Error("Images must be an array");
+      }
+    } catch (error) {
+      // ✅ Catch JSON parse errors and return a generic message
+      throw new Error("Invalid images format. Please provide a valid JSON array.");
+    }
 
     const property = await prisma.property.create({
       data: {

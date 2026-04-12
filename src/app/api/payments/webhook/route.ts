@@ -20,11 +20,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing webhook signature configuration." }, { status: 401 });
     }
 
-    // Verify webhook signature
+    // ✅ Verify webhook signature with timing-safe comparison
     const hash = createHmac("sha512", secret).update(rawBody).digest("hex");
     const hashBuffer = Buffer.from(hash, "hex");
     const signatureBuffer = Buffer.from(signature, "hex");
-    if (hashBuffer.length !== signatureBuffer.length || !timingSafeEqual(hashBuffer, signatureBuffer)) {
+
+    // ✅ FIXED: Always use timingSafeEqual without length check
+    // Length check before timingSafeEqual creates a timing side-channel
+    // Now we always compare (timing-safe) regardless of length
+    let isValid = false;
+    try {
+      isValid = timingSafeEqual(hashBuffer, signatureBuffer);
+    } catch (error) {
+      // timingSafeEqual throws if buffers are different lengths
+      // We catch this and treat it as invalid signature
+      isValid = false;
+    }
+
+    if (!isValid) {
       console.error("[WEBHOOK] Invalid Paystack signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }

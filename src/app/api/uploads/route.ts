@@ -133,11 +133,13 @@ export async function POST(request: Request) {
     const blobPath   = `uploads/${category}/${finalName}`;
 
     const blob = await put(blobPath, bytes, {
-      access: "public",
+      access: "private", // ✅ Changed from "public" to "private"
       contentType: file.type,
     });
 
-    const url = blob.url;
+    // ✅ Instead of using public blob URL, return a reference URL
+    // The actual file is served via /api/files/[path] with access control
+    const url = `/api/files/${blobPath}`;
 
     // Update the placeholder hash record with the real URL
     if (category === "image") {
