@@ -43,10 +43,14 @@ export async function POST(request: Request) {
     );
   }
 
-  await prisma.user.update({
+  const updatedUser = await prisma.user.update({
     where: { id: session.user.id },
-    data:  { role: role as AllowedRole },
+    data: {
+      role: role as AllowedRole,
+    },
   });
+
+  console.log("[Setup Role API] Updated user:", { id: updatedUser.id, role: updatedUser.role });
 
   return NextResponse.json({ success: true, role });
 }

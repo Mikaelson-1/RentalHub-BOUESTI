@@ -19,6 +19,10 @@ export default function SetupRolePage() {
     setError("");
 
     try {
+      console.log("[Setup Role] Starting role setup for:", selected);
+
+      // Step 1: Call API to update role in database
+      console.log("[Setup Role] Calling /api/auth/setup-role...");
       const res = await fetch("/api/auth/setup-role", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -26,24 +30,36 @@ export default function SetupRolePage() {
       });
       const data = await res.json();
 
+      console.log("[Setup Role] API response:", { ok: res.ok, status: res.status, data });
+
       if (!res.ok || !data.success) {
-        setError(data.error || "Something went wrong. Please try again.");
+        const errorMsg = data.error || "Something went wrong. Please try again.";
+        console.error("[Setup Role] API failed:", errorMsg);
+        setError(errorMsg);
         setIsLoading(false);
         return;
       }
 
-      // Refresh the JWT so the new role and cleared needsRoleSetup flag
+      // Step 2: Refresh the JWT so the new role and cleared needsRoleSetup flag
       // take effect immediately without requiring a full sign-out / sign-in
+      console.log("[Setup Role] Updating session...");
       await update({ role: selected, needsRoleSetup: false });
+      console.log("[Setup Role] Session updated");
 
-      // Redirect to the appropriate dashboard
-      if (selected === "LANDLORD") {
-        router.push("/landlord");
-      } else {
-        router.push("/student");
-      }
-    } catch {
-      setError("Something went wrong. Please try again.");
+      // Step 3: Wait for the session update to propagate to the JWT token
+      // This is critical because the middleware will check the token on the next request
+      // and we need needsRoleSetup to be false before redirecting
+      console.log("[Setup Role] Waiting for session update to propagate...");
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Step 4: Redirect to the appropriate dashboard
+      const redirectPath = selected === "LANDLORD" ? "/landlord" : "/student";
+      console.log("[Setup Role] Session update complete. Redirecting to:", redirectPath);
+      router.push(redirectPath);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      console.error("[Setup Role] Error occurred:", err);
+      setError(errorMessage);
       setIsLoading(false);
     }
   };
