@@ -1,17 +1,12 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
+import Error from "next/error";
+import Link from "next/link";
 import { useEffect } from "react";
 
-export default function GlobalError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function GlobalError({ error }: { error: Error }) {
   useEffect(() => {
-    // Log the error to Sentry
     Sentry.captureException(error);
   }, [error]);
 
@@ -46,8 +41,8 @@ export default function GlobalError({
             <p style={{ color: "#666", marginBottom: "24px" }}>
               We&apos;ve been notified about this issue. Our team is working to fix it.
             </p>
-            <button
-              onClick={() => reset()}
+            <Link
+              href="/"
               style={{
                 backgroundColor: "#2196f3",
                 color: "white",
@@ -57,21 +52,12 @@ export default function GlobalError({
                 cursor: "pointer",
                 fontSize: "16px",
                 fontWeight: "500",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "#1976d2";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "#2196f3";
+                textDecoration: "none",
+                display: "inline-block",
               }}
             >
-              Try Again
-            </button>
-            {error.digest && (
-              <p style={{ color: "#999", fontSize: "12px", marginTop: "16px" }}>
-                Error ID: {error.digest}
-              </p>
-            )}
+              Go Back Home
+            </Link>
           </div>
         </div>
       </body>
