@@ -27,17 +27,39 @@ export async function POST(request: Request) {
     });
 
     if (!booking) return NextResponse.json({ success: false, error: "Booking not found." }, { status: 404 });
+
+    // ── Ownership gate ──────────────────────────────────────────────
     if (session.user.role === "STUDENT" && booking.studentId !== session.user.id) {
       return NextResponse.json({ success: false, error: "Not your booking." }, { status: 403 });
     }
     if (session.user.role === "LANDLORD" && booking.property.landlordId !== session.user.id) {
       return NextResponse.json({ success: false, error: "Not your listing." }, { status: 403 });
     }
-    if (!["STUDENT", "LANDLORD", "ADMIN"].includes(session.user.role)) {
-      return NextResponse.json({ success: false, error: "Not authorized to refund this booking." }, { status: 403 });
+
+    // ── State guards (defense-in-depth against unilateral refund abuse) ─
+    // V2 fix: A student/landlord cannot refund after move-in is confirmed
+    // (they would effectively live rent-free or strip-cancel a moved-in tenant).
+    // Once payout has started, only an ADMIN may intervene.
+    if (session.user.role !== "ADMIN") {
+      if (booking.movedInConfirmedAt) {
+        return NextResponse.json(
+          { success: false, error: "Cannot refund after move-in has been confirmed. Contact support." },
+          { status: 409 },
+        );
+      }
+      if (booking.payoutStatus && booking.payoutStatus !== "PENDING") {
+        return NextResponse.json(
+          { success: false, error: "Payout to landlord is already in progress. Contact support." },
+          { status: 409 },
+        );
+      }
     }
+
     if (booking.paymentStatus !== "SUCCESS") {
       return NextResponse.json({ success: false, error: "No successful payment to refund." }, { status: 400 });
+    }
+    if (booking.status === "CANCELLED") {
+      return NextResponse.json({ success: false, error: "This booking has already been cancelled." }, { status: 409 });
     }
 
     const payment = booking.payments[0];

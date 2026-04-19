@@ -132,6 +132,21 @@ export const authOptions: NextAuthOptions = {
       let dbUser = await prisma.user.findUnique({ where: { email } });
       let isNewUser = false;
 
+      // ── V3 fix: account-takeover via pre-registered unverified credential stub ──
+      // If an unverified credential account already exists under this email, it means
+      // someone registered it and never proved ownership via OTP. Linking Google to it
+      // would give that pre-registrant password-based access to the real owner's account.
+      // Require them to complete email verification via the credentials flow first (they
+      // can't — they never owned the inbox), effectively forcing manual recovery.
+      if (dbUser && dbUser.password && !dbUser.emailVerified) {
+        console.error(
+          "[auth][signIn] Blocked Google sign-in — unverified credential account exists for email:",
+          email,
+        );
+        // Returning a URL string redirects to error page with the reason
+        return "/login?error=UnverifiedAccountExists";
+      }
+
       if (!dbUser) {
         // Brand-new user — default to STUDENT, flag for role setup
         dbUser = await prisma.user.create({

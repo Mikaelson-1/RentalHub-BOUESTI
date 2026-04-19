@@ -39,7 +39,14 @@ export async function POST(request: Request) {
     const user = await prisma.user.findUnique({ where: { email: normalised } });
     if (!user) return ok; // silently succeed
 
-    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET ?? "fallback-secret");
+    if (!process.env.NEXTAUTH_SECRET) {
+      console.error("[forgot-password] NEXTAUTH_SECRET is not set — refusing to mint reset tokens");
+      return NextResponse.json(
+        { success: false, error: "Server misconfiguration. Please contact support." },
+        { status: 500 },
+      );
+    }
+    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 
     // Include the first 8 chars of the current hash so the token is invalidated
     // the moment the password is changed.

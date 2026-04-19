@@ -33,7 +33,14 @@ export async function POST(request: Request) {
     }
 
     // Verify the JWT
-    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET ?? "fallback-secret");
+    if (!process.env.NEXTAUTH_SECRET) {
+      console.error("[reset-password] NEXTAUTH_SECRET is not set — refusing to verify reset tokens");
+      return NextResponse.json(
+        { success: false, error: "Server misconfiguration. Please contact support." },
+        { status: 500 },
+      );
+    }
+    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
     let payload: ResetTokenPayload;
 
     try {
