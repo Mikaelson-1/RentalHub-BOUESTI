@@ -111,6 +111,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Bid amount must be a valid number greater than 0." }, { status: 400 });
     }
 
+    // V15 fix: cap bid amount and enforce minimum to prevent DOS via absurd bids.
+    // Attacker otherwise: bid Number.MAX_SAFE_INTEGER → win "highest-bid" auction →
+    // can't actually pay → property locked for 48h per expiring booking.
+    const propertyPrice = Number(property.price);
+    const MAX_BID_MULTIPLIER = 3; // bid can be at most 3x the listed price
+    if (normalizedBidAmount < propertyPrice) {
+      return NextResponse.json(
+        { success: false, error: `Bid cannot be below the listed price of ₦${propertyPrice.toLocaleString("en-NG")}.` },
+        { status: 400 },
+      );
+    }
+    if (normalizedBidAmount > propertyPrice * MAX_BID_MULTIPLIER) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Bid cannot exceed ₦${(propertyPrice * MAX_BID_MULTIPLIER).toLocaleString("en-NG")} (${MAX_BID_MULTIPLIER}× listed price).`,
+        },
+        { status: 400 },
+      );
+    }
+
     // Skip PENDING — go straight to AWAITING_PAYMENT so the student can pay immediately.
     // First to pay secures the unit; all other AWAITING_PAYMENT bookings for the same
     // property are auto-cancelled when payment is confirmed (in the verify endpoint).

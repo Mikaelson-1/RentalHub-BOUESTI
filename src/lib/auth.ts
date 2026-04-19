@@ -73,8 +73,12 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid credentials");
         }
 
+        // V11 fix: normalise to match how register stores emails (lowercased).
+        // Without this, logging in as "Foo@X.com" fails even though the account exists.
+        const normalisedEmail = credentials.email.trim().toLowerCase();
+
         // Rate limit: 10 attempts per email per 15 minutes
-        const rl = await rateLimit(`login:${credentials.email.toLowerCase()}`, {
+        const rl = await rateLimit(`login:${normalisedEmail}`, {
           limit: 10,
           windowSeconds: 900,
         });
@@ -85,7 +89,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: normalisedEmail },
         });
 
         if (!user) throw new Error("Invalid credentials");
