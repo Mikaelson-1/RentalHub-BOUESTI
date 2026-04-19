@@ -8,12 +8,22 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notifyUser } from "@/lib/notifications";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     if (session.user.role !== "STUDENT") return NextResponse.json({ success: false, error: "Only students can initiate payments." }, { status: 403 });
+
+    // V14 fix: per-user rate limit (10 inits per hour) — prevents Paystack API burn + DB bloat
+    const rl = await rateLimit(`payments-initiate:${session.user.id}`, { limit: 10, windowSeconds: 3600 });
+    if (!rl.success) {
+      return NextResponse.json(
+        { success: false, error: `Too many payment attempts. Try again in ${rl.retryAfter} seconds.` },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      );
+    }
 
     const { bookingId, moveInDate, leaseEndDate } = await request.json();
     if (!bookingId) return NextResponse.json({ success: false, error: "Booking ID required." }, { status: 400 });

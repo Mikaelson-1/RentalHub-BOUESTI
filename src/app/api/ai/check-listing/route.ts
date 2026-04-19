@@ -4,10 +4,28 @@
  */
 
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import gemini from "@/lib/gemini";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    // V6 fix: this endpoint was previously unauthenticated — anyone could drain Gemini quota.
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    }
+
+    // V6 fix: per-user rate limit (20/hour)
+    const rl = await rateLimit(`ai-check:${session.user.id}`, { limit: 20, windowSeconds: 3600 });
+    if (!rl.success) {
+      return NextResponse.json(
+        { success: false, error: `Too many AI requests. Try again in ${rl.retryAfter} seconds.` },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      );
+    }
+
     const body = await request.json();
     const { title, description } = body;
 

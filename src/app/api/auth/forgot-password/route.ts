@@ -14,11 +14,24 @@ import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
 import prisma from "@/lib/prisma";
 import { sendPasswordResetEmail } from "@/lib/email";
+import { rateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
 const EXPIRY_SECONDS = 60 * 60; // 1 hour
 
 export async function POST(request: Request) {
   try {
+    // V5 fix: rate-limit to prevent email bombing (5 per IP per 15 min)
+    const rl = await rateLimit(getRateLimitKey(request, "forgot-password"), {
+      limit: 5,
+      windowSeconds: 900,
+    });
+    if (!rl.success) {
+      return NextResponse.json(
+        { success: false, error: `Too many reset requests. Try again in ${rl.retryAfter} seconds.` },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      );
+    }
+
     const { email } = await request.json();
 
     if (!email || typeof email !== "string") {

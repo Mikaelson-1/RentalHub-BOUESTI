@@ -8,12 +8,22 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import gemini from "@/lib/gemini";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user || session.user.role !== "ADMIN") {
       return NextResponse.json({ success: false, error: "Admin access required." }, { status: 403 });
+    }
+
+    // V6 fix: per-admin rate limit (30/hour) — defense-in-depth
+    const rl = await rateLimit(`ai-verify:${session.user.id}`, { limit: 30, windowSeconds: 3600 });
+    if (!rl.success) {
+      return NextResponse.json(
+        { success: false, error: `Too many AI requests. Try again in ${rl.retryAfter} seconds.` },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      );
     }
 
     const { userId } = await request.json();

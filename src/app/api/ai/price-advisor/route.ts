@@ -7,9 +7,19 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import gemini from "@/lib/gemini";
+import { rateLimit, getRateLimitKey } from "@/lib/rate-limit";
 
 export async function GET(request: Request) {
   try {
+    // V6 fix: IP-based rate limit (30/hour) — public endpoint, still needs quota protection
+    const rl = await rateLimit(getRateLimitKey(request, "ai-price"), { limit: 30, windowSeconds: 3600 });
+    if (!rl.success) {
+      return NextResponse.json(
+        { success: false, error: `Too many requests. Try again in ${rl.retryAfter} seconds.` },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const locationId = searchParams.get("locationId") ?? undefined;
     const locationName = searchParams.get("locationName")?.trim() || undefined;

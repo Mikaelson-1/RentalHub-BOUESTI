@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 import {
   computeImageHash,
   hammingDistance,
@@ -43,8 +44,17 @@ export async function POST(request: Request) {
     if (!session?.user) {
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     }
-    if (session.user.role !== "LANDLORD" && session.user.role !== "ADMIN") {
-      return NextResponse.json({ success: false, error: "Only landlords can upload files." }, { status: 403 });
+    if (session.user.role !== "LANDLORD" && session.user.role !== "ADMIN" && session.user.role !== "STUDENT") {
+      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 403 });
+    }
+
+    // V6 fix: per-user upload rate limit (30 uploads per 10 min) — prevents blob-cost abuse
+    const rl = await rateLimit(`uploads:${session.user.id}`, { limit: 30, windowSeconds: 600 });
+    if (!rl.success) {
+      return NextResponse.json(
+        { success: false, error: `Too many uploads. Try again in ${rl.retryAfter} seconds.` },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      );
     }
 
     const formData  = await request.formData();
