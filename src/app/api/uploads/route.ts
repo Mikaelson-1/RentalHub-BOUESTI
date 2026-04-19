@@ -13,6 +13,7 @@
 
 import { put } from "@vercel/blob";
 import { randomUUID } from "crypto";
+import { fileTypeFromBuffer } from "file-type";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -87,6 +88,32 @@ export async function POST(request: Request) {
     }
 
     const bytes = Buffer.from(await file.arrayBuffer());
+
+    // V16 fix: sniff real file bytes — don't trust client-supplied MIME.
+    // Blocks polyglot uploads (e.g. a JS file disguised as image/jpeg) and
+    // extension-spoofing that could lead to stored XSS via /api/files proxy.
+    const sniffed = await fileTypeFromBuffer(bytes);
+    if (!sniffed) {
+      // file-type returns undefined for .txt and plain SVG — our allow-lists never
+      // include those, so reject.
+      return NextResponse.json(
+        { success: false, error: "Could not determine file type from contents. Unsupported." },
+        { status: 400 },
+      );
+    }
+    if (!rules.types.includes(sniffed.mime as never)) {
+      return NextResponse.json(
+        { success: false, error: `File content type (${sniffed.mime}) does not match an allowed type for this category.` },
+        { status: 400 },
+      );
+    }
+    if (sniffed.mime !== file.type) {
+      // Client claimed one MIME, bytes are another. Treat as tampering attempt.
+      return NextResponse.json(
+        { success: false, error: "Declared file type does not match the actual file contents." },
+        { status: 400 },
+      );
+    }
 
     // ── Image analysis (property photos only) ──────────────────────────────
     if (category === "image") {

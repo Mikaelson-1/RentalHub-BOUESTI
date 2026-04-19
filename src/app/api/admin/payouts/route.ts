@@ -110,11 +110,34 @@ export async function PATCH(request: NextRequest) {
     if (!booking.movedInConfirmedAt) {
       return NextResponse.json({ success: false, error: "Student has not confirmed move-in yet." }, { status: 409 });
     }
+
+    // V13 fix: block invalid state transitions.
+    // Allowed: PENDING/PROCESSING → COMPLETED or FAILED.
+    // Blocked: COMPLETED → anything (terminal), FAILED → COMPLETED (masks missing transfer).
+    // If a genuinely FAILED payout needs to be retried, admin must re-initiate
+    // the Paystack transfer (future endpoint), which resets state to PROCESSING.
     if (booking.payoutStatus === "COMPLETED") {
-      return NextResponse.json({ success: false, error: "Payout already marked as completed." }, { status: 409 });
+      return NextResponse.json({ success: false, error: "Payout is already COMPLETED and cannot be changed." }, { status: 409 });
+    }
+    if (booking.payoutStatus === "FAILED" && action === "COMPLETE") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Cannot flip a FAILED payout to COMPLETED without re-initiating the transfer. Contact engineering.",
+        },
+        { status: 409 },
+      );
     }
 
     const newStatus = action === "COMPLETE" ? "COMPLETED" : "FAILED";
+    console.log("[AUDIT][payouts]", {
+      at: new Date().toISOString(),
+      adminId: session.user.id,
+      adminEmail: session.user.email,
+      bookingId,
+      prevStatus: booking.payoutStatus,
+      newStatus,
+    });
 
     await prisma.booking.update({
       where: { id: bookingId },

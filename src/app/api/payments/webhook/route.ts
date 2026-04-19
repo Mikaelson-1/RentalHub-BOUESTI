@@ -52,6 +52,36 @@ export async function POST(request: Request) {
 
       const amountNaira = amount / 100;
 
+      // ── V4 fix: cross-check webhook amount against the Payment row recorded at
+      // initiate time. Defence-in-depth against a compromised webhook source:
+      // even with a valid HMAC, we refuse to mark a booking PAID if the amount
+      // doesn't match what the student was supposed to pay.
+      const paymentRecord = await prisma.payment.findFirst({
+        where: { paystackRef: reference, bookingId },
+        select: { id: true, amount: true },
+      });
+
+      if (!paymentRecord) {
+        console.error("[WEBHOOK] charge.success with no matching Payment row", { reference, bookingId });
+        return NextResponse.json({ received: true, ignored: "no-matching-payment" });
+      }
+
+      const expectedNaira = Number(paymentRecord.amount);
+      // Allow ≤1 naira drift for kobo rounding; any larger gap is an integrity failure.
+      if (Math.abs(expectedNaira - amountNaira) > 1) {
+        console.error("[WEBHOOK] amount mismatch — refusing to mark PAID", {
+          reference,
+          bookingId,
+          expected: expectedNaira,
+          received: amountNaira,
+        });
+        await prisma.payment.updateMany({
+          where: { paystackRef: reference },
+          data: { status: "FAILED", metadata: { ...event.data, mismatchReason: "amount_mismatch" } },
+        });
+        return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
+      }
+
       const booking = await prisma.booking.findUnique({
         where: { id: bookingId },
         include: {
