@@ -112,13 +112,20 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
+    // V21 fix: do NOT store the landlord's full bank account number in the
+    // Notification table. Admin can see full details on /admin/payouts when
+    // they actively view the record. Mask to last-4 here.
+    const maskedAccount = landlord.bankAccountNumber
+      ? `•••• ${landlord.bankAccountNumber.slice(-4)}`
+      : "(not set)";
+
     await Promise.all(
       admins.map((admin) =>
         notifyUser({
           userId: admin.id,
           type: "PAYMENT",
           title: "Payout action required",
-          message: `${booking.student.name} has moved into ${booking.property.title}. Please release ₦${amountNaira.toLocaleString("en-NG")} to ${landlord.name}${landlord.bankAccountName ? ` (${landlord.bankAccountName}` : ""}${landlord.bankName ? ` — ${landlord.bankName}` : ""}${landlord.bankAccountNumber ? `, ${landlord.bankAccountNumber}` : ""}${landlord.bankAccountName || landlord.bankName ? ")" : ""}.`,
+          message: `${booking.student.name} has moved into ${booking.property.title}. Release ₦${amountNaira.toLocaleString("en-NG")} to ${landlord.name} (${landlord.bankName ?? "bank"} ${maskedAccount}). View full details in /admin/payouts.`,
           link: "/admin",
         }).catch(console.error),
       ),

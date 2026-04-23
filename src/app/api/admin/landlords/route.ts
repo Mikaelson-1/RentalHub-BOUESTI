@@ -85,6 +85,41 @@ export async function PATCH(request: Request) {
       );
     }
 
+    // V22 fix: block self-action and cross-role abuse on this endpoint.
+    // This route is for LANDLORD verification — it must never be used to
+    // mutate another ADMIN or a STUDENT. Without this guard, admin X could
+    // suspend admin Y (combined with V10's middleware kick, locking them out).
+    if (landlordId === session.user.id) {
+      return NextResponse.json(
+        { success: false, error: "You cannot apply landlord-verification actions to your own account." },
+        { status: 400 },
+      );
+    }
+
+    const targetRole = await prisma.user.findUnique({
+      where: { id: landlordId },
+      select: { role: true },
+    });
+    if (!targetRole) {
+      return NextResponse.json({ success: false, error: "User not found." }, { status: 404 });
+    }
+    if (targetRole.role !== "LANDLORD") {
+      return NextResponse.json(
+        { success: false, error: "This endpoint only operates on LANDLORD accounts." },
+        { status: 400 },
+      );
+    }
+
+    // Audit log — every landlord-verification state change by an admin.
+    console.log("[AUDIT][admin-landlords]", {
+      at: new Date().toISOString(),
+      adminId: session.user.id,
+      adminEmail: session.user.email,
+      targetLandlordId: landlordId,
+      action,
+      note: note?.trim(),
+    });
+
     // Guard: cannot approve a landlord who hasn't submitted any documents
     if (action === "APPROVE") {
       const candidate = await prisma.user.findUnique({
