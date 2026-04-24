@@ -18,8 +18,38 @@ const LANDLORD_UNVERIFIED_ALLOWED = [
   "/landlord/profile",
 ];
 
+// V42: mutation methods that need CSRF/CORS protection.
+const UNSAFE_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // V42 fix: reject cross-origin mutations on API routes. NextAuth cookies
+  // are SameSite=Lax by default which blunts most browser-driven CSRF, but
+  // cross-subdomain or third-party pages can still trigger requests. This
+  // check enforces that an Origin header (when present) matches our Host.
+  if (pathname.startsWith("/api/") && UNSAFE_METHODS.has(request.method)) {
+    const origin = request.headers.get("origin");
+    // Paystack webhook + cron must be allowed (they don't send browser origin)
+    const isWebhook = pathname === "/api/payments/webhook";
+    const isCron = pathname === "/api/bookings/expire";
+    if (origin && !isWebhook && !isCron) {
+      try {
+        const originHost = new URL(origin).host;
+        const requestHost = request.headers.get("host") ?? "";
+        if (originHost !== requestHost) {
+          return NextResponse.json(
+            { error: "Cross-origin request denied." },
+            { status: 403 },
+          );
+        }
+      } catch {
+        return NextResponse.json({ error: "Invalid origin header." }, { status: 400 });
+      }
+    }
+    // Fall through — API handlers keep their own auth/role checks.
+    return NextResponse.next();
+  }
 
   // Check if the current path is a protected route
   const isProtectedRoute = protectedPrefixes.some((prefix) =>
@@ -86,11 +116,13 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Configure which routes the middleware should run on
+// Configure which routes the middleware should run on.
+// V42: also include /api/:path* so the CORS check above can fire on mutations.
 export const config = {
   matcher: [
     "/student/:path*",
     "/landlord/:path*",
     "/admin/:path*",
+    "/api/:path*",
   ],
 };

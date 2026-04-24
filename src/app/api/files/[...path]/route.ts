@@ -58,13 +58,18 @@ export async function GET(
     }
 
     const isRestricted = RESTRICTED_CATEGORIES.includes(category);
-    if (isRestricted && session.user.role !== "ADMIN") {
-      // TODO: extend with "owner of upload can view own verification doc"
-      // once we track uploader→blobPath mapping. For now, admin-only.
-      return NextResponse.json(
-        { error: "Unauthorized — verification documents are admin-only" },
-        { status: 403 },
-      );
+    if (isRestricted) {
+      // V24/V25 follow-up: new layout is uploads/<category>/<uploaderId>/<file>
+      // so the uploading user can view their own doc, plus any ADMIN.
+      const uploaderId = path[2];
+      const isAdmin = session.user.role === "ADMIN";
+      const isOwner = uploaderId && uploaderId === session.user.id;
+      if (!isAdmin && !isOwner) {
+        return NextResponse.json(
+          { error: "Unauthorized — you may only view your own verification documents" },
+          { status: 403 },
+        );
+      }
     }
 
     // ── Stream the blob ─────────────────────────────────────────────────

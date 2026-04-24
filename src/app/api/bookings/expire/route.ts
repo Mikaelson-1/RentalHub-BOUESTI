@@ -5,13 +5,24 @@
  * Protected by CRON_SECRET env var.
  */
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
 import { sendBookingExpiredToStudent } from "@/lib/email";
 import { notifyUser } from "@/lib/notifications";
 
 export async function POST(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // V27 fix: use timingSafeEqual to prevent byte-by-byte secret recovery via
+  // response-time side-channel. A plain !== comparison short-circuits on the
+  // first mismatched byte.
+  const authHeader = request.headers.get("authorization") ?? "";
+  const expected = `Bearer ${process.env.CRON_SECRET ?? ""}`;
+  const authBuf = Buffer.from(authHeader);
+  const expectedBuf = Buffer.from(expected);
+  const authorized =
+    !!process.env.CRON_SECRET &&
+    authBuf.length === expectedBuf.length &&
+    timingSafeEqual(authBuf, expectedBuf);
+  if (!authorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

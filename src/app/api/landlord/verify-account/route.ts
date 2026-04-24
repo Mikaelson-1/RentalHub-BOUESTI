@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,6 +16,16 @@ export async function GET(request: NextRequest) {
     }
     if (session.user.role !== "LANDLORD") {
       return NextResponse.json({ success: false, error: "Only landlords can verify accounts" }, { status: 403 });
+    }
+
+    // V26 fix: rate limit to prevent PII harvesting via Paystack account resolution.
+    // Without this, any landlord could enumerate 10^10 account numbers → real names.
+    const rl = await rateLimit(`verify-account:${session.user.id}`, { limit: 10, windowSeconds: 3600 });
+    if (!rl.success) {
+      return NextResponse.json(
+        { success: false, error: `Too many account-verification attempts. Try again in ${rl.retryAfter} seconds.` },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      );
     }
 
     const { searchParams } = new URL(request.url);

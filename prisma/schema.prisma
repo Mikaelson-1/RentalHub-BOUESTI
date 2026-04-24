@@ -208,8 +208,11 @@ model Booking {
   studentId  String
   propertyId String
 
-  student    User          @relation("StudentBookings", fields: [studentId], references: [id], onDelete: Cascade)
-  property   Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  // V40 fix: prevent cascade-delete destroying financial records.
+  // Deleting a student or property with existing bookings now fails at the DB
+  // level — the application layer must soft-delete/archive these instead.
+  student    User          @relation("StudentBookings", fields: [studentId], references: [id], onDelete: Restrict)
+  property   Property      @relation(fields: [propertyId], references: [id], onDelete: Restrict)
   payments   Payment[]
 
   @@index([studentId])
@@ -234,7 +237,9 @@ model Payment {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  booking        Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  // V40 fix: Payment records are legally retained data (audit, tax, fraud).
+  // Cascade would allow them to be silently destroyed along with a booking.
+  booking        Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
 
   @@index([bookingId])
   @@index([paystackRef])

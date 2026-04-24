@@ -6,23 +6,51 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Fix workspace root detection when running from a git worktree
   outputFileTracingRoot: __dirname,
-  // Keep dev and production artifacts separate to avoid cache collisions.
   distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
+  poweredByHeader: false, // V44: don't advertise Next.js version to attackers
   images: {
-    // Only allow images from trusted storage providers.
-    // Add your CDN / object-storage hostname here when you migrate from base64.
+    // V32 fix: tighten remotePatterns.
+    // - Removed `*.amazonaws.com` and `*.supabase.co` — wildcards let anyone's
+    //   S3/Supabase content proxy through our optimizer (SSRF-ish, cache abuse).
+    // - Removed `picsum.photos` (unused, demo-only).
+    // - Removed `images.unsplash.com` (unused in prod).
+    // - Kept Google user content (OAuth avatars) and Vercel Blob (our storage).
     remotePatterns: [
-      { protocol: 'https', hostname: 'res.cloudinary.com' },
-      { protocol: 'https', hostname: '*.supabase.co' },
-      { protocol: 'https', hostname: '*.amazonaws.com' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-      { protocol: 'https', hostname: 'picsum.photos' },
-      { protocol: 'https', hostname: 'images.unsplash.com' },
-      // Vercel Blob storage
       { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
     ],
+  },
+  // V31 fix: security headers applied to every response.
+  async headers() {
+    const securityHeaders = [
+      { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+      { key: 'X-Content-Type-Options',    value: 'nosniff' },
+      { key: 'X-Frame-Options',           value: 'DENY' },
+      { key: 'Referrer-Policy',           value: 'strict-origin-when-cross-origin' },
+      { key: 'Permissions-Policy',        value: 'camera=(), microphone=(), geolocation=(), payment=(self "https://checkout.paystack.com")' },
+      { key: 'X-DNS-Prefetch-Control',    value: 'on' },
+      // Start CSP in report-only mode for a week, then enforce. Paystack needs
+      // allowances for their inline JS. Adjust after reviewing Sentry reports.
+      {
+        key: 'Content-Security-Policy-Report-Only',
+        value: [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline' https://js.paystack.co https://checkout.paystack.com",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://lh3.googleusercontent.com",
+          "font-src 'self' https://fonts.gstatic.com",
+          "connect-src 'self' https://*.ingest.sentry.io https://api.paystack.co https://checkout.paystack.com https://o.sentry-cdn.com",
+          "frame-src https://checkout.paystack.com",
+          "object-src 'none'",
+          "base-uri 'self'",
+          "form-action 'self'",
+          "frame-ancestors 'none'",
+          "upgrade-insecure-requests",
+        ].join("; "),
+      },
+    ];
+    return [{ source: '/(.*)', headers: securityHeaders }];
   },
 };
 

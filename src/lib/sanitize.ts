@@ -62,3 +62,29 @@ export function sanitizeHttpUrlArray(values: unknown): string[] {
     .map((value) => sanitizeHttpUrl(value))
     .filter((value): value is string => Boolean(value));
 }
+
+/**
+ * V24/V25 fix: only accept paths that point to our own file-access-controlled
+ * endpoint. Anything else (picsum.photos, someone's S3, attacker webserver) is
+ * rejected — eliminates the "submit-a-fake-ID-URL" verification bypass.
+ *
+ * Expected format: "/api/files/uploads/<category>/<filename>"
+ */
+export function sanitizeInternalBlobPath(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  // Must be a same-origin relative path to /api/files, with no traversal.
+  if (!trimmed.startsWith("/api/files/uploads/")) return null;
+  if (trimmed.includes("..") || trimmed.includes("\\")) return null;
+
+  // Path segment whitelist — matches uploads/<category>/<id>.ext shape.
+  const segments = trimmed.slice("/api/files/".length).split("/");
+  if (segments.length < 3) return null;
+  if (segments[0] !== "uploads") return null;
+  for (const seg of segments) {
+    if (!/^[a-zA-Z0-9._\-]+$/.test(seg)) return null;
+  }
+  return trimmed;
+}

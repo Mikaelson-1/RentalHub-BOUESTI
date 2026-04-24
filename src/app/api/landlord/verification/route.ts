@@ -12,7 +12,7 @@ import {
   sendVerificationSubmittedToAdmin,
 } from "@/lib/email";
 import { notifyRole, notifyUser } from "@/lib/notifications";
-import { sanitizeHttpUrl, sanitizeText } from "@/lib/sanitize";
+import { sanitizeInternalBlobPath, sanitizeText } from "@/lib/sanitize";
 
 export async function GET() {
   try {
@@ -99,9 +99,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const safeGovernmentIdUrl = sanitizeHttpUrl(governmentIdUrl);
-    const safeSelfieUrl = sanitizeHttpUrl(selfieUrl);
-    const safeOwnershipProofUrl = sanitizeHttpUrl(ownershipProofUrl);
+    // V24/V25/V37 fix: only accept paths to our internal /api/files endpoint
+    // AND verify the path was uploaded by THIS landlord. The upload route
+    // prefixes restricted uploads with the uploader's userId
+    // (uploads/<category>/<userId>/<file>); we enforce that match here so a
+    // landlord cannot submit another user's document URL as their own.
+    const safeGovernmentIdUrl = sanitizeInternalBlobPath(governmentIdUrl);
+    const safeSelfieUrl = sanitizeInternalBlobPath(selfieUrl);
+    const safeOwnershipProofUrl = sanitizeInternalBlobPath(ownershipProofUrl);
 
     if (!safeGovernmentIdUrl || !safeSelfieUrl || !safeOwnershipProofUrl) {
       return NextResponse.json(
@@ -110,10 +115,35 @@ export async function POST(request: Request) {
       );
     }
 
+    const uidPrefix = `/${session.user.id}/`;
+    const expectations: Array<[string, string]> = [
+      [safeGovernmentIdUrl, "/api/files/uploads/governmentId"],
+      [safeSelfieUrl, "/api/files/uploads/selfie"],
+      [safeOwnershipProofUrl, "/api/files/uploads/ownershipProof"],
+    ];
+    for (const [url, expectedCategoryPrefix] of expectations) {
+      if (!url.startsWith(expectedCategoryPrefix + uidPrefix)) {
+        console.error("[verification] landlord submitted a blob path not owned by them", {
+          landlordId: session.user.id,
+          url,
+        });
+        return NextResponse.json(
+          { success: false, error: "Document URL does not belong to your uploads. Please re-upload your files." },
+          { status: 400 },
+        );
+      }
+    }
+
+    // V36 fix: we do NOT trust the phone number here. phoneVerified stays
+    // false until an SMS-OTP flow verifies it (not implemented yet — tracked
+    // as a TODO). Admin must treat the phone number as landlord-claimed, not
+    // verified, during review. Do not set phoneVerified=true anywhere in this
+    // route until an SMS OTP provider (e.g. Termii) is wired up.
     const updated = await prisma.user.update({
       where: { id: session.user.id },
       data:  {
         phoneNumber:             sanitizeText(phoneNumber, 25),
+        phoneVerified:           false, // explicit — do not promote on submit
         governmentIdUrl:         safeGovernmentIdUrl,
         selfieUrl:               safeSelfieUrl,
         isDirectOwner,

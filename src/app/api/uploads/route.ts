@@ -165,9 +165,19 @@ export async function POST(request: Request) {
     }
 
     // ── Upload to Vercel Blob ───────────────────────────────────────────────
-    const ext        = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : "";
-    const finalName  = `${Date.now()}-${randomUUID()}-${sanitizeFileName(file.name.replace(/\.[^.]+$/, ""))}${ext}`;
-    const blobPath   = `uploads/${category}/${finalName}`;
+    // V37 fix: do NOT preserve any part of the attacker-controlled filename in
+    // the stored path. Previously the user's original filename was embedded,
+    // which (a) is a covert channel into admin notifications/logs, (b) is
+    // predictable for targeted overwrite.
+    const RESTRICTED = ["governmentId", "verification", "selfie", "ownershipProof"];
+    const ext = /\.(jpe?g|png|webp|pdf|mp4|webm)$/i.exec(file.name)?.[0]?.toLowerCase() ?? "";
+    const randomName = `${Date.now()}-${randomUUID()}${ext}`;
+    // V24/V25 fix: prefix restricted uploads with the uploader's user ID so
+    // downstream verification routes can cryptographically tie a blob path to
+    // the user who submitted it — prevents cross-user doc URL theft.
+    const blobPath = RESTRICTED.includes(category)
+      ? `uploads/${category}/${session.user.id}/${randomName}`
+      : `uploads/${category}/${randomName}`;
 
     // ✅ Upload to Vercel Blob (always public access)
     // Security comes from not exposing URLs, not from storage itself
@@ -196,8 +206,9 @@ export async function POST(request: Request) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[UPLOAD POST ERROR]", msg);
+    // V43 fix: don't leak internal error details to the client.
     return NextResponse.json(
-      { success: false, error: "Failed to upload file.", detail: msg },
+      { success: false, error: "Failed to upload file." },
       { status: 500 },
     );
   }

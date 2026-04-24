@@ -61,5 +61,9 @@
     "ts-node": "^10.9.2",
     "typescript": "^5",
     "vercel": "^50.41.0"
+  },
+  "overrides": {
+    "uuid": "^14.0.0",
+    "cookie": "^1.0.0"
   }
 }

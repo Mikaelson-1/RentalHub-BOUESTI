@@ -134,19 +134,43 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ success: false, error: 'You are not authorised to delete this property.' }, { status: 403 });
     }
 
-    // Only block deletion when a student has *already paid* (CONFIRMED booking).
-    // AWAITING_PAYMENT bookings (student hasn't paid yet) are cancelled automatically below.
-    const confirmedCount = await prisma.booking.count({
-      where: { propertyId: id, status: 'CONFIRMED' },
+    // V39 fix: block deletion of any property with a live or paid booking.
+    // Previously only checked `status: 'CONFIRMED'` — which never fires in the
+    // current state machine (PENDING → AWAITING_PAYMENT → PAID). That meant a
+    // landlord could DELETE a property with a PAID, moved-in tenant, nuking
+    // Booking + Payment records via Prisma cascade.
+    const blockingCount = await prisma.booking.count({
+      where: {
+        propertyId: id,
+        status: { in: ['PENDING', 'AWAITING_PAYMENT', 'CONFIRMED', 'PAID'] },
+      },
     });
 
-    if (confirmedCount > 0 && !isAdmin) {
+    if (blockingCount > 0) {
+      // Even admins can't do this through the API — must soft-delete / archive
+      // via a future dedicated endpoint with explicit audit trail.
       return NextResponse.json(
         {
           success: false,
-          error: 'Cannot delete a property with a confirmed, paid booking. Contact support to resolve the tenancy first.',
+          error:
+            'Cannot delete a property with active bookings. Cancel or complete all bookings first, or contact engineering for soft-delete.',
         },
-        { status: 400 },
+        { status: 409 },
+      );
+    }
+
+    // Also block if the property has EVER had a successful payment — financial
+    // record retention (audit, tax, fraud investigation).
+    const everPaid = await prisma.payment.count({
+      where: { booking: { propertyId: id }, status: { in: ['SUCCESS', 'REFUNDED'] } },
+    });
+    if (everPaid > 0 && !isAdmin) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Cannot delete a property with payment history. Contact support.',
+        },
+        { status: 409 },
       );
     }
 

@@ -85,11 +85,22 @@ export async function GET(request: Request) {
         : {}),
     };
 
+    // V38 fix: only expose landlord email to the landlord themselves, or admin.
+    // Public property listings previously leaked every landlord's email — a
+    // spam/scrape magnet.
+    const canSeeLandlordEmail = isLandlordMineView || isAdmin;
     const [properties, total] = await Promise.all([
       prisma.property.findMany({
         where,
         include: {
-          landlord:   { select: { id: true, name: true, email: true, verificationStatus: true } },
+          landlord: {
+            select: {
+              id: true,
+              name: true,
+              verificationStatus: true,
+              ...(canSeeLandlordEmail && { email: true }),
+            },
+          },
           ...(isAdmin && { reviewedBy: { select: { id: true, name: true, email: true } } }),
           location:   true,
           _count:     { select: { bookings: true } },
