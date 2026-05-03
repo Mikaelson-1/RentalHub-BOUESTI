@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ShieldAlert, ShieldX, Clock, TrendingUp } from "lucide-react";
+import { Alert, Button, EmptyState, SectionHeader, StatBox, Table, Tabs } from "@/components";
 
 interface Listing {
   id: string;
@@ -279,264 +280,190 @@ export default function LandlordDashboard() {
 
       <VerificationBanner status={verificationStatus} />
 
-      {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <Alert type="error" title="Error" message={error} onClose={() => setError("")} />}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-primary-green">{listings.length}</div>
-          <div className="text-gray-600">Total Listings</div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-primary-green">
-            {listings.filter((listing) => listing.status === "APPROVED").length}
-          </div>
-          <div className="text-gray-600">Approved</div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-primary-green">{pendingRequests}</div>
-          <div className="text-gray-600">Pending Requests</div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-primary-green">{totalViews}</div>
-          <div className="text-gray-600">Total Booking Requests</div>
-        </div>
+        <StatBox value={listings.length} label="Total Listings" color="green" />
+        <StatBox value={listings.filter((l) => l.status === "APPROVED").length} label="Approved" color="green" />
+        <StatBox value={pendingRequests} label="Pending Requests" color="green" />
+        <StatBox value={totalViews} label="Total Booking Requests" color="green" />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm">
-        <div className="border-b border-gray-200">
-          <nav className="flex">
-            <button
-              onClick={() => setActiveTab("listings")}
-              className={`px-6 py-4 text-sm font-medium border-b-2 ${
-                activeTab === "listings"
-                  ? "border-primary-green text-primary-green"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              My Listings
-            </button>
-            <button
-              onClick={() => setActiveTab("requests")}
-              className={`px-6 py-4 text-sm font-medium border-b-2 ${
-                activeTab === "requests"
-                  ? "border-primary-green text-primary-green"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Tenant Requests
-              {pendingRequests > 0 && (
-                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                  {pendingRequests}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab("earnings")}
-              className={`px-6 py-4 text-sm font-medium border-b-2 flex items-center gap-1.5 ${
-                activeTab === "earnings"
-                  ? "border-primary-green text-primary-green"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <TrendingUp className="w-4 h-4" />
-              Earnings
-            </button>
-          </nav>
-        </div>
-
-        <div className="p-6">
-          {isLoading && activeTab !== "earnings" ? (
-            <div className="text-center py-8 text-gray-500">Loading dashboard...</div>
-          ) : activeTab === "listings" ? (
-            listings.length === 0 ? (
-              <div className="text-center py-10 text-gray-500">No listings yet. Add your first property.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Property</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Location</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Price</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Requests</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {listings.map((listing) => (
-                      <tr key={listing.id} className="border-b border-gray-100">
-                        <td className="py-4 px-4 font-medium text-navy">{listing.title}</td>
-                        <td className="py-4 px-4 text-gray-600">{listing.location.name}</td>
-                        <td className="py-4 px-4 text-primary-green font-medium">{formatPrice(listing.price)}</td>
-                        <td className="py-4 px-4">
-                          <span
-                            className={`px-3 py-1 rounded-full text-sm font-medium ${
-                              listing.status === "APPROVED"
-                                ? "bg-green-100 text-green-800"
-                                : listing.status === "PENDING"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {listing.status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-gray-600">{listing._count?.bookings ?? 0}</td>
-                        <td className="py-4 px-4 flex gap-3">
-                          <Link
-                            href={`/landlord/properties/${listing.id}`}
-                            className="text-sm text-[#192F59] hover:text-[#E67E22] font-medium transition-colors"
-                          >
+      <Tabs
+        tabs={[
+          {
+            id: "listings",
+            label: "My Listings",
+            content: (
+              isLoading ? (
+                <EmptyState title="Loading dashboard..." description="" />
+              ) : listings.length === 0 ? (
+                <EmptyState
+                  title="No listings yet"
+                  description="Add your first property to get started"
+                  action={{
+                    label: "Add Property",
+                    onClick: () => (window.location.href = "/landlord/add-property"),
+                  }}
+                />
+              ) : (
+                <Table
+                  columns={[
+                    { header: "Property", key: "title" },
+                    { header: "Location", key: "location", render: (val) => val.name },
+                    { header: "Price", key: "price", render: (val) => formatPrice(val) },
+                    {
+                      header: "Status",
+                      key: "status",
+                      render: (val) => (
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          val === "APPROVED" ? "bg-green-100 text-green-800" :
+                          val === "PENDING" ? "bg-yellow-100 text-yellow-800" :
+                          "bg-red-100 text-red-800"
+                        }`}>
+                          {val}
+                        </span>
+                      ),
+                    },
+                    { header: "Requests", key: "bookings", render: (val) => val ?? 0, width: "80px" },
+                    {
+                      header: "Actions",
+                      key: "id",
+                      render: (val, row) => (
+                        <div className="flex gap-3">
+                          <Link href={`/landlord/properties/${val}`} className="text-sm text-[#192F59] hover:text-[#E67E22] font-medium">
                             View
                           </Link>
-                          <Link
-                            href={`/landlord/edit-property/${listing.id}`}
-                            className="text-sm text-gray-500 hover:text-[#E67E22] font-medium transition-colors"
-                          >
+                          <Link href={`/landlord/edit-property/${val}`} className="text-sm text-gray-500 hover:text-[#E67E22] font-medium">
                             Edit
                           </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
-          ) : activeTab === "requests" ? (
-            requests.length === 0 ? (
-              <div className="text-center py-10 text-gray-500">No tenant requests yet.</div>
-            ) : (
-              <div className="space-y-4">
-                {requests.map((request) => (
-                  <div
-                    key={request.id}
-                    className="border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3"
-                  >
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-navy truncate">{request.student.name}</h3>
-                      <p className="text-gray-600 text-sm truncate">Property: {request.property.title}</p>
-                      <p className="text-gray-700 text-sm mt-1">
-                        Bid: <span className="font-semibold text-[#00A553]">{formatPrice(bidAmountValue(request))}</span>
-                        <span className="text-gray-400 text-xs ml-2">(listed: {formatPrice(request.property.price)})</span>
-                      </p>
-                      <p className="text-gray-500 text-xs mt-1">
-                        Submitted {new Date(request.createdAt).toLocaleDateString()}
-                      </p>
-                      {request.status === "AWAITING_PAYMENT" && (
-                        <p className="text-xs text-orange-600 mt-1 font-medium">⏳ Student has 48 hours to complete payment</p>
-                      )}
-                      {request.status === "PENDING" && (highestBidByProperty[request.property.id]?.total ?? 0) >= 2 && (
-                        <p className="text-xs text-orange-700 mt-1">
-                          Multiple bids — only highest bid can be accepted.
+                        </div>
+                      ),
+                    },
+                  ]}
+                  data={listings.map((l) => ({
+                    ...l,
+                    location: { name: l.location.name },
+                    bookings: l._count?.bookings,
+                  }))}
+                  emptyMessage="No listings found"
+                />
+              )
+            ),
+          },
+          {
+            id: "requests",
+            label: "Tenant Requests",
+            badge: pendingRequests > 0 ? pendingRequests : undefined,
+            content: (
+              requests.length === 0 ? (
+                <EmptyState title="No tenant requests yet" description="Requests from students will appear here" />
+              ) : (
+                <div className="space-y-4">
+                  {requests.map((request) => (
+                    <div key={request.id} className="border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-navy truncate">{request.student.name}</h3>
+                        <p className="text-gray-600 text-sm truncate">Property: {request.property.title}</p>
+                        <p className="text-gray-700 text-sm mt-1">
+                          Bid: <span className="font-semibold text-[#00A553]">{formatPrice(bidAmountValue(request))}</span>
+                          <span className="text-gray-400 text-xs ml-2">(listed: {formatPrice(request.property.price)})</span>
                         </p>
-                      )}
-                    </div>
-                    <div className="flex-shrink-0">
-                      {/* Legacy PENDING bookings: keep Accept/Decline */}
-                      {request.status === "PENDING" ? (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => updateRequestStatus(request.id, "CONFIRMED")}
-                            disabled={updatingRequestId === request.id || !canAcceptRequest(request)}
-                            className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm"
-                            title={!canAcceptRequest(request) ? "Only highest bid can be accepted when there are multiple requests." : undefined}
-                          >
-                            Accept
-                          </button>
-                          <button
+                        <p className="text-gray-500 text-xs mt-1">
+                          Submitted {new Date(request.createdAt).toLocaleDateString()}
+                        </p>
+                        {request.status === "AWAITING_PAYMENT" && (
+                          <p className="text-xs text-orange-600 mt-1 font-medium">⏳ Student has 48 hours to complete payment</p>
+                        )}
+                        {request.status === "PENDING" && (highestBidByProperty[request.property.id]?.total ?? 0) >= 2 && (
+                          <p className="text-xs text-orange-700 mt-1">Multiple bids — only highest bid can be accepted.</p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0 flex gap-2">
+                        {request.status === "PENDING" ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => updateRequestStatus(request.id, "CONFIRMED")}
+                              disabled={updatingRequestId === request.id || !canAcceptRequest(request)}
+                              title={!canAcceptRequest(request) ? "Only highest bid can be accepted when there are multiple requests." : undefined}
+                            >
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => updateRequestStatus(request.id, "CANCELLED")}
+                              disabled={updatingRequestId === request.id}
+                            >
+                              Decline
+                            </Button>
+                          </>
+                        ) : request.status === "AWAITING_PAYMENT" ? (
+                          <Button
+                            size="sm"
+                            variant="danger"
                             onClick={() => updateRequestStatus(request.id, "CANCELLED")}
                             disabled={updatingRequestId === request.id}
-                            className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-md text-sm"
+                            loading={updatingRequestId === request.id}
                           >
-                            Decline
-                          </button>
-                        </div>
-                      ) : request.status === "AWAITING_PAYMENT" ? (
-                        /* New flow: student is about to pay — landlord can only cancel */
-                        <button
-                          onClick={() => updateRequestStatus(request.id, "CANCELLED")}
-                          disabled={updatingRequestId === request.id}
-                          className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-md text-sm"
-                        >
-                          {updatingRequestId === request.id ? "Cancelling…" : "Cancel Booking"}
-                        </button>
-                      ) : (
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusBadge(request.status)}`}>
-                          {request.status.replace("_", " ")}
-                        </span>
-                      )}
+                            {updatingRequestId === request.id ? "Cancelling…" : "Cancel Booking"}
+                          </Button>
+                        ) : (
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusBadge(request.status)}`}>
+                            {request.status.replace("_", " ")}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )
-          ) : activeTab === "earnings" ? (
-            earningsLoading ? (
-              <div className="text-center py-8 text-gray-500">Loading earnings...</div>
-            ) : !earnings ? (
-              <div className="text-center py-10 text-gray-500">No earnings data available.</div>
-            ) : (
-              <div>
-                {/* Earnings summary cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
-                    <p className="text-sm font-medium text-green-700 mb-1">Total Earnings</p>
-                    <p className="text-3xl font-bold text-green-800">{formatPrice(earnings.totalEarnings)}</p>
-                    <p className="text-xs text-green-600 mt-1">All time</p>
-                  </div>
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
-                    <p className="text-sm font-medium text-blue-700 mb-1">This Month</p>
-                    <p className="text-3xl font-bold text-blue-800">{formatPrice(earnings.monthlyEarnings)}</p>
-                    <p className="text-xs text-blue-600 mt-1">Current month</p>
-                  </div>
-                  <div className="bg-white border border-gray-200 rounded-xl p-6">
-                    <p className="text-sm font-medium text-gray-600 mb-1">Paid Bookings</p>
-                    <p className="text-3xl font-bold text-navy">{earnings.totalPaidBookings}</p>
-                    <p className="text-xs text-gray-400 mt-1">Completed payments</p>
-                  </div>
+                  ))}
                 </div>
-
-                {/* Earnings table */}
-                {earnings.bookings.length === 0 ? (
-                  <div className="text-center py-10 text-gray-500">No paid bookings yet.</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[700px]">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Property</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Student</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Amount</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Paid On</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Move-in</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Ref</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {earnings.bookings.map((b) => (
-                          <tr key={b.id} className="border-b border-gray-100">
-                            <td className="py-4 px-4 font-medium text-navy">{b.propertyTitle}</td>
-                            <td className="py-4 px-4 text-gray-600">{b.studentName}</td>
-                            <td className="py-4 px-4 text-green-700 font-semibold">{formatPrice(b.amount)}</td>
-                            <td className="py-4 px-4 text-gray-600">{b.paidAt ? new Date(b.paidAt).toLocaleDateString() : "—"}</td>
-                            <td className="py-4 px-4 text-gray-600">{b.moveInDate ? new Date(b.moveInDate).toLocaleDateString() : "—"}</td>
-                            <td className="py-4 px-4 text-xs text-gray-400 font-mono">{b.paystackRef ?? "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              )
+            ),
+          },
+          {
+            id: "earnings",
+            label: "Earnings",
+            content: (
+              earningsLoading ? (
+                <EmptyState title="Loading earnings..." description="" />
+              ) : !earnings ? (
+                <EmptyState title="No earnings data available" description="Your earnings will appear here" />
+              ) : (
+                <div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <StatBox value={formatPrice(earnings.totalEarnings)} label="Total Earnings (All time)" color="green" />
+                    <StatBox value={formatPrice(earnings.monthlyEarnings)} label="This Month" color="blue" />
+                    <StatBox value={earnings.totalPaidBookings} label="Paid Bookings" color="blue" />
                   </div>
-                )}
-              </div>
-            )
-          ) : null}
-        </div>
-      </div>
+                  {earnings.bookings.length === 0 ? (
+                    <EmptyState title="No paid bookings yet" description="Completed payments will appear here" />
+                  ) : (
+                    <Table
+                      columns={[
+                        { header: "Property", key: "propertyTitle" },
+                        { header: "Student", key: "studentName" },
+                        { header: "Amount", key: "amount", render: (val) => formatPrice(val) },
+                        { header: "Paid On", key: "paidAt", render: (val) => val ? new Date(val).toLocaleDateString() : "—" },
+                        { header: "Move-in", key: "moveInDate", render: (val) => val ? new Date(val).toLocaleDateString() : "—" },
+                        { header: "Ref", key: "paystackRef", render: (val) => val ? <span className="text-xs font-mono text-gray-400">{val}</span> : "—" },
+                      ]}
+                      data={earnings.bookings}
+                      emptyMessage="No paid bookings found"
+                    />
+                  )}
+                </div>
+              )
+            ),
+          },
+        ]}
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab as "listings" | "requests" | "earnings");
+          if (tab === "earnings") loadEarnings();
+        }}
+      />
     </div>
   );
 }
