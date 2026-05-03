@@ -9,7 +9,6 @@ import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import type { PropertyStatus, VerificationStatus } from '@prisma/client';
 import { SCHOOL_LOCATION_KEYWORDS } from '@/lib/schools';
-import gemini from '@/lib/gemini';
 import { notifyRole, notifyUser } from '@/lib/notifications';
 import { sanitizeHttpUrl, sanitizeStringArray, sanitizeText } from '@/lib/sanitize';
 
@@ -236,12 +235,9 @@ export async function POST(request: Request) {
     let aiScamReason: string | null = null;
     try {
       const scamCheck = async () => {
-        const model = gemini.getGenerativeModel({
-          model: 'gemini-2.0-flash-lite',
           systemInstruction:
             'You are a fraud detection assistant for a student housing platform. Analyze property listing text for scam signals, particularly advance-fee fraud targeting students. Check for: urgency pressure ("pay now or lose it", "only today"), requests to pay via WhatsApp or personal bank transfer instead of platform, suspiciously low prices far below market rate for student housing, promises that seem too good to be true, requests for advance payment before viewing, threats or emotional manipulation, unrealistic claims (mansion for ₦10k/month). Respond ONLY with valid JSON: { "flagged": boolean, "confidence": "low"|"medium"|"high", "reasons": string[] }. If not flagged, reasons should be empty array.',
         });
-        const result = await model.generateContent({
               contents: [{ role: 'user', parts: [{ text: `Title: ${safeTitle}\nDescription: ${safeDescription}` }] }],
           generationConfig: { maxOutputTokens: 300 },
         });

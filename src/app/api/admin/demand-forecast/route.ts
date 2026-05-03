@@ -7,7 +7,6 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import gemini from "@/lib/gemini";
 import { SCHOOL_LOCATION_KEYWORDS } from "@/lib/schools";
 
 export async function GET(request: Request) {
@@ -108,13 +107,10 @@ Cancelled bookings: ${bookingStatusBreakdown.CANCELLED}
 Monthly breakdown: ${monthlyBookings.map((m) => `${m.month}: ${m.count}`).join(", ")}
 `.trim();
 
-    const model = gemini.getGenerativeModel({
-      model: "gemini-2.0-flash-lite",
       systemInstruction:
         "You are a housing demand analyst for a university student housing platform. Based on booking trends, generate a brief demand forecast and actionable recommendations for the admin. Be specific about patterns you see. Keep it to 3-5 sentences.",
     });
 
-    const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: dataSummary }] }],
       generationConfig: { maxOutputTokens: 400 },
     });
