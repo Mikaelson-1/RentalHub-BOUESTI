@@ -142,7 +142,7 @@ function AgreementModal({ bk, onClose, onSign }: { bk: UiBooking; onClose: () =>
             <input type="checkbox" checked={read} onChange={(e) => setRead(e.target.checked)} style={{ accentColor: T.clay, width: 16, height: 16, marginTop: 2 }} />
             <span style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, lineHeight: 1.4 }}>I have read and agree to abide by these tenancy terms.</span>
           </label>
-          <Field label="Type your full name to sign"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Chioma Eze" /></Field>
+          <Field label="Type your full name to sign"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" /></Field>
           <div style={{ marginTop: 14 }}><Button full size="lg" disabled={!read || name.trim().split(/\s+/).length < 2} onClick={() => onSign(name)}>Sign &amp; agree</Button></div>
         </div>
       </div>
