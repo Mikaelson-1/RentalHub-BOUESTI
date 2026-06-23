@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/landlord", "/student", "/api", "/login", "/register"],
       },
     ],
-    sitemap: "https://rentalhub.ng/sitemap.xml",
+    sitemap: "https://rentalhub.mikaelsoninitiative.org/sitemap.xml",
   };
 }
