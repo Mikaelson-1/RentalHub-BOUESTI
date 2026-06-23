@@ -8,7 +8,7 @@ import { AppProvider } from "@/components/rh/app";
 const hanken = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-hanken" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://rentalhub.ng"),
+  metadataBase: new URL("https://rentalhub.mikaelsoninitiative.org"),
   applicationName: "RentalHub",
   title: {
     default: "RentalHub - Off-Campus Accommodation for Nigerian Students",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "RentalHub" }],
   alternates: {
-    canonical: "https://rentalhub.ng",
+    canonical: "https://rentalhub.mikaelsoninitiative.org",
   },
   verification: {
     google: "CyGGGZptjbYyyiMNb0mi9frcF1QKDTWZm2rYwfNXD_o",
@@ -40,14 +40,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_NG",
-    url: "https://rentalhub.ng",
+    url: "https://rentalhub.mikaelsoninitiative.org",
     siteName: "RentalHub",
     title: "RentalHub - Off-Campus Accommodation for Nigerian Students",
     description:
       "Find verified off-campus accommodation for Nigerian students. Browse properties, book rooms, and manage your listings.",
     images: [
       {
-        url: "https://rentalhub.ng/icon.png",
+        url: "https://rentalhub.mikaelsoninitiative.org/icon.png",
         width: 200,
         height: 200,
         alt: "RentalHub Logo",
@@ -60,12 +60,15 @@ export const metadata: Metadata = {
     title: "RentalHub - Off-Campus Accommodation for Nigerian Students",
     description:
       "Find verified off-campus accommodation for Nigerian students.",
-    images: ["https://rentalhub.ng/icon.png"],
+    images: ["https://rentalhub.mikaelsoninitiative.org/icon.png"],
   },
   robots: {
     index: true,
     follow: true,
     googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  verification: {
+    google: "u5KcEHsO_bPFrq6-3um4ZYq0Hm8bo3CZiiVrHmraeUc",
   },
 };
 
@@ -78,8 +81,8 @@ export default function RootLayout({
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "RentalHub",
-    url: "https://rentalhub.ng",
-    logo: "https://rentalhub.ng/favicon-512.png",
+    url: "https://rentalhub.mikaelsoninitiative.org",
+    logo: "https://rentalhub.mikaelsoninitiative.org/favicon-512.png",
   };
 
   return (

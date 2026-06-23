@@ -19,6 +19,7 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
     ],
   },
   // V31 fix: security headers applied to every response.
@@ -38,9 +39,9 @@ const nextConfig = {
           "default-src 'self'",
           "script-src 'self' 'unsafe-inline' https://js.paystack.co https://checkout.paystack.com",
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-          "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://lh3.googleusercontent.com",
+          "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://lh3.googleusercontent.com https://res.cloudinary.com",
           "font-src 'self' https://fonts.gstatic.com",
-          "connect-src 'self' https://*.ingest.sentry.io https://api.paystack.co https://checkout.paystack.com https://o.sentry-cdn.com",
+          "connect-src 'self' http://localhost:4000 https://*.ingest.sentry.io https://api.paystack.co https://checkout.paystack.com https://o.sentry-cdn.com",
           "frame-src https://checkout.paystack.com",
           "object-src 'none'",
           "base-uri 'self'",

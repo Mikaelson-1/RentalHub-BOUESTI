@@ -7,7 +7,11 @@
  */
 import type { Listing } from "@/lib/rh/data";
 
-export const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "https://rentalhub-backend-blue.vercel.app").replace(/\/$/, "");
+// Dev must never fall back to the live backend — local talks to local only.
+export const API_BASE = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "development" ? "http://localhost:4000" : "https://rentalhub-backend-blue.vercel.app")
+).replace(/\/$/, "");
 
 export const AUTH_STORAGE_KEY = "rh_auth";
 

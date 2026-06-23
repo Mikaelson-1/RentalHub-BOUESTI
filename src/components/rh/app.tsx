@@ -113,7 +113,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const data = await apiPost<{ token: string; user: AuthUser }>("/api/auth/token", { email, password });
+    const data = await apiPost<{ token: string; user: AuthUser }>("/api/auth/login", { email, password });
     window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
     setAuth(data);
     return data.user;
