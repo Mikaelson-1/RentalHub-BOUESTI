@@ -10,6 +10,6 @@ export default function PrivacyPage() {
     ["Payments", ["Payments are processed by our payment partner. We hold rent securely in escrow and release it to the landlord only after you confirm move-in. We store payment references, not full card details."]],
     ["Document verification", ["Landlord identity and ownership documents are reviewed by our admin team and automated checks solely to confirm authenticity. They are stored securely and are never shown to students."]],
     ["Your rights", ["You can access, correct, or delete your personal information at any time from your profile, or by contacting us. You may also request a copy of the data we hold about you."]],
-    ["Contact", ["For any privacy request, email privacy@rentalhub.ng and we’ll respond within 30 days."]],
+    ["Contact", ["For any privacy request, email hello@mikaelsoninitiative.org and we’ll respond within 30 days."]],
   ]} />;
 }

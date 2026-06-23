@@ -23,7 +23,7 @@ export default function PendingApprovalPage() {
           ))}
         </div>
       </div>
-      <p style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink3, marginTop: 18 }}>Questions? <span style={{ color: T.clay, fontWeight: 600 }}>support@rentalhub.ng</span></p>
+      <p style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink3, marginTop: 18 }}>Questions? <span style={{ color: T.clay, fontWeight: 600 }}>hello@mikaelsoninitiative.org</span></p>
     </StatusPage>
   );
 }

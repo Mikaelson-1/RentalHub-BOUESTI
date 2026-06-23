@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "contact": {
       "name": "RentalHub Support",
-      "url": "https://rentalhub.ng"
+      "url": "https://rentalhub.mikaelsoninitiative.org"
     },
     "license": {
       "name": "MIT"
@@ -14,7 +14,7 @@
   },
   "servers": [
     {
-      "url": "https://rentalhub.ng/api",
+      "url": "https://rentalhub.mikaelsoninitiative.org/api",
       "description": "Production API"
     },
     {

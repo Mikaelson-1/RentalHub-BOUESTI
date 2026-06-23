@@ -175,7 +175,7 @@ export async function GET() {
 }
 ```
 
-2. Call it: `https://rentalhub.ng/api/test/error`
+2. Call it: `https://rentalhub.mikaelsoninitiative.org/api/test/error`
 
 3. Check Sentry → **Issues** (error should appear in 2-3 seconds)
 

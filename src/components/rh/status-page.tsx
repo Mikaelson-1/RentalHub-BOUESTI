@@ -47,7 +47,7 @@ export function LegalPage({ title, updated, sections }: { title: string; updated
           </div>
         ))}
         <div style={{ borderTop: "1px solid " + T.line, paddingTop: 22, fontFamily: T.sans, fontSize: 13.5, color: T.ink3 }}>
-          Questions about this policy? Contact <span style={{ color: T.clay, fontWeight: 600 }}>legal@rentalhub.ng</span>. RentalHub is a product of Mikaelson Initiative.
+          Questions about this policy? Contact <span style={{ color: T.clay, fontWeight: 600 }}>hello@mikaelsoninitiative.org</span>. RentalHub is a product of Mikaelson Initiative.
         </div>
       </div>
       <Footer />

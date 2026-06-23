@@ -5,7 +5,7 @@
   <p><strong>Verified off-campus accommodation for university students</strong></p>
 
   <p>
-    <a href="https://rentalhub.ng" target="_blank">🌐 Live Site</a> ·
+    <a href="https://rentalhub.mikaelsoninitiative.org" target="_blank">🌐 Live Site</a> ·
     <a href="#features">Features</a> ·
     <a href="#architecture">Architecture</a> ·
     <a href="#tech-stack">Tech Stack</a> ·
@@ -146,7 +146,7 @@ src/
 | File Storage | Vercel Blob (photos, videos, verification docs) |
 | AI | Google Gemini 2.0 Flash Lite (fraud detection, description generation, price advisory, doc pre-screening) |
 | Email | Resend API (primary) + Nodemailer SMTP (fallback) |
-| Deployment | Vercel (production at rentalhub.ng) |
+| Deployment | Vercel (production at rentalhub.mikaelsoninitiative.org) |
 | Icons | Lucide React |
 
 ---
@@ -191,7 +191,7 @@ BLOB_READ_WRITE_TOKEN="vercel_blob_..."
 
 # Email (Resend — recommended)
 RESEND_API_KEY="re_..."
-EMAIL_FROM="RentalHub <no-reply@rentalhub.ng>"
+EMAIL_FROM="RentalHub <no-reply@mikaelsoninitiative.org>"
 
 # OR Email (SMTP fallback)
 EMAIL_HOST="smtp.example.com"
@@ -238,7 +238,7 @@ npm run dev
 
 ## Deployment
 
-The application is deployed on Vercel and aliased to **rentalhub.ng**.
+The application is deployed on Vercel and aliased to **rentalhub.mikaelsoninitiative.org**.
 
 ```bash
 npx vercel --prod
