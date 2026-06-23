@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { T, naira, I, Photo, amenityIcon } from "@/lib/rh/theme";
-import { PROPERTY_TYPES, DISTANCES, AMENITY_GROUPS, AREAS } from "@/lib/rh/data";
+import { PROPERTY_TYPES, DISTANCES, AMENITY_GROUPS } from "@/lib/rh/data";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Button, Card, Avatar, StatusBadge, Pill, Field, Input, Select, Textarea } from "@/components/rh/ui";
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
-import { getMyListings, getLandlordRequests, getEarnings, setBookingStatus, mapProperty, mapRequest, uploadFile, createProperty, type UiListing, type UiRequest, type EarningsData } from "@/lib/rh/api";
+import {
+  getMyListings, getLandlordRequests, getEarnings, getLocations,
+  setBookingStatus, mapProperty, mapRequest, uploadFile, createProperty, updateProfile,
+  type UiListing, type UiRequest, type EarningsData,
+} from "@/lib/rh/api";
 
 function initialsOf(name: string) {
   return (name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()) || "?";
@@ -21,7 +25,8 @@ function VerifyBanner({ status, onStart }: { status: string; onStart: () => void
   );
   const cfg = ({
     UNVERIFIED: { tone: T.gold, soft: T.goldSoft, msg: "Your account is not yet verified. Verify to earn the trusted badge and unlock payouts.", cta: "Start verification" },
-    UNDER_REVIEW: { tone: T.blue, soft: T.blueSoft, msg: "Your documents are under review. We’ll notify you within 24–48 hours.", cta: null },
+    UNDER_REVIEW: { tone: T.blue, soft: T.blueSoft, msg: "Your documents are under review. We'll notify you within 24–48 hours.", cta: null },
+    REJECTED: { tone: T.red, soft: T.redSoft, msg: "Your verification was rejected. Please re-submit with correct documents.", cta: "Re-submit documents" },
   } as Record<string, { tone: string; soft: string; msg: string; cta: string | null }>)[status];
   if (!cfg) return null;
   return (
@@ -33,15 +38,21 @@ function VerifyBanner({ status, onStart }: { status: string; onStart: () => void
   );
 }
 
-function VerificationFlow({ status, setStatus }: { status: string; setStatus: (s: string) => void }) {
-  const { showToast } = useApp();
+const DOC_KEYS = ["governmentIdUrl", "selfieUrl", "ownershipProofUrl"] as const;
+type DocKey = typeof DOC_KEYS[number];
+
+function VerificationFlow({ status, onSubmitted }: { status: string; onSubmitted: () => void }) {
+  const { showToast, updateUser } = useApp();
   const { mobile } = useViewport();
-  const docs: [string, string, (p?: Record<string, unknown>) => React.ReactElement][] = [
-    ["Government ID", "NIN slip, driver’s licence or international passport", I.user],
-    ["Selfie with ID", "A clear photo of you holding your ID", I.eye],
-    ["Proof of ownership", "Deed, receipt, or authorisation letter for the property", I.home],
+  const docs: [string, string, DocKey, (p?: Record<string, unknown>) => React.ReactElement][] = [
+    ["Government ID", "NIN slip, driver's licence or international passport", "governmentIdUrl", I.user],
+    ["Selfie with ID", "A clear photo of you holding your ID", "selfieUrl", I.eye],
+    ["Proof of ownership", "Deed, receipt, or authorisation letter for the property", "ownershipProofUrl", I.home],
   ];
-  const [done, setDone] = useState([false, false, false]);
+  const [urls, setUrls] = useState<Partial<Record<DocKey, string>>>({});
+  const [uploading, setUploading] = useState<Partial<Record<DocKey, boolean>>>({});
+  const [submitting, setSubmitting] = useState(false);
+
   if (status === "UNDER_REVIEW") {
     return (
       <Card pad={mobile ? 24 : 36} style={{ maxWidth: 620, textAlign: "center" }}>
@@ -52,21 +63,65 @@ function VerificationFlow({ status, setStatus }: { status: string; setStatus: (s
       </Card>
     );
   }
+
+  const allDone = DOC_KEYS.every((k) => !!urls[k]);
+
+  async function handleUpload(key: DocKey, file: File) {
+    setUploading((p) => ({ ...p, [key]: true }));
+    try {
+      const result = await uploadFile(file);
+      setUrls((p) => ({ ...p, [key]: result.url }));
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading((p) => ({ ...p, [key]: false }));
+    }
+  }
+
+  async function handleSubmit() {
+    if (!allDone) return;
+    setSubmitting(true);
+    try {
+      const updated = await updateProfile({
+        governmentIdUrl: urls.governmentIdUrl!,
+        selfieUrl: urls.selfieUrl!,
+        ownershipProofUrl: urls.ownershipProofUrl!,
+      });
+      updateUser(updated);
+      onSubmitted();
+      showToast("Documents submitted for review");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Submission failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <Card pad={mobile ? 22 : 32} style={{ maxWidth: 620 }}>
       <h2 style={{ fontFamily: T.serif, fontSize: 28, color: T.ink, margin: 0, fontWeight: 500 }}>Get verified</h2>
       <p style={{ fontFamily: T.sans, fontSize: 14.5, color: T.ink2, lineHeight: 1.6, marginTop: 10 }}>Upload three documents. We verify your identity and ownership so students can trust your listings — and so we can pay you out.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 22 }}>
-        {docs.map(([t, d, Ic], i) => (
-          <div key={t} onClick={() => setDone((p) => p.map((x, j) => (j === i ? true : x)))} style={{ display: "flex", alignItems: "center", gap: 14, padding: 16, border: "1px dashed " + (done[i] ? T.green : T.line), borderRadius: 14, cursor: "pointer", background: done[i] ? T.greenSoft : "#fff" }}>
-            <span style={{ width: 42, height: 42, borderRadius: 11, background: done[i] ? "#fff" : T.paper, color: done[i] ? T.green : T.clay, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>{done[i] ? I.check({ width: 20, height: 20 }) : Ic({ width: 20, height: 20 })}</span>
-            <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontFamily: T.sans, fontSize: 14.5, fontWeight: 600, color: T.ink }}>{t}</div><div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2 }}>{d}</div></div>
-            <span style={{ color: done[i] ? T.green : T.ink3, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}>{done[i] ? "Uploaded" : <>{I.upload({ width: 15, height: 15 })} Upload</>}</span>
-          </div>
-        ))}
+        {docs.map(([t, d, key, Ic]) => {
+          const done = !!urls[key];
+          const busy = !!uploading[key];
+          return (
+            <label key={key} style={{ display: "flex", alignItems: "center", gap: 14, padding: 16, border: "1px dashed " + (done ? T.green : T.line), borderRadius: 14, cursor: "pointer", background: done ? T.greenSoft : "#fff" }}>
+              <span style={{ width: 42, height: 42, borderRadius: 11, background: done ? "#fff" : T.paper, color: done ? T.green : T.clay, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>{done ? I.check({ width: 20, height: 20 }) : Ic({ width: 20, height: 20 })}</span>
+              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontFamily: T.sans, fontSize: 14.5, fontWeight: 600, color: T.ink }}>{t}</div><div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2 }}>{d}</div></div>
+              <span style={{ color: done ? T.green : T.ink3, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                {busy ? "Uploading…" : done ? "Uploaded" : <>{I.upload({ width: 15, height: 15 })} Upload</>}
+              </span>
+              <input type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(key, f); }} />
+            </label>
+          );
+        })}
       </div>
-      <div style={{ marginTop: 22 }}><Button full size="lg" disabled={!done.every(Boolean)} onClick={() => { setStatus("UNDER_REVIEW"); showToast("Documents submitted for review"); }}>Submit for verification</Button></div>
-      <p style={{ fontFamily: T.sans, fontSize: 11.5, color: T.ink3, marginTop: 12, textAlign: "center" }}>Document upload + submission isn&apos;t wired to the backend yet.</p>
+      <div style={{ marginTop: 22 }}>
+        <Button full size="lg" disabled={!allDone || submitting} onClick={handleSubmit}>
+          {submitting ? "Submitting…" : "Submit for verification"}
+        </Button>
+      </div>
     </Card>
   );
 }
@@ -84,6 +139,12 @@ function AddPropertyWizard({ onClose, onCreated }: { onClose: () => void; onCrea
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
+
+  useEffect(() => {
+    getLocations().then(setLocations).catch(() => {});
+  }, []);
+
   const distToKm = (d: string): number | undefined => ({ "Under 500m": 0.4, "500m – 1km": 0.8, "1 – 2km": 1.5, "2 – 5km": 3.5, "Over 5km": 6 } as Record<string, number>)[d];
 
   const submit = async () => {
@@ -140,7 +201,7 @@ function AddPropertyWizard({ onClose, onCreated }: { onClose: () => void; onCrea
         <div style={{ padding: 24, overflowY: "auto", flex: 1 }}>
           {step === 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Field label="Property title"><Input value={data.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Spacious Self-Contain near gate" /></Field>
+              <Field label="Property title"><Input value={data.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Spacious self-contain near campus gate" /></Field>
               <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 14 }}>
                 <Field label="Property type"><Select value={data.type} onChange={(e) => set("type", e.target.value)}><option value="">Select type…</option>{PROPERTY_TYPES.map((t) => <option key={t}>{t}</option>)}</Select></Field>
                 <Field label="Vacant units"><Input type="number" min="1" value={data.units} onChange={(e) => set("units", e.target.value)} /></Field>
@@ -156,10 +217,15 @@ function AddPropertyWizard({ onClose, onCreated }: { onClose: () => void; onCrea
           {step === 1 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 14 }}>
-                <Field label="Area / neighbourhood"><Select value={data.area} onChange={(e) => set("area", e.target.value)}><option value="">Select area…</option>{AREAS.map((a) => <option key={a}>{a}</option>)}</Select></Field>
+                <Field label="Area / neighbourhood">
+                  <Select value={data.area} onChange={(e) => set("area", e.target.value)}>
+                    <option value="">Select area…</option>
+                    {locations.map((l) => <option key={l.id} value={l.name}>{l.name}</option>)}
+                  </Select>
+                </Field>
                 <Field label="Distance to campus"><Select value={data.dist} onChange={(e) => set("dist", e.target.value)}><option value="">Select…</option>{DISTANCES.map((d) => <option key={d}>{d}</option>)}</Select></Field>
               </div>
-              <Field label="Landmark / directions"><Input value={data.landmark} onChange={(e) => set("landmark", e.target.value)} placeholder="e.g. 3 houses from Amoye GS gate, opposite the mosque" /></Field>
+              <Field label="Landmark / directions"><Input value={data.landmark} onChange={(e) => set("landmark", e.target.value)} placeholder="e.g. 3 houses from campus gate, opposite the mosque" /></Field>
               <div>
                 <div style={{ fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, color: T.ink2, marginBottom: 10 }}>Amenities</div>
                 {Object.entries(AMENITY_GROUPS).map(([group, items]) => (
@@ -222,17 +288,57 @@ function AddPropertyWizard({ onClose, onCreated }: { onClose: () => void; onCrea
   );
 }
 
+function ProfileTab() {
+  const { user, updateUser, showToast } = useApp();
+  const [name, setName] = useState(user?.name ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      const updated = await updateProfile({ name: name.trim() });
+      updateUser(updated);
+      showToast("Profile saved");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't save profile");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card pad={22} style={{ maxWidth: 560 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+        <Avatar landlord={{ initials: initialsOf(name || "L"), color: "#2F5D4F" }} size={64} />
+        <div>
+          <div style={{ fontFamily: T.serif, fontSize: 24, color: T.ink }}>{name || "Landlord"}</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+            <Pill tone={user?.verificationStatus === "VERIFIED" ? "green" : "gold"} icon={I.shield}>{user?.verificationStatus ?? "UNVERIFIED"}</Pill>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <Field label="Display name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Email"><Input value={user?.email ?? ""} disabled style={{ opacity: 0.6 }} /></Field>
+        <Button disabled={!name.trim() || saving} onClick={save}>{saving ? "Saving…" : "Save changes"}</Button>
+      </div>
+    </Card>
+  );
+}
+
 export function LandlordDash({ initial, openAdd }: { initial?: string; openAdd?: boolean }) {
-  const { go, showToast, user } = useApp();
+  const { go, showToast, user, updateUser } = useApp();
   const { mobile } = useViewport();
   const [tab, setTab] = useState(initial || "listings");
-  const [vstatus, setVstatus] = useState("UNVERIFIED");
   const [adding, setAdding] = useState(!!openAdd);
 
   const [listings, setListings] = useState<UiListing[]>([]);
   const [requests, setRequests] = useState<UiRequest[]>([]);
   const [earnings, setEarnings] = useState<EarningsData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const vstatus = user?.verificationStatus ?? "UNVERIFIED";
 
   useEffect(() => {
     let active = true;
@@ -259,6 +365,9 @@ export function LandlordDash({ initial, openAdd }: { initial?: string; openAdd?:
       showToast(e instanceof Error ? e.message : "Action failed");
     }
   };
+
+  // Suppress unused variable warning — updateUser is used in sub-components via useApp()
+  void updateUser;
 
   return (
     <DashShell role="landlord" tab={tab} setTab={setTab} title="Landlord dashboard" subtitle="Manage your listings and tenant requests"
@@ -357,21 +466,17 @@ export function LandlordDash({ initial, openAdd }: { initial?: string; openAdd?:
         </div>
       )}
 
-      {tab === "verification" && <VerificationFlow status={vstatus} setStatus={setVstatus} />}
-
-      {tab === "profile" && (
-        <Card pad={mobile ? 22 : 30} style={{ maxWidth: 560 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <Avatar landlord={{ initials: initialsOf(user?.name ?? "Landlord"), color: "#2F5D4F" }} size={64} />
-            <div><div style={{ fontFamily: T.serif, fontSize: 24, color: T.ink }}>{user?.name ?? "Landlord"}</div><div style={{ display: "flex", gap: 8, marginTop: 6 }}><Pill tone={user?.verificationStatus === "VERIFIED" ? "green" : "gold"} icon={I.shield}>{user?.verificationStatus ?? "UNVERIFIED"}</Pill></div></div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 24 }}>
-            <Field label="Display name"><Input defaultValue={user?.name ?? ""} /></Field>
-            <Field label="Email"><Input defaultValue={user?.email ?? ""} /></Field>
-            <div><Button onClick={() => showToast("Profile saving isn't wired yet")}>Save changes</Button></div>
-          </div>
-        </Card>
+      {tab === "verification" && (
+        <VerificationFlow
+          status={vstatus}
+          onSubmitted={() => {
+            updateUser({ verificationStatus: "UNDER_REVIEW" });
+            setTab("listings");
+          }}
+        />
       )}
+
+      {tab === "profile" && <ProfileTab />}
 
       {adding && <AddPropertyWizard onClose={() => setAdding(false)} onCreated={() => { getMyListings().then((r) => setListings(r.items.map(mapProperty))).catch(() => {}); }} />}
     </DashShell>

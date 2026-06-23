@@ -65,6 +65,7 @@ interface AppValue {
   role: string;
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<AuthUser>;
+  updateUser: (patch: Partial<AuthUser>) => void;
   signOut: () => void;
   campus: Campus;
   setCampus: (id: string) => void;
@@ -119,6 +120,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return data.user;
   }, []);
 
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    setAuth((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, user: { ...prev.user, ...patch } };
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const signOut = useCallback(() => {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     setAuth(null);
@@ -136,7 +146,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AppCtx.Provider value={{ go, role: auth?.user.role?.toLowerCase() ?? "guest", user: auth?.user ?? null, login, signOut, campus, setCampus, showToast }}>
+    <AppCtx.Provider value={{ go, role: auth?.user.role?.toLowerCase() ?? "guest", user: auth?.user ?? null, login, updateUser, signOut, campus, setCampus, showToast }}>
       {children}
       {toast && (
         <div style={{ position: "fixed", bottom: 26, left: "50%", transform: "translateX(-50%)", zIndex: 200, background: T.ink, color: T.paper, padding: "13px 22px", borderRadius: 12, fontFamily: T.sans, fontSize: 14.5, fontWeight: 500, boxShadow: "0 16px 40px -12px rgba(0,0,0,.5)", display: "flex", alignItems: "center", gap: 9, maxWidth: "90vw" }}>

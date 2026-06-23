@@ -220,8 +220,17 @@ export interface AdminPayout { id: string; amount: number | string; student?: { 
 
 export const getAdminSummary = () => apiGet<AdminSummary>("/api/admin/summary");
 export const getPendingProperties = () => apiGet<ApiListResponse>("/api/properties?status=PENDING&pageSize=50");
+export const getAdminAllProperties = (status?: string) => apiGet<ApiListResponse>(`/api/admin/properties${status ? `?status=${status}` : ""}&pageSize=50`);
 export const setPropertyStatus = (id: string, status: "APPROVED" | "REJECTED", reason?: string) => apiPatch(`/api/properties/${id}/status`, { status, reason });
 export const getAdminLandlords = () => apiGet<AdminLandlord[]>("/api/admin/landlords");
 export const setLandlordVerification = (landlordId: string, action: "APPROVE" | "REJECT", note?: string) => apiPatch("/api/admin/landlords", { landlordId, action, note });
 export const getAdminPayouts = () => apiGet<AdminPayout[]>("/api/admin/payouts");
 export const setPayoutStatus = (bookingId: string, action: "COMPLETE" | "FAIL") => apiPatch("/api/admin/payouts", { bookingId, action });
+
+export interface AdminUser { id: string; name: string; email: string; role: string; emailVerified: boolean; verificationStatus: string; createdAt: string; _count: { properties: number; bookings: number } }
+export interface AdminUsersResponse { items: AdminUser[]; total: number; page: number; pageSize: number }
+export const getAdminUsers = (role?: string) => apiGet<AdminUsersResponse>(`/api/admin/users${role ? `?role=${role}` : ""}`);
+
+export interface ProfileUpdate { name?: string; phoneNumber?: string; bankName?: string; bankAccountNumber?: string; bankAccountName?: string; governmentIdUrl?: string; selfieUrl?: string; ownershipProofUrl?: string }
+export interface AuthUser { id: string; name: string; email: string; role: string; emailVerified?: boolean; verificationStatus?: string; phoneNumber?: string }
+export const updateProfile = (data: ProfileUpdate) => apiPatch<AuthUser>("/api/auth/me", data);

@@ -8,8 +8,9 @@ import { Button, Card, Avatar, StatusBadge, Pill, Select } from "@/components/rh
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
 import {
   getAdminSummary, getPendingProperties, getAdminLandlords, getAdminPayouts,
-  setPropertyStatus, setLandlordVerification, setPayoutStatus,
-  type AdminSummary, type AdminLandlord, type AdminPayout, type ApiProperty,
+  getAdminAllProperties, getAdminUsers,
+  setPropertyStatus, setLandlordVerification, setPayoutStatus, mapProperty,
+  type AdminSummary, type AdminLandlord, type AdminPayout, type ApiProperty, type AdminUser, type UiListing,
 } from "@/lib/rh/api";
 
 const SCHOOLS = ["BOUESTI — Ikere-Ekiti", "University of Lagos", "Obafemi Awolowo University", "University of Ibadan", "Ahmadu Bello University"];
@@ -36,17 +37,25 @@ export function AdminDash() {
   const [pending, setPending] = useState<ApiProperty[]>([]);
   const [verifs, setVerifs] = useState<AdminLandlord[]>([]);
   const [payouts, setPayouts] = useState<AdminPayout[]>([]);
+  const [allProperties, setAllProperties] = useState<UiListing[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [userRoleFilter, setUserRoleFilter] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([getAdminSummary(), getPendingProperties(), getAdminLandlords(), getAdminPayouts()]).then((res) => {
+    Promise.allSettled([
+      getAdminSummary(), getPendingProperties(), getAdminLandlords(), getAdminPayouts(),
+      getAdminAllProperties(), getAdminUsers(),
+    ]).then((res) => {
       if (!active) return;
-      const [s, p, v, po] = res;
+      const [s, p, v, po, ap, u] = res;
       if (s.status === "fulfilled") setSummary(s.value);
       if (p.status === "fulfilled") setPending(p.value.items);
       if (v.status === "fulfilled") setVerifs(v.value);
       if (po.status === "fulfilled") setPayouts(po.value);
+      if (ap.status === "fulfilled") setAllProperties(ap.value.items.map(mapProperty));
+      if (u.status === "fulfilled") setUsers(u.value.items);
       setLoading(false);
     });
     return () => { active = false; };
@@ -86,7 +95,7 @@ export function AdminDash() {
         <Stat label="Pending" value={pending.length} tone="gold" icon={I.clock} onClick={() => setTab("pending")} active={tab === "pending"} />
         <Stat label="Verifications" value={awaitingVerifs.length} tone="blue" icon={I.shield} onClick={() => setTab("verifications")} active={tab === "verifications"} />
         <Stat label="Payouts" value={payouts.length} tone="green" icon={I.wallet} onClick={() => setTab("payouts")} active={tab === "payouts"} />
-        <Stat label="Users" value={summary ? summary.totalUsers.toLocaleString() : "—"} tone="ink" icon={I.users} onClick={() => setTab("forecast")} active={tab === "forecast"} />
+        <Stat label="Users" value={summary ? summary.totalUsers.toLocaleString() : "—"} tone="ink" icon={I.users} onClick={() => setTab("users")} active={tab === "users"} />
         <Stat label="Bookings" value={summary?.totalBookings ?? "—"} tone="clay" icon={I.inbox} onClick={() => setTab("forecast")} active={tab === "forecast"} />
       </div>
 
@@ -187,11 +196,78 @@ export function AdminDash() {
       )}
 
       {tab === "properties" && (
-        <Card pad={32} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, fontSize: 14.5, color: T.ink2 }}>The full property table isn&apos;t wired yet — use the Pending queue to review and publish listings.</div></Card>
+        loading ? <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading properties…</div></Card>
+        : allProperties.length === 0 ? <EmptyState icon={I.building} title="No properties yet" sub="Properties submitted by landlords will appear here." />
+        : (
+          <Card pad={0} style={{ overflow: "hidden" }}>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: T.sans, fontSize: 13.5 }}>
+                <thead>
+                  <tr style={{ background: T.paper2 }}>
+                    {["Title", "Landlord", "Area", "Price", "Status", ""].map((h) => (
+                      <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700, color: T.ink2, fontSize: 12, textTransform: "uppercase", letterSpacing: ".04em", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allProperties.map((p, i) => (
+                    <tr key={p.id} style={{ borderTop: i ? "1px solid " + T.line2 : "none" }}>
+                      <td style={{ padding: "13px 16px", color: T.ink, fontWeight: 500, maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</td>
+                      <td style={{ padding: "13px 16px", color: T.ink2 }}>{p.landlordName}</td>
+                      <td style={{ padding: "13px 16px", color: T.ink2 }}>{p.area}</td>
+                      <td style={{ padding: "13px 16px", color: T.ink, whiteSpace: "nowrap" }}>{naira(p.price)}/yr</td>
+                      <td style={{ padding: "13px 16px" }}><StatusBadge status={(p as unknown as { status?: string }).status ?? "APPROVED"} /></td>
+                      <td style={{ padding: "13px 16px" }}><Button variant="ghost" size="sm" onClick={() => go("review", p.id)} iconRight={I.chevRight}>Review</Button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )
       )}
 
       {tab === "users" && (
-        <Card pad={32} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, fontSize: 14.5, color: T.ink2 }}>{summary ? `${summary.totalUsers.toLocaleString()} total users.` : ""} The user management table isn&apos;t wired yet.</div></Card>
+        <div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+            {(["", "STUDENT", "LANDLORD", "ADMIN"] as const).map((r) => (
+              <Button key={r} size="sm" variant={userRoleFilter === r ? "dark" : "outline"} onClick={() => {
+                setUserRoleFilter(r);
+                getAdminUsers(r || undefined).then((res) => setUsers(res.items)).catch(() => {});
+              }}>{r || "All"}</Button>
+            ))}
+          </div>
+          {loading ? <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading users…</div></Card>
+          : users.length === 0 ? <EmptyState icon={I.users} title="No users" sub="No users match this filter." />
+          : (
+            <Card pad={0} style={{ overflow: "hidden" }}>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: T.sans, fontSize: 13.5 }}>
+                  <thead>
+                    <tr style={{ background: T.paper2 }}>
+                      {["Name", "Email", "Role", "Status", "Properties", "Bookings", "Joined"].map((h) => (
+                        <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700, color: T.ink2, fontSize: 12, textTransform: "uppercase", letterSpacing: ".04em", whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u, i) => (
+                      <tr key={u.id} style={{ borderTop: i ? "1px solid " + T.line2 : "none" }}>
+                        <td style={{ padding: "13px 16px", fontWeight: 600, color: T.ink }}>{u.name}</td>
+                        <td style={{ padding: "13px 16px", color: T.ink2 }}>{u.email}</td>
+                        <td style={{ padding: "13px 16px" }}><Pill tone={u.role === "ADMIN" ? "red" : u.role === "LANDLORD" ? "blue" : "clay"}>{u.role}</Pill></td>
+                        <td style={{ padding: "13px 16px" }}>{u.verificationStatus !== "UNVERIFIED" ? <StatusBadge status={u.verificationStatus} /> : <span style={{ color: T.ink3, fontSize: 12 }}>—</span>}</td>
+                        <td style={{ padding: "13px 16px", color: T.ink2, textAlign: "center" }}>{u._count.properties}</td>
+                        <td style={{ padding: "13px 16px", color: T.ink2, textAlign: "center" }}>{u._count.bookings}</td>
+                        <td style={{ padding: "13px 16px", color: T.ink3, whiteSpace: "nowrap" }}>{new Date(u.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </div>
       )}
 
       {tab === "forecast" && (

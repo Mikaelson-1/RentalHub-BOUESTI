@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { T, naira, I, Photo } from "@/lib/rh/theme";
-import { LISTINGS } from "@/lib/rh/data";
 import { useApp, useViewport } from "@/components/rh/app";
-import { Button, Card, Avatar, StatusBadge, PropertyCard, Input, Field } from "@/components/rh/ui";
+import { Button, Card, Avatar, StatusBadge, Field, Input } from "@/components/rh/ui";
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
-import { getBookings, mapBooking, signAgreement, confirmMoveIn, type UiBooking } from "@/lib/rh/api";
+import { getBookings, mapBooking, signAgreement, confirmMoveIn, updateProfile, type UiBooking } from "@/lib/rh/api";
 
 function initialsOf(name: string) {
   return (name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()) || "?";
@@ -116,8 +115,8 @@ function AgreementModal({ bk, onClose, onSign }: { bk: UiBooking; onClose: () =>
     "The property is for residential use by the named tenant only — no subletting without written consent.",
     "Keep the property clean and in good condition; report damage, leaks or faults to the landlord promptly.",
     "Observe quiet hours (10pm–7am) and be respectful of neighbours in shared compounds.",
-    "No smoking indoors, and no pets without the landlord’s written permission.",
-    "Give at least one month’s notice before vacating; the caution fee is refunded after a satisfactory inspection.",
+    "No smoking indoors, and no pets without the landlord's written permission.",
+    "Give at least one month's notice before vacating; the caution fee is refunded after a satisfactory inspection.",
   ];
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(33,29,24,.6)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
@@ -150,8 +149,45 @@ function AgreementModal({ bk, onClose, onSign }: { bk: UiBooking; onClose: () =>
   );
 }
 
+function ProfileTab() {
+  const { user, updateUser, showToast } = useApp();
+  const [name, setName] = useState(user?.name ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      const updated = await updateProfile({ name: name.trim() });
+      updateUser(updated);
+      showToast("Profile saved");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't save profile");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card pad={22} style={{ maxWidth: 560 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+        <Avatar landlord={{ initials: initialsOf(name || "S"), color: "#3C5A86" }} size={64} />
+        <div>
+          <div style={{ fontFamily: T.serif, fontSize: 24, color: T.ink }}>{name || "Student"}</div>
+          <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, marginTop: 2 }}>{user?.email}</div>
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <Field label="Full name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Email"><Input value={user?.email ?? ""} disabled style={{ opacity: 0.6 }} /></Field>
+        <Button disabled={!name.trim() || saving} onClick={save}>{saving ? "Saving…" : "Save changes"}</Button>
+      </div>
+    </Card>
+  );
+}
+
 export function StudentDash({ initial }: { initial?: string }) {
-  const { go, showToast, campus, user } = useApp();
+  const { go, showToast } = useApp();
   const { mobile } = useViewport();
   const [tab, setTab] = useState(initial || "bookings");
   const [bookings, setBookings] = useState<UiBooking[]>([]);
@@ -189,7 +225,6 @@ export function StudentDash({ initial }: { initial?: string }) {
     pending: bookings.filter((b) => b.status === "PENDING").length,
   };
   const visible = bookings.filter((b) => b.status !== "CANCELLED");
-  const userName = user?.name ?? "Student";
 
   return (
     <DashShell role="student" tab={tab} setTab={(t) => (t === "home" ? go("search") : setTab(t))} title="Student dashboard" subtitle="Browse homes and manage your bookings"
@@ -204,21 +239,9 @@ export function StudentDash({ initial }: { initial?: string }) {
       </div>
 
       {tab === "profile" ? (
-        <Card pad={mobile ? 22 : 30} style={{ maxWidth: 560 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <Avatar landlord={{ initials: initialsOf(userName), color: "#3C5A86" }} size={64} />
-            <div><div style={{ fontFamily: T.serif, fontSize: 24, color: T.ink }}>{userName}</div><div style={{ fontFamily: T.sans, fontSize: 13.5, color: T.ink2 }}>{campus.short}</div></div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 24 }}>
-            <Field label="Full name"><Input defaultValue={userName} /></Field>
-            <Field label="Email"><Input defaultValue={user?.email ?? ""} /></Field>
-            <div><Button onClick={() => showToast("Profile saving isn't wired yet")}>Save changes</Button></div>
-          </div>
-        </Card>
+        <ProfileTab />
       ) : tab === "saved" ? (
-        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(auto-fill,minmax(248px,1fr))", gap: 20 }}>
-          {LISTINGS.filter((l) => l.featured).slice(0, 3).map((l) => <PropertyCard key={l.id} l={l} mobile={mobile} onClick={() => go("property", l.id)} />)}
-        </div>
+        <EmptyState icon={I.inbox} title="No saved homes yet" sub="Browse properties and save your favourites to find them quickly later." action={<Button onClick={() => go("search")} iconRight={I.arrow}>Browse homes</Button>} />
       ) : loading ? (
         <Card pad={48} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading your bookings…</div></Card>
       ) : error ? (
