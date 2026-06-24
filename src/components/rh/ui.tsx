@@ -7,7 +7,7 @@
  */
 import { useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { T, I, naira, amenityIcon, Photo, Logo } from "@/lib/rh/theme";
-import { landlordById, CAMPUSES, type Listing } from "@/lib/rh/data";
+import { CAMPUSES, type Listing } from "@/lib/rh/data";
 import { useApp, useViewport } from "@/components/rh/app";
 
 type IconFn = (p?: Record<string, unknown>) => ReactElement;
@@ -75,7 +75,7 @@ export function StatusBadge({ status, style }: { status: string; style?: CSSProp
 
 // ── Avatar ───────────────────────────────────────────────────
 export function Avatar({ landlord, size = 38, ring = "#fff" }: { landlord: string | { color?: string; initials?: string }; size?: number; ring?: string }) {
-  const l = typeof landlord === "string" ? landlordById(landlord) : landlord;
+  const l = typeof landlord === "string" ? null : landlord;
   return (
     <div style={{ width: size, height: size, borderRadius: 999, background: l?.color || T.ink2, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.sans, fontWeight: 700, fontSize: size * 0.36, border: `2px solid ${ring}`, flex: "0 0 auto" }}>
       {l?.initials || "?"}

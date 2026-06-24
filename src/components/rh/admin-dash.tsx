@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { T, naira, I, Photo } from "@/lib/rh/theme";
-import { ADMIN_FORECAST } from "@/lib/rh/data";
 import { useApp, useViewport } from "@/components/rh/app";
-import { Button, Card, Avatar, StatusBadge, Pill, Select } from "@/components/rh/ui";
+import { Button, Card, Avatar, StatusBadge, Pill } from "@/components/rh/ui";
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
 import {
   getAdminSummary, getPendingProperties, getAdminLandlords, getAdminPayouts,
@@ -13,7 +12,6 @@ import {
   type AdminSummary, type AdminLandlord, type AdminPayout, type ApiProperty, type AdminUser, type UiListing,
 } from "@/lib/rh/api";
 
-const SCHOOLS = ["BOUESTI — Ikere-Ekiti", "University of Lagos", "Obafemi Awolowo University", "University of Ibadan", "Ahmadu Bello University"];
 
 function initialsOf(name: string) {
   return (name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()) || "?";
@@ -32,7 +30,6 @@ export function AdminDash() {
   const { showToast, go } = useApp();
   const { mobile } = useViewport();
   const [tab, setTab] = useState("pending");
-  const [school, setSchool] = useState(SCHOOLS[0]);
   const [summary, setSummary] = useState<AdminSummary | null>(null);
   const [pending, setPending] = useState<ApiProperty[]>([]);
   const [verifs, setVerifs] = useState<AdminLandlord[]>([]);
@@ -89,7 +86,7 @@ export function AdminDash() {
   return (
     <DashShell role="admin" tab={tab} setTab={setTab} title="Admin dashboard" subtitle="Review listings, verify landlords and manage payouts"
       badges={{ pending: pending.length || undefined, verifications: awaitingVerifs.length || undefined, payouts: payouts.length || undefined }}
-      action={<Select value={school} onChange={(e) => setSchool(e.target.value)} style={{ width: "auto", fontSize: 13, padding: "9px 34px 9px 13px" }}>{SCHOOLS.map((s) => <option key={s}>{s}</option>)}</Select>}>
+      action={null}>
 
       <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(6,1fr)", gap: mobile ? 12 : 14, marginBottom: 26 }}>
         <Stat label="Properties" value={summary?.totalProperties ?? "—"} tone="ink" icon={I.building} onClick={() => setTab("properties")} active={tab === "properties"} />
@@ -282,31 +279,36 @@ export function AdminDash() {
       )}
 
       {tab === "forecast" && (
-        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1.3fr 1fr", gap: 18 }}>
-          <Card pad={mobile ? 20 : 26}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}><Pill tone="clay" icon={I.sparkle}>AI forecast</Pill><span style={{ fontFamily: T.serif, fontSize: 22, color: T.green, whiteSpace: "nowrap" }}>{ADMIN_FORECAST.verdict}</span></div>
-            <p style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2, lineHeight: 1.6, marginTop: 10 }}>{ADMIN_FORECAST.note}</p>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: mobile ? 10 : 16, height: 160, marginTop: 22, paddingTop: 10 }}>
-              {ADMIN_FORECAST.months.map((m, i) => { const max = Math.max(...ADMIN_FORECAST.months.map((x) => x.v)); return (
-                <div key={m.m} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                  <div style={{ fontFamily: T.sans, fontSize: 11, fontWeight: 700, color: T.ink2 }}>{m.v}</div>
-                  <div style={{ width: "100%", maxWidth: 38, height: (m.v / max) * 120, background: i === ADMIN_FORECAST.months.length - 1 ? T.clay : T.paper3, borderRadius: "8px 8px 0 0" }} />
-                  <div style={{ fontFamily: T.sans, fontSize: 11.5, color: T.ink3 }}>{m.m}</div>
-                </div>
-              ); })}
-            </div>
-            <p style={{ fontFamily: T.sans, fontSize: 11.5, color: T.ink3, marginTop: 10 }}>Demand forecast shown is illustrative.</p>
+        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(3,1fr)", gap: mobile ? 12 : 18 }}>
+          <Card pad={22} style={{ background: T.claySoft, border: "none" }}>
+            <div style={{ fontFamily: T.sans, fontSize: 13, color: T.clayDeep, fontWeight: 600 }}>Total properties</div>
+            <div style={{ fontFamily: T.serif, fontSize: 40, fontWeight: 600, color: T.clay, marginTop: 6 }}>{summary?.totalProperties ?? "—"}</div>
+            <div style={{ fontFamily: T.sans, fontSize: 12, color: T.ink3, marginTop: 4 }}>All time</div>
           </Card>
-          <Card pad={mobile ? 20 : 26}>
-            <div style={{ fontFamily: T.serif, fontSize: 20, color: T.ink, marginBottom: 16 }}>Hottest areas</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {ADMIN_FORECAST.hotAreas.map((a) => (
-                <div key={a.area}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontFamily: T.sans, fontSize: 13, color: T.ink, marginBottom: 5 }}><span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.area}</span><span style={{ color: T.ink2, flex: "0 0 auto" }}>{a.demand}%</span></div>
-                  <div style={{ height: 8, background: T.paper2, borderRadius: 8, overflow: "hidden" }}><div style={{ width: a.demand + "%", height: "100%", background: T.clay, borderRadius: 8 }} /></div>
-                </div>
-              ))}
-            </div>
+          <Card pad={22}>
+            <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, fontWeight: 600 }}>Pending review</div>
+            <div style={{ fontFamily: T.serif, fontSize: 40, fontWeight: 600, color: T.gold, marginTop: 6 }}>{pending.length}</div>
+            <div style={{ fontFamily: T.sans, fontSize: 12, color: T.ink3, marginTop: 4 }}>Awaiting approval</div>
+          </Card>
+          <Card pad={22}>
+            <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, fontWeight: 600 }}>Total users</div>
+            <div style={{ fontFamily: T.serif, fontSize: 40, fontWeight: 600, color: T.ink, marginTop: 6 }}>{summary ? summary.totalUsers.toLocaleString() : "—"}</div>
+            <div style={{ fontFamily: T.sans, fontSize: 12, color: T.ink3, marginTop: 4 }}>Registered accounts</div>
+          </Card>
+          <Card pad={22} style={{ background: T.greenSoft, border: "none" }}>
+            <div style={{ fontFamily: T.sans, fontSize: 13, color: T.green, fontWeight: 600 }}>Total bookings</div>
+            <div style={{ fontFamily: T.serif, fontSize: 40, fontWeight: 600, color: T.green, marginTop: 6 }}>{summary?.totalBookings ?? "—"}</div>
+            <div style={{ fontFamily: T.sans, fontSize: 12, color: T.ink3, marginTop: 4 }}>All time</div>
+          </Card>
+          <Card pad={22}>
+            <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, fontWeight: 600 }}>Pending verifications</div>
+            <div style={{ fontFamily: T.serif, fontSize: 40, fontWeight: 600, color: T.blue, marginTop: 6 }}>{awaitingVerifs.length}</div>
+            <div style={{ fontFamily: T.sans, fontSize: 12, color: T.ink3, marginTop: 4 }}>Landlords under review</div>
+          </Card>
+          <Card pad={22}>
+            <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, fontWeight: 600 }}>Pending payouts</div>
+            <div style={{ fontFamily: T.serif, fontSize: 40, fontWeight: 600, color: T.ink, marginTop: 6 }}>{payouts.length}</div>
+            <div style={{ fontFamily: T.sans, fontSize: 12, color: T.ink3, marginTop: 4 }}>Awaiting transfer</div>
           </Card>
         </div>
       )}

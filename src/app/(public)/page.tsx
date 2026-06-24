@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { T, naira, I, Photo } from "@/lib/rh/theme";
-import { LISTINGS, AREAS } from "@/lib/rh/data";
+import { AREAS } from "@/lib/rh/data";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Pill, Button, Card, SectionHead, PropertyCard, PublicNav, Footer } from "@/components/rh/ui";
 import { TourVideo } from "@/components/rh/tour-video";
@@ -122,7 +122,6 @@ export default function HomePage() {
         <SectionHead eyebrow={"In " + campus.short} title="Browse by area" mobile={mobile} />
         <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4,1fr)", gap: mobile ? 12 : 16 }}>
           {AREAS.map((a, i) => {
-            const count = LISTINGS.filter((l) => l.area === a).length;
             const tones: [string, string][] = [["#d8c4a0", "#9c8055"], ["#c8bca6", "#7d7158"], ["#cdb89c", "#8a7150"], ["#bcae9a", "#6f6450"]];
             return (
               <div key={a} onClick={() => go("search", null, { area: a })} style={{ position: "relative", height: mobile ? 110 : 150, borderRadius: 16, overflow: "hidden", cursor: "pointer" }}>
@@ -130,7 +129,7 @@ export default function HomePage() {
                 <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(0,0,0,.5), rgba(0,0,0,0) 70%)" }} />
                 <div style={{ position: "absolute", bottom: 12, left: 14, color: "#fff" }}>
                   <div style={{ fontFamily: T.serif, fontSize: mobile ? 17 : 20, fontWeight: 500 }}>{a}</div>
-                  <div style={{ fontFamily: T.sans, fontSize: 12, opacity: 0.85 }}>{count} {count === 1 ? "home" : "homes"}</div>
+                  <div style={{ fontFamily: T.sans, fontSize: 12, opacity: 0.85 }}>Browse homes</div>
                 </div>
               </div>
             );

@@ -7,14 +7,18 @@ import { Avatar, Card } from "@/components/rh/ui";
 
 type IconFn = (p?: Record<string, unknown>) => ReactElement;
 
-const NAVS: Record<string, { label: string; who: { name: string; initials: string; color: string }; items: [string, string, IconFn][] }> = {
-  student: { label: "Student", who: { name: "Chioma Eze", initials: "CE", color: "#3C5A86" }, items: [
+function initialsOf(name: string) {
+  return (name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()) || "?";
+}
+
+const NAVS: Record<string, { label: string; color: string; items: [string, string, IconFn][] }> = {
+  student: { label: "Student", color: "#3C5A86", items: [
     ["home", "Browse homes", I.search], ["bookings", "My bookings", I.inbox], ["saved", "Saved", I.heart], ["profile", "Profile", I.user],
   ] },
-  landlord: { label: "Landlord", who: { name: "Adebayo Ogunleye", initials: "AO", color: "#2F5D4F" }, items: [
+  landlord: { label: "Landlord", color: "#2F5D4F", items: [
     ["listings", "My listings", I.building], ["requests", "Tenant requests", I.inbox], ["earnings", "Earnings", I.wallet], ["verification", "Verification", I.shield], ["profile", "Profile", I.user],
   ] },
-  admin: { label: "Admin", who: { name: "RentalHub Admin", initials: "RH", color: "#A8451B" }, items: [
+  admin: { label: "Admin", color: "#A8451B", items: [
     ["pending", "Pending approvals", I.clock], ["properties", "All properties", I.building], ["verifications", "Verifications", I.shield], ["payouts", "Payouts", I.wallet], ["users", "Users", I.users], ["forecast", "Demand (AI)", I.chart],
   ] },
 };
@@ -23,7 +27,7 @@ export function DashShell({ role, tab, setTab, title, subtitle, action, children
   role: "student" | "landlord" | "admin"; tab: string; setTab: (t: string) => void; title: string; subtitle?: string;
   action?: ReactNode; children: ReactNode; badges?: Record<string, number | undefined>;
 }) {
-  const { go, showToast, signOut } = useApp();
+  const { go, showToast, signOut, user } = useApp();
   const { mobile, tablet } = useViewport();
   const [open, setOpen] = useState(false);
   const cfg = NAVS[role];
@@ -49,9 +53,9 @@ export function DashShell({ role, tab, setTab, title, subtitle, action, children
       </div>
       <div style={{ padding: 14, borderTop: "1px solid rgba(244,238,228,.12)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px" }}>
-          <Avatar landlord={cfg.who} size={36} ring="rgba(244,238,228,.2)" />
+          <Avatar landlord={{ initials: initialsOf(user?.name || cfg.label), color: cfg.color }} size={36} ring="rgba(244,238,228,.2)" />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: T.sans, fontSize: 13.5, fontWeight: 600, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cfg.who.name}</div>
+            <div style={{ fontFamily: T.sans, fontSize: 13.5, fontWeight: 600, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.name || cfg.label}</div>
             <div style={{ fontFamily: T.sans, fontSize: 11.5, color: "rgba(244,238,228,.5)" }}>{cfg.label} account</div>
           </div>
           <span onClick={() => { showToast("Signed out"); signOut(); }} style={{ cursor: "pointer", color: "rgba(244,238,228,.6)" }}>{I.logout({ width: 18, height: 18 })}</span>
