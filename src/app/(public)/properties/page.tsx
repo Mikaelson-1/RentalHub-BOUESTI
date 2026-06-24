@@ -3,13 +3,14 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { T, shortNaira, I } from "@/lib/rh/theme";
-import { AREAS, PROPERTY_TYPES, AMENITY_GROUPS } from "@/lib/rh/data";
+import { AREAS, AMENITY_GROUPS } from "@/lib/rh/data";
 import { apiGet, mapProperty, type UiListing, type ApiListResponse } from "@/lib/rh/api";
+import { useSaved } from "@/lib/rh/saved";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Button, Card, Select, PropertyCard, PublicNav, Footer } from "@/components/rh/ui";
 
-interface Filters { area: string | null; type: string | null; maxPrice: number; gender: string | null; amenities: string[] }
-const EMPTY: Filters = { area: null, type: null, maxPrice: 450000, gender: null, amenities: [] };
+interface Filters { area: string | null; maxPrice: number; gender: string | null; amenities: string[] }
+const EMPTY: Filters = { area: null, maxPrice: 450000, gender: null, amenities: [] };
 
 function FilterChip({ active, children, onClick }: { active?: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (
@@ -26,12 +27,6 @@ function FilterPanel({ f, setF, mobile }: { f: Filters; setF: React.Dispatch<Rea
   });
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
-      <div>
-        <div style={{ fontFamily: T.sans, fontSize: 13, fontWeight: 700, color: T.ink, marginBottom: 12 }}>Property type</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {PROPERTY_TYPES.map((t) => <FilterChip key={t} active={f.type === t} onClick={() => toggle("type", t)}>{t}</FilterChip>)}
-        </div>
-      </div>
       <div>
         <div style={{ fontFamily: T.sans, fontSize: 13, fontWeight: 700, color: T.ink, marginBottom: 12 }}>Max rent / year</div>
         <input type="range" min="60000" max="450000" step="10000" value={f.maxPrice} onChange={(e) => setF((p) => ({ ...p, maxPrice: +e.target.value }))} style={{ width: "100%", accentColor: T.clay }} />
@@ -58,6 +53,7 @@ function FilterPanel({ f, setF, mobile }: { f: Filters; setF: React.Dispatch<Rea
 function SearchInner() {
   const { go, campus } = useApp();
   const { mobile } = useViewport();
+  const { isSaved, toggle } = useSaved();
   const sp = useSearchParams();
   const [f, setF] = useState<Filters>({ ...EMPTY, area: sp.get("area") });
   const [sort, setSort] = useState("featured");
@@ -78,7 +74,6 @@ function SearchInner() {
   const results = useMemo(() => {
     let r = all.filter((l) =>
       (!f.area || l.area === f.area) &&
-      (!f.type || l.type === f.type) &&
       l.price <= f.maxPrice &&
       (!f.gender || f.gender === "Any" || l.gender === f.gender || l.gender === "Any") &&
       (f.amenities.length === 0 || f.amenities.every((a) => l.amenities.includes(a)))
@@ -90,7 +85,7 @@ function SearchInner() {
     return r;
   }, [all, f, sort]);
 
-  const activeCount = (f.area ? 1 : 0) + (f.type ? 1 : 0) + (f.gender ? 1 : 0) + f.amenities.length + (f.maxPrice < 450000 ? 1 : 0);
+  const activeCount = (f.area ? 1 : 0) + (f.gender ? 1 : 0) + f.amenities.length + (f.maxPrice < 450000 ? 1 : 0);
 
   return (
     <div style={{ background: T.paper, minHeight: "100vh" }}>
@@ -158,7 +153,7 @@ function SearchInner() {
             </Card>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(auto-fill, minmax(248px, 1fr))", gap: mobile ? 16 : 20 }}>
-              {results.map((l) => <PropertyCard key={l.id} l={l} mobile={mobile} onClick={() => go("property", l.id)} />)}
+              {results.map((l) => <PropertyCard key={l.id} l={l} mobile={mobile} onClick={() => go("property", l.id)} saved={isSaved(l.id)} onSave={() => toggle(l)} />)}
             </div>
           )}
         </div>

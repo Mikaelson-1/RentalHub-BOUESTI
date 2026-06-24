@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { T, naira, I, Photo, amenityIcon } from "@/lib/rh/theme";
 import { PROPERTY_TYPES, DISTANCES, AMENITY_GROUPS } from "@/lib/rh/data";
 import { useApp, useViewport } from "@/components/rh/app";
-import { Button, Card, Avatar, StatusBadge, Pill, Field, Input, Select, Textarea } from "@/components/rh/ui";
+import { Button, Card, Avatar, StatusBadge, Pill, Field, Input, Select, Textarea, SkeletonCard } from "@/components/rh/ui";
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
 import {
   getMyListings, getLandlordRequests, getEarnings, getLocations,
@@ -404,7 +404,7 @@ export function LandlordDash({ initial, openAdd }: { initial?: string; openAdd?:
       </div>
 
       {tab === "listings" && (
-        loading ? <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading your listings…</div></Card>
+        loading ? <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{[1,2,3].map((i) => <SkeletonCard key={i} imgHeight={72} rows={2} />)}</div>
         : listings.length === 0 ? <EmptyState icon={I.building} title="No listings yet" sub="Add your first property to start receiving tenant requests." action={<Button icon={I.plus} onClick={() => setAdding(true)}>Add property</Button>} />
         : (
           <Card pad={0} style={{ overflow: "hidden" }}>
@@ -434,7 +434,7 @@ export function LandlordDash({ initial, openAdd }: { initial?: string; openAdd?:
       )}
 
       {tab === "requests" && (
-        loading ? <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading requests…</div></Card>
+        loading ? <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{[1,2,3].map((i) => <SkeletonCard key={i} rows={3} />)}</div>
         : requests.length === 0 ? <EmptyState title="No tenant requests yet" sub="When students place offers on your homes, they'll appear here." />
         : (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { T, naira, I, Photo, amenityIcon } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Pill, Button, Card, Avatar, PropertyCard, PublicNav, Footer } from "@/components/rh/ui";
-import { apiGet, mapProperty, type ApiProperty, type ApiListResponse, type UiListing } from "@/lib/rh/api";
+import { apiGet, mapProperty, createBooking, type ApiProperty, type ApiListResponse, type UiListing } from "@/lib/rh/api";
+import { useSaved } from "@/lib/rh/saved";
 
 type DetailListing = UiListing & { images: string[] };
 
@@ -48,13 +49,22 @@ function BookingCard({ l, mobile }: { l: DetailListing; mobile: boolean }) {
   const { go, role, showToast } = useApp();
   const [bid, setBid] = useState(l.price);
   const [placed, setPlaced] = useState(false);
+  const [placing, setPlacing] = useState(false);
   const firstName = l.landlordName.split(" ")[0];
 
-  const place = () => {
+  const place = async () => {
     if (role === "guest") { go("login"); return; }
     if (role !== "student") { showToast("Switch to a student account to book"); return; }
-    setPlaced(true);
-    showToast("Booking request sent to " + firstName);
+    setPlacing(true);
+    try {
+      await createBooking(l.id, bid !== l.price ? bid : undefined);
+      setPlaced(true);
+      showToast("Booking request sent to " + firstName);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't place booking");
+    } finally {
+      setPlacing(false);
+    }
   };
 
   return (
@@ -77,7 +87,7 @@ function BookingCard({ l, mobile }: { l: DetailListing; mobile: boolean }) {
             </div>
             <div style={{ fontFamily: T.sans, fontSize: 11.5, color: T.ink3, marginTop: 8 }}>Offer the asking price or bid your budget. The landlord reviews all offers.</div>
           </div>
-          <div style={{ marginTop: 16 }}><Button full size="lg" onClick={place} iconRight={I.arrow}>Request to book</Button></div>
+          <div style={{ marginTop: 16 }}><Button full size="lg" onClick={place} disabled={placing} iconRight={I.arrow}>{placing ? "Sending…" : "Request to book"}</Button></div>
         </>
       ) : (
         <div style={{ marginTop: 18, padding: 16, background: T.goldSoft, borderRadius: 14, border: "1px solid " + T.gold + "33" }}>
@@ -102,6 +112,7 @@ export default function PropertyDetailPage() {
   const [similar, setSimilar] = useState<UiListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isSaved, toggle } = useSaved();
 
   useEffect(() => {
     let active = true;
@@ -153,8 +164,13 @@ export default function PropertyDetailPage() {
     <div style={{ background: T.paper, minHeight: "100vh" }}>
       <PublicNav />
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: mobile ? "16px 20px 40px" : "24px 40px 60px" }}>
-        <div onClick={() => go("search")} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: T.sans, fontSize: 13.5, color: T.ink2, cursor: "pointer", marginBottom: 18 }}>
-          {I.arrowLeft({ width: 16, height: 16 })} Back to search
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <div onClick={() => go("search")} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: T.sans, fontSize: 13.5, color: T.ink2, cursor: "pointer" }}>
+            {I.arrowLeft({ width: 16, height: 16 })} Back to search
+          </div>
+          <button onClick={() => toggle(l)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 999, border: "1px solid " + (isSaved(l.id) ? T.clay : T.line), background: isSaved(l.id) ? T.claySoft : "#fff", cursor: "pointer", fontFamily: T.sans, fontSize: 13, fontWeight: 600, color: isSaved(l.id) ? T.clay : T.ink2, transition: "all .15s" }}>
+            {I.heart({ width: 15, height: 15, fill: isSaved(l.id) ? "currentColor" : "none" })} {isSaved(l.id) ? "Saved" : "Save home"}
+          </button>
         </div>
 
         <div style={{ display: mobile ? "block" : "grid", gridTemplateColumns: "1.7fr 1fr", gap: 40, alignItems: "start" }}>

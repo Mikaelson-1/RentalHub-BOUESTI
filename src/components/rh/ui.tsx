@@ -135,8 +135,26 @@ export function SectionHead({ eyebrow, title, action, mobile }: { eyebrow?: stri
   );
 }
 
+// ── Skeleton ─────────────────────────────────────────────────
+export function Skeleton({ width = "100%", height = 16, radius = 8, style }: { width?: number | string; height?: number | string; radius?: number; style?: CSSProperties }) {
+  return <div style={{ width, height, borderRadius: radius, background: "#e8e1d5", animation: "rhSkel 1.4s ease-in-out infinite", ...style }} />;
+}
+export function SkeletonCard({ rows = 3, imgHeight = 0, style }: { rows?: number; imgHeight?: number; style?: CSSProperties }) {
+  return (
+    <Card pad={0} style={{ overflow: "hidden", ...style }}>
+      <style>{"@keyframes rhSkel{0%,100%{opacity:1}50%{opacity:.4}}"}</style>
+      {imgHeight > 0 && <Skeleton width="100%" height={imgHeight} radius={0} />}
+      <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+        {Array.from({ length: rows }, (_, i) => (
+          <Skeleton key={i} height={i === 0 ? 18 : 12} width={i === 0 ? "55%" : i % 2 === 0 ? "80%" : "40%"} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 // ── Property card ────────────────────────────────────────────
-export function PropertyCard({ l, mobile, onClick }: { l: Listing & { image?: string | null }; mobile?: boolean; onClick?: () => void }) {
+export function PropertyCard({ l, mobile, onClick, saved, onSave }: { l: Listing & { image?: string | null }; mobile?: boolean; onClick?: () => void; saved?: boolean; onSave?: (e: React.MouseEvent) => void }) {
   return (
     <Card pad={0} hover onClick={onClick} style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <div style={{ position: "relative", height: mobile ? 168 : 188 }}>
@@ -149,11 +167,11 @@ export function PropertyCard({ l, mobile, onClick }: { l: Listing & { image?: st
         <span style={{ position: "absolute", top: 12, left: 12 }}>
           <Pill tone="green" icon={I.shield} style={{ background: "rgba(255,255,255,.95)", backdropFilter: "blur(3px)" }}>Verified</Pill>
         </span>
-        <span style={{ position: "absolute", top: 12, right: 12, width: 34, height: 34, borderRadius: 999, background: "rgba(255,255,255,.9)", display: "flex", alignItems: "center", justifyContent: "center", color: T.ink2 }}>{I.heart({ width: 17, height: 17 })}</span>
+        <span onClick={onSave ? (e) => { e.stopPropagation(); onSave(e); } : undefined} style={{ position: "absolute", top: 12, right: 12, width: 34, height: 34, borderRadius: 999, background: "rgba(255,255,255,.9)", display: "flex", alignItems: "center", justifyContent: "center", color: saved ? T.clay : T.ink2, cursor: onSave ? "pointer" : "default" }}>{I.heart({ width: 17, height: 17, fill: saved ? "currentColor" : "none" })}</span>
       </div>
       <div style={{ padding: mobile ? 16 : 19, display: "flex", flexDirection: "column", flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5, color: T.ink2, fontFamily: T.sans, fontSize: 12.5, marginBottom: 6 }}>
-          {I.pin({ width: 13, height: 13, style: { flex: "0 0 auto" } })}{l.area} · {l.dist} km to gate
+          {I.pin({ width: 13, height: 13, style: { flex: "0 0 auto" } })}{l.area}{l.dist ? ` · ${l.dist} km to gate` : ""}
         </div>
         <h3 style={{ margin: 0, fontFamily: T.serif, fontWeight: 500, fontSize: mobile ? 19 : 21, color: T.ink, letterSpacing: "-.01em", lineHeight: 1.15 }}>{l.title}</h3>
         <div style={{ display: "flex", gap: 14, marginTop: 11, color: T.ink2, fontFamily: T.sans, fontSize: 12.5 }}>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { T, naira, I, Photo } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
-import { Button, Card, Avatar, StatusBadge, Pill } from "@/components/rh/ui";
+import { Button, Card, Avatar, StatusBadge, Pill, SkeletonCard } from "@/components/rh/ui";
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
 import {
   getAdminSummary, getPendingProperties, getAdminLandlords, getAdminPayouts,
@@ -38,6 +38,7 @@ export function AdminDash() {
   const [allPropsFilter, setAllPropsFilter] = useState("");
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [userRoleFilter, setUserRoleFilter] = useState("");
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -98,7 +99,7 @@ export function AdminDash() {
       </div>
 
       {tab === "pending" && (
-        loading ? <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading the review queue…</div></Card>
+        loading ? <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{[1,2,3].map((i) => <SkeletonCard key={i} imgHeight={96} rows={3} />)}</div>
         : pending.length === 0 ? <EmptyState icon={I.checkCircle} title="All caught up" sub="No properties are waiting for review." />
         : (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -129,7 +130,7 @@ export function AdminDash() {
       )}
 
       {tab === "verifications" && (
-        loading ? <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading verifications…</div></Card>
+        loading ? <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{[1,2,3].map((i) => <SkeletonCard key={i} rows={4} />)}</div>
         : verifs.length === 0 ? <EmptyState icon={I.shield} title="No verifications pending" sub="All landlord submissions have been reviewed." />
         : (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -164,7 +165,7 @@ export function AdminDash() {
       )}
 
       {tab === "payouts" && (
-        loading ? <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading payouts…</div></Card>
+        loading ? <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{[1,2,3].map((i) => <SkeletonCard key={i} rows={3} />)}</div>
         : payouts.length === 0 ? <EmptyState icon={I.wallet} title="No payouts pending" sub="Payouts appear here once students confirm move-in." />
         : (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -203,7 +204,7 @@ export function AdminDash() {
               }}>{s || "All"}</Button>
             ))}
           </div>
-          {loading ? <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading properties…</div></Card>
+          {loading ? <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{[1,2,3].map((i) => <SkeletonCard key={i} rows={2} />)}</div>
           : allProperties.length === 0 ? <EmptyState icon={I.building} title="No properties" sub="No properties match this filter." />
           : (
             <Card pad={0} style={{ overflow: "hidden" }}>
@@ -245,7 +246,7 @@ export function AdminDash() {
               }}>{r || "All"}</Button>
             ))}
           </div>
-          {loading ? <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading users…</div></Card>
+          {loading ? <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{[1,2,3].map((i) => <SkeletonCard key={i} rows={2} />)}</div>
           : users.length === 0 ? <EmptyState icon={I.users} title="No users" sub="No users match this filter." />
           : (
             <Card pad={0} style={{ overflow: "hidden" }}>
@@ -260,7 +261,9 @@ export function AdminDash() {
                   </thead>
                   <tbody>
                     {users.map((u, i) => (
-                      <tr key={u.id} style={{ borderTop: i ? "1px solid " + T.line2 : "none" }}>
+                      <tr key={u.id} onClick={() => setSelectedUser(u)} style={{ borderTop: i ? "1px solid " + T.line2 : "none", cursor: "pointer" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = T.paper2; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
                         <td style={{ padding: "13px 16px", fontWeight: 600, color: T.ink }}>{u.name}</td>
                         <td style={{ padding: "13px 16px", color: T.ink2 }}>{u.email}</td>
                         <td style={{ padding: "13px 16px" }}><Pill tone={u.role === "ADMIN" ? "red" : u.role === "LANDLORD" ? "blue" : "clay"}>{u.role}</Pill></td>
@@ -275,6 +278,42 @@ export function AdminDash() {
               </div>
             </Card>
           )}
+        </div>
+      )}
+
+      {selectedUser && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(33,29,24,.3)", backdropFilter: "blur(2px)" }} onClick={() => setSelectedUser(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: mobile ? "100%" : 380, background: T.paper, overflowY: "auto", boxShadow: "-24px 0 60px -20px rgba(33,29,24,.25)", padding: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+              <h2 style={{ margin: 0, fontFamily: T.serif, fontSize: 22, color: T.ink, fontWeight: 500 }}>User detail</h2>
+              <span onClick={() => setSelectedUser(null)} style={{ cursor: "pointer", color: T.ink2 }}>{I.x({ width: 22, height: 22 })}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+              <Avatar landlord={{ initials: initialsOf(selectedUser.name), color: selectedUser.role === "ADMIN" ? "#8A3A3A" : selectedUser.role === "LANDLORD" ? "#3C5A86" : "#2F5D4F" }} size={56} />
+              <div>
+                <div style={{ fontFamily: T.serif, fontSize: 20, color: T.ink }}>{selectedUser.name}</div>
+                <div style={{ marginTop: 6 }}><Pill tone={selectedUser.role === "ADMIN" ? "red" : selectedUser.role === "LANDLORD" ? "blue" : "clay"}>{selectedUser.role}</Pill></div>
+              </div>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 14, border: "1px solid " + T.line, overflow: "hidden" }}>
+              {([
+                ["Email", selectedUser.email],
+                ["Joined", new Date(selectedUser.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })],
+                ["Email verified", selectedUser.emailVerified ? "Yes" : "No"],
+                ["Properties", String(selectedUser._count.properties)],
+                ["Bookings", String(selectedUser._count.bookings)],
+              ] as [string, string][]).map(([label, val], i) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderTop: i ? "1px solid " + T.line2 : "none" }}>
+                  <span style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>{label}</span>
+                  <span style={{ fontFamily: T.sans, fontSize: 13, fontWeight: 600, color: T.ink }}>{val}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderTop: "1px solid " + T.line2 }}>
+                <span style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>Verification</span>
+                <StatusBadge status={selectedUser.verificationStatus} />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

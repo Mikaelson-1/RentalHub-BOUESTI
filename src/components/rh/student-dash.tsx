@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { T, naira, I, Photo } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
-import { Button, Card, Avatar, StatusBadge, Field, Input } from "@/components/rh/ui";
+import { Button, Card, Avatar, StatusBadge, Field, Input, PropertyCard, SkeletonCard } from "@/components/rh/ui";
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
 import { getBookings, mapBooking, signAgreement, confirmMoveIn, updateProfile, type UiBooking } from "@/lib/rh/api";
+import { useSaved } from "@/lib/rh/saved";
 
 function initialsOf(name: string) {
   return (name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()) || "?";
@@ -188,6 +189,18 @@ function ProfileTab() {
   );
 }
 
+function SavedTab() {
+  const { go } = useApp();
+  const { mobile } = useViewport();
+  const { items, isSaved, toggle } = useSaved();
+  if (items.length === 0) return <EmptyState icon={I.inbox} title="No saved homes yet" sub="Browse properties and tap the heart to save your favourites here." action={<Button onClick={() => go("search")} iconRight={I.arrow}>Browse homes</Button>} />;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(auto-fill, minmax(248px, 1fr))", gap: mobile ? 16 : 20 }}>
+      {items.map((l) => <PropertyCard key={l.id} l={l} mobile={mobile} onClick={() => go("property", l.id)} saved={isSaved(l.id)} onSave={() => toggle(l)} />)}
+    </div>
+  );
+}
+
 export function StudentDash({ initial }: { initial?: string }) {
   const { go, showToast } = useApp();
   const { mobile } = useViewport();
@@ -243,9 +256,11 @@ export function StudentDash({ initial }: { initial?: string }) {
       {tab === "profile" ? (
         <ProfileTab />
       ) : tab === "saved" ? (
-        <EmptyState icon={I.inbox} title="No saved homes yet" sub="Browse properties and save your favourites to find them quickly later." action={<Button onClick={() => go("search")} iconRight={I.arrow}>Browse homes</Button>} />
+        <SavedTab />
       ) : loading ? (
-        <Card pad={48} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading your bookings…</div></Card>
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          {[1, 2, 3].map((i) => <SkeletonCard key={i} imgHeight={150} rows={4} />)}
+        </div>
       ) : error ? (
         <Card pad={48} style={{ textAlign: "center" }}>
           <div style={{ width: 56, height: 56, borderRadius: 16, background: T.redSoft, color: T.red, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>{I.shieldAlert({ width: 26, height: 26 })}</div>

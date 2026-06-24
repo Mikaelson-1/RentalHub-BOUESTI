@@ -156,6 +156,7 @@ export function mapBooking(b: ApiBooking): UiBooking {
   };
 }
 
+export const createBooking = (propertyId: string, bidAmount?: number) => apiPost<ApiBooking>("/api/bookings", { propertyId, bidAmount });
 export const getBookings = () => apiGet<ApiBooking[]>("/api/bookings");
 export const getBooking = (id: string) => apiGet<ApiBooking>(`/api/bookings/${id}`);
 export const initiatePayment = (bookingId: string) => apiPost<{ authorizationUrl: string; reference: string }>("/api/payments/initiate", { bookingId });
