@@ -290,14 +290,25 @@ function AddPropertyWizard({ onClose, onCreated }: { onClose: () => void; onCrea
 
 function ProfileTab() {
   const { user, updateUser, showToast } = useApp();
+  const ext = user as { phoneNumber?: string; bankName?: string; bankAccountNumber?: string; bankAccountName?: string } | null;
   const [name, setName] = useState(user?.name ?? "");
+  const [phone, setPhone] = useState(ext?.phoneNumber ?? "");
+  const [bankName, setBankName] = useState(ext?.bankName ?? "");
+  const [bankAccountNumber, setBankAccountNumber] = useState(ext?.bankAccountNumber ?? "");
+  const [bankAccountName, setBankAccountName] = useState(ext?.bankAccountName ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const updated = await updateProfile({ name: name.trim() });
+      const updated = await updateProfile({
+        name: name.trim(),
+        phoneNumber: phone.trim() || undefined,
+        bankName: bankName.trim() || undefined,
+        bankAccountNumber: bankAccountNumber.trim() || undefined,
+        bankAccountName: bankAccountName.trim() || undefined,
+      });
       updateUser(updated);
       showToast("Profile saved");
     } catch (e) {
@@ -320,7 +331,16 @@ function ProfileTab() {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <Field label="Display name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Phone number" hint="Optional"><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234 800 000 0000" /></Field>
         <Field label="Email"><Input value={user?.email ?? ""} disabled style={{ opacity: 0.6 }} /></Field>
+        <div style={{ borderTop: "1px solid " + T.line2, paddingTop: 14 }}>
+          <div style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 700, color: T.ink3, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 12 }}>Bank details for payouts</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <Field label="Bank name"><Input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. First Bank" /></Field>
+            <Field label="Account number"><Input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} placeholder="0123456789" /></Field>
+            <Field label="Account name"><Input value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)} placeholder="As it appears on your bank statement" /></Field>
+          </div>
+        </div>
         <Button disabled={!name.trim() || saving} onClick={save}>{saving ? "Saving…" : "Save changes"}</Button>
       </div>
     </Card>

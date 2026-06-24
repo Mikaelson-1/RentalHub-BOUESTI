@@ -1,23 +1,64 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { T, naira, I, Photo, Logo, amenityIcon } from "@/lib/rh/theme";
-import { pendingById } from "@/lib/rh/data";
+import { T, naira, I, Logo, amenityIcon } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
-import { Button, Card, StatusBadge, Textarea } from "@/components/rh/ui";
+import { Button, Card, StatusBadge, Textarea, Pill } from "@/components/rh/ui";
+import { getProperty, setPropertyStatus, type ApiProperty } from "@/lib/rh/api";
+
+function imageStrings(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.flatMap((item) => {
+    if (typeof item === "string" && item.startsWith("http")) return [item];
+    if (typeof item === "object" && item && "url" in item) {
+      const u = (item as { url: unknown }).url;
+      return typeof u === "string" ? [u] : [];
+    }
+    return [];
+  });
+}
 
 export default function AdminPropertyReviewPage() {
   const { go, showToast } = useApp();
   const { mobile } = useViewport();
   const { id } = useParams<{ id: string }>();
-  const p = pendingById(id);
+
+  const [p, setP] = useState<ApiProperty | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState("");
-  const amenities = ["Borehole", "Prepaid meter", "Tiled floors", "Gated compound", "Parking space"];
-  const desc = `A ${p.title.toLowerCase()} in ${p.area}, submitted for review. Newly finished and marketed to students near campus. Landlord reports steady water and power backup.`;
-  const aiTone = p.aiScore === "PASS" ? "green" : p.aiScore === "FAIL" ? "red" : "gold";
-  const facts: [string, string][] = [["Location", p.area], ["Price", naira(p.price) + "/yr"], ["Distance to campus", "0.8 km"], ["Existing bookings", "0"]];
-  const meta: [string, string][] = [["Landlord", p.landlord], ["Landlord status", "Under review"], ["Media items", String(p.media)], ["Submitted", p.submitted]];
+  const [deciding, setDeciding] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getProperty(id)
+      .then((prop) => { if (active) setP(prop); })
+      .catch(() => { if (active) setError("Couldn't load this listing."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [id]);
+
+  const decide = async (status: "APPROVED" | "REJECTED") => {
+    if (status === "REJECTED" && !reason.trim()) {
+      showToast("Add a reason before rejecting");
+      return;
+    }
+    setDeciding(true);
+    try {
+      await setPropertyStatus(id, status, reason.trim() || undefined);
+      showToast(status === "APPROVED" ? "Listing approved & published" : "Listing rejected — landlord notified");
+      go("admin");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Action failed");
+      setDeciding(false);
+    }
+  };
+
+  const images = p ? imageStrings(p.images) : [];
+  const amenities = p && Array.isArray(p.amenities) ? (p.amenities as string[]) : [];
+  const aiScore = p?.aiScamFlag ? "FAIL" : "PASS";
+  const aiTone = aiScore === "FAIL" ? "red" : "green";
 
   return (
     <div style={{ background: T.paper, minHeight: "100vh" }}>
@@ -29,54 +70,114 @@ export default function AdminPropertyReviewPage() {
       </div>
 
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: mobile ? "20px" : "32px 24px 56px" }}>
-        <Card pad={mobile ? 22 : 30}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
-            <h1 style={{ fontFamily: T.serif, fontWeight: 400, fontSize: mobile ? 28 : 38, letterSpacing: "-.02em", color: T.ink, margin: 0, lineHeight: 1.05 }}>{p.title}</h1>
-            <StatusBadge status="PENDING" />
-          </div>
-
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginTop: 18, padding: 16, borderRadius: 14, background: aiTone === "green" ? T.greenSoft : aiTone === "red" ? T.redSoft : T.goldSoft }}>
-            <span style={{ color: aiTone === "green" ? T.green : aiTone === "red" ? T.red : T.gold, flex: "0 0 auto", marginTop: 1 }}>{I.sparkle({ width: 20, height: 20 })}</span>
-            <div><div style={{ fontFamily: T.sans, fontSize: 13.5, fontWeight: 700, color: aiTone === "green" ? T.green : aiTone === "red" ? T.red : T.gold }}>AI pre-screen: {p.aiScore}</div><div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, marginTop: 3, lineHeight: 1.5 }}>{p.aiNote}</div></div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: mobile ? 16 : 28, marginTop: 22 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {facts.map(([k, v]) => <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 16, fontFamily: T.sans, fontSize: 14 }}><span style={{ color: T.ink2 }}>{k}</span><span style={{ color: T.ink, fontWeight: 600, whiteSpace: "nowrap", textAlign: "right" }}>{v}</span></div>)}
+        {loading ? (
+          <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading listing…</div></Card>
+        ) : error || !p ? (
+          <Card pad={40} style={{ textAlign: "center" }}>
+            <div style={{ fontFamily: T.serif, fontSize: 22, color: T.ink }}>Listing not found</div>
+            <p style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2, marginTop: 8 }}>{error || "It may have been removed."}</p>
+            <div style={{ marginTop: 16, display: "inline-block" }}><Button onClick={() => go("admin")}>Back to admin</Button></div>
+          </Card>
+        ) : (
+          <Card pad={mobile ? 22 : 30}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
+              <h1 style={{ fontFamily: T.serif, fontWeight: 400, fontSize: mobile ? 28 : 38, letterSpacing: "-.02em", color: T.ink, margin: 0, lineHeight: 1.05 }}>{p.title}</h1>
+              <StatusBadge status={p.status ?? "PENDING"} />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {meta.map(([k, v]) => <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 16, fontFamily: T.sans, fontSize: 14 }}><span style={{ color: T.ink2 }}>{k}</span><span style={{ color: T.ink, fontWeight: 600, whiteSpace: "nowrap", textAlign: "right" }}>{v}</span></div>)}
-            </div>
-          </div>
 
-          <div style={{ marginTop: 24 }}>
-            <h2 style={{ fontFamily: T.serif, fontWeight: 500, fontSize: 20, color: T.ink, margin: "0 0 8px" }}>Description</h2>
-            <p style={{ fontFamily: T.sans, fontSize: 14.5, color: T.ink2, lineHeight: 1.6, margin: 0 }}>{desc}</p>
-          </div>
-
-          <div style={{ marginTop: 22 }}>
-            <h2 style={{ fontFamily: T.serif, fontWeight: 500, fontSize: 20, color: T.ink, margin: "0 0 12px" }}>Amenities</h2>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {amenities.map((a) => <span key={a} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: T.sans, fontSize: 12.5, color: T.ink2, background: T.paper, padding: "6px 11px", borderRadius: 999 }}>{amenityIcon(a, { width: 13, height: 13 })}{a}</span>)}
+            {/* AI pre-screen */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginTop: 18, padding: 16, borderRadius: 14, background: aiTone === "green" ? T.greenSoft : T.redSoft }}>
+              <span style={{ color: aiTone === "green" ? T.green : T.red, flex: "0 0 auto", marginTop: 1 }}>{I.sparkle({ width: 20, height: 20 })}</span>
+              <div>
+                <div style={{ fontFamily: T.sans, fontSize: 13.5, fontWeight: 700, color: aiTone === "green" ? T.green : T.red }}>AI pre-screen: {aiScore}</div>
+                <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, marginTop: 3, lineHeight: 1.5 }}>{p.aiScamReason ?? "No issues flagged by AI pre-screen."}</div>
+              </div>
             </div>
-          </div>
 
-          <div style={{ marginTop: 24 }}>
-            <h2 style={{ fontFamily: T.serif, fontWeight: 500, fontSize: 20, color: T.ink, margin: "0 0 12px" }}>Uploaded media <span style={{ fontFamily: T.sans, fontSize: 13, color: T.ink3, fontWeight: 400 }}>({p.media} items)</span></h2>
-            <div style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 10 }}>
-              {Array.from({ length: Math.min(p.media, 8) }).map((_, i) => <div key={i} style={{ aspectRatio: "4/3", borderRadius: 12, overflow: "hidden" }}><Photo seed={i + p.id.length} tag={false} /></div>)}
+            {/* Key facts */}
+            <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: mobile ? 16 : 28, marginTop: 22 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {([
+                  ["Location", p.location?.name ?? "—"],
+                  ["Price", naira(Number(p.price) || 0) + "/yr"],
+                  ["Distance to campus", p.distanceToCampus != null ? Number(p.distanceToCampus) + " km" : "—"],
+                  ["Vacant units", String(p.vacantUnits ?? 1)],
+                ] as [string, string][]).map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 16, fontFamily: T.sans, fontSize: 14 }}>
+                    <span style={{ color: T.ink2 }}>{k}</span>
+                    <span style={{ color: T.ink, fontWeight: 600, textAlign: "right" }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {([
+                  ["Landlord", p.landlord?.name ?? "—"],
+                  ["Landlord status", p.landlord?.verificationStatus ?? "—"],
+                  ["Media items", String(images.length)],
+                  ["Submitted", p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "—"],
+                ] as [string, string][]).map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 16, fontFamily: T.sans, fontSize: 14 }}>
+                    <span style={{ color: T.ink2 }}>{k}</span>
+                    <span style={{ color: T.ink, fontWeight: 600, textAlign: "right" }}>{v}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div style={{ marginTop: 26, borderTop: "1px solid " + T.line, paddingTop: 22 }}>
-            <h2 style={{ fontFamily: T.serif, fontWeight: 500, fontSize: 20, color: T.ink, margin: "0 0 12px" }}>Review decision</h2>
-            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required when rejecting) — shared with the landlord" style={{ minHeight: 72 }} />
-            <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <Button variant="danger" icon={I.x} onClick={() => { if (!reason.trim()) { showToast("Add a reason before rejecting"); return; } showToast("Listing rejected — landlord notified"); go("admin"); }}>Reject listing</Button>
-              <Button variant="green" icon={I.check} onClick={() => { showToast("Listing approved & published"); go("admin"); }}>Approve listing</Button>
+            {/* Description */}
+            <div style={{ marginTop: 24 }}>
+              <h2 style={{ fontFamily: T.serif, fontWeight: 500, fontSize: 20, color: T.ink, margin: "0 0 8px" }}>Description</h2>
+              <p style={{ fontFamily: T.sans, fontSize: 14.5, color: T.ink2, lineHeight: 1.6, margin: 0 }}>{p.description}</p>
             </div>
-          </div>
-        </Card>
+
+            {/* Amenities */}
+            {amenities.length > 0 && (
+              <div style={{ marginTop: 22 }}>
+                <h2 style={{ fontFamily: T.serif, fontWeight: 500, fontSize: 20, color: T.ink, margin: "0 0 12px" }}>Amenities</h2>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {amenities.map((a) => (
+                    <Pill key={a} tone="clay">{amenityIcon(a, { width: 13, height: 13 })}{" "}{a}</Pill>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Photos */}
+            <div style={{ marginTop: 24 }}>
+              <h2 style={{ fontFamily: T.serif, fontWeight: 500, fontSize: 20, color: T.ink, margin: "0 0 12px" }}>
+                Uploaded photos <span style={{ fontFamily: T.sans, fontSize: 13, color: T.ink3, fontWeight: 400 }}>({images.length} items)</span>
+              </h2>
+              {images.length > 0 ? (
+                <div style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 10 }}>
+                  {images.slice(0, 8).map((src, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={i} src={src} alt="" style={{ aspectRatio: "4/3", width: "100%", objectFit: "cover", borderRadius: 12 }} />
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontFamily: T.sans, fontSize: 13.5, color: T.ink3, padding: "16px 0" }}>No photos uploaded.</div>
+              )}
+            </div>
+
+            {/* Review decision */}
+            {(p.status === "PENDING" || !p.status) && (
+              <div style={{ marginTop: 26, borderTop: "1px solid " + T.line, paddingTop: 22 }}>
+                <h2 style={{ fontFamily: T.serif, fontWeight: 500, fontSize: 20, color: T.ink, margin: "0 0 12px" }}>Review decision</h2>
+                <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required when rejecting) — shared with the landlord" style={{ minHeight: 72 }} />
+                <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <Button variant="danger" icon={I.x} disabled={deciding} onClick={() => decide("REJECTED")}>Reject listing</Button>
+                  <Button variant="green" icon={I.check} disabled={deciding} onClick={() => decide("APPROVED")}>Approve listing</Button>
+                </div>
+              </div>
+            )}
+
+            {p.status && p.status !== "PENDING" && (
+              <div style={{ marginTop: 22, padding: "14px 18px", borderRadius: 12, background: p.status === "APPROVED" ? T.greenSoft : T.redSoft, fontFamily: T.sans, fontSize: 14, color: p.status === "APPROVED" ? T.green : T.red, fontWeight: 600 }}>
+                This listing was already {p.status.toLowerCase()}.
+              </div>
+            )}
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -38,6 +38,7 @@ export function AdminDash() {
   const [verifs, setVerifs] = useState<AdminLandlord[]>([]);
   const [payouts, setPayouts] = useState<AdminPayout[]>([]);
   const [allProperties, setAllProperties] = useState<UiListing[]>([]);
+  const [allPropsFilter, setAllPropsFilter] = useState("");
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [userRoleFilter, setUserRoleFilter] = useState("");
   const [loading, setLoading] = useState(true);
@@ -196,35 +197,45 @@ export function AdminDash() {
       )}
 
       {tab === "properties" && (
-        loading ? <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading properties…</div></Card>
-        : allProperties.length === 0 ? <EmptyState icon={I.building} title="No properties yet" sub="Properties submitted by landlords will appear here." />
-        : (
-          <Card pad={0} style={{ overflow: "hidden" }}>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: T.sans, fontSize: 13.5 }}>
-                <thead>
-                  <tr style={{ background: T.paper2 }}>
-                    {["Title", "Landlord", "Area", "Price", "Status", ""].map((h) => (
-                      <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700, color: T.ink2, fontSize: 12, textTransform: "uppercase", letterSpacing: ".04em", whiteSpace: "nowrap" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {allProperties.map((p, i) => (
-                    <tr key={p.id} style={{ borderTop: i ? "1px solid " + T.line2 : "none" }}>
-                      <td style={{ padding: "13px 16px", color: T.ink, fontWeight: 500, maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</td>
-                      <td style={{ padding: "13px 16px", color: T.ink2 }}>{p.landlordName}</td>
-                      <td style={{ padding: "13px 16px", color: T.ink2 }}>{p.area}</td>
-                      <td style={{ padding: "13px 16px", color: T.ink, whiteSpace: "nowrap" }}>{naira(p.price)}/yr</td>
-                      <td style={{ padding: "13px 16px" }}><StatusBadge status={(p as unknown as { status?: string }).status ?? "APPROVED"} /></td>
-                      <td style={{ padding: "13px 16px" }}><Button variant="ghost" size="sm" onClick={() => go("review", p.id)} iconRight={I.chevRight}>Review</Button></td>
+        <div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+            {(["", "PENDING", "APPROVED", "REJECTED"] as const).map((s) => (
+              <Button key={s} size="sm" variant={allPropsFilter === s ? "dark" : "outline"} onClick={() => {
+                setAllPropsFilter(s);
+                getAdminAllProperties(s || undefined).then((r) => setAllProperties(r.items.map(mapProperty))).catch(() => {});
+              }}>{s || "All"}</Button>
+            ))}
+          </div>
+          {loading ? <Card pad={40} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, color: T.ink2 }}>Loading properties…</div></Card>
+          : allProperties.length === 0 ? <EmptyState icon={I.building} title="No properties" sub="No properties match this filter." />
+          : (
+            <Card pad={0} style={{ overflow: "hidden" }}>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: T.sans, fontSize: 13.5 }}>
+                  <thead>
+                    <tr style={{ background: T.paper2 }}>
+                      {["Title", "Landlord", "Area", "Price", "Status", ""].map((h) => (
+                        <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700, color: T.ink2, fontSize: 12, textTransform: "uppercase", letterSpacing: ".04em", whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        )
+                  </thead>
+                  <tbody>
+                    {allProperties.map((p, i) => (
+                      <tr key={p.id} style={{ borderTop: i ? "1px solid " + T.line2 : "none" }}>
+                        <td style={{ padding: "13px 16px", color: T.ink, fontWeight: 500, maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</td>
+                        <td style={{ padding: "13px 16px", color: T.ink2 }}>{p.landlordName}</td>
+                        <td style={{ padding: "13px 16px", color: T.ink2 }}>{p.area}</td>
+                        <td style={{ padding: "13px 16px", color: T.ink, whiteSpace: "nowrap" }}>{naira(p.price)}/yr</td>
+                        <td style={{ padding: "13px 16px" }}><StatusBadge status={(p as unknown as { status?: string }).status ?? "APPROVED"} /></td>
+                        <td style={{ padding: "13px 16px" }}><Button variant="ghost" size="sm" onClick={() => go("review", p.id)} iconRight={I.chevRight}>Review</Button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </div>
       )}
 
       {tab === "users" && (

@@ -152,13 +152,14 @@ function AgreementModal({ bk, onClose, onSign }: { bk: UiBooking; onClose: () =>
 function ProfileTab() {
   const { user, updateUser, showToast } = useApp();
   const [name, setName] = useState(user?.name ?? "");
+  const [phone, setPhone] = useState((user as { phoneNumber?: string })?.phoneNumber ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const updated = await updateProfile({ name: name.trim() });
+      const updated = await updateProfile({ name: name.trim(), phoneNumber: phone.trim() || undefined });
       updateUser(updated);
       showToast("Profile saved");
     } catch (e) {
@@ -179,6 +180,7 @@ function ProfileTab() {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <Field label="Full name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Phone number" hint="Optional"><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234 800 000 0000" /></Field>
         <Field label="Email"><Input value={user?.email ?? ""} disabled style={{ opacity: 0.6 }} /></Field>
         <Button disabled={!name.trim() || saving} onClick={save}>{saving ? "Saving…" : "Save changes"}</Button>
       </div>
