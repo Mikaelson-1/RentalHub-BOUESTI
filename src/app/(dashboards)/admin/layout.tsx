@@ -1,3 +1,5 @@
+import { RouteGuard } from "@/components/rh/route-guard";
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <RouteGuard role="ADMIN">{children}</RouteGuard>;
 }

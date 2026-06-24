@@ -64,6 +64,7 @@ interface AppValue {
   go: GoFn;
   role: string;
   user: AuthUser | null;
+  initialized: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   updateUser: (patch: Partial<AuthUser>) => void;
   signOut: () => void;
@@ -96,6 +97,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [campusId, setCampusId] = useState("bouesti");
   const [toast, setToast] = useState<string | null>(null);
   const [auth, setAuth] = useState<{ token: string; user: AuthUser } | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     const savedCampus = window.localStorage.getItem("rh_campus");
@@ -104,6 +106,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const a = JSON.parse(window.localStorage.getItem(AUTH_STORAGE_KEY) || "null");
       if (a?.token && a?.user) setAuth(a);
     } catch { /* ignore */ }
+    setInitialized(true);
   }, []);
 
   const campus = CAMPUSES.find((c) => c.id === campusId) || CAMPUSES[0];
@@ -146,7 +149,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AppCtx.Provider value={{ go, role: auth?.user.role?.toLowerCase() ?? "guest", user: auth?.user ?? null, login, updateUser, signOut, campus, setCampus, showToast }}>
+    <AppCtx.Provider value={{ go, role: auth?.user.role?.toLowerCase() ?? "guest", user: auth?.user ?? null, initialized, login, updateUser, signOut, campus, setCampus, showToast }}>
       {children}
       {toast && (
         <div style={{ position: "fixed", bottom: 26, left: "50%", transform: "translateX(-50%)", zIndex: 200, background: T.ink, color: T.paper, padding: "13px 22px", borderRadius: 12, fontFamily: T.sans, fontSize: 14.5, fontWeight: 500, boxShadow: "0 16px 40px -12px rgba(0,0,0,.5)", display: "flex", alignItems: "center", gap: 9, maxWidth: "90vw" }}>
