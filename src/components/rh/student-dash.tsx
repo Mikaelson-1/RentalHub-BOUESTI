@@ -286,8 +286,10 @@ function SavedTab() {
 }
 
 export function StudentDash({ initial }: { initial?: string }) {
-  const { go, showToast } = useApp();
+  const { go, showToast, user } = useApp();
   const { mobile } = useViewport();
+  const extUser = user as { matricCardUrl?: string } | null;
+  const hasId = !!extUser?.matricCardUrl;
   const [tab, setTab] = useState(initial || "bookings");
   const [bookings, setBookings] = useState<UiBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -336,6 +338,19 @@ export function StudentDash({ initial }: { initial?: string }) {
         <Stat label="Awaiting action" value={counts.active} tone="clay" icon={I.clock} />
         <Stat label="Pending offers" value={counts.pending} tone="gold" icon={I.bolt} />
       </div>
+
+      {!hasId && tab !== "profile" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 14, background: T.goldSoft, border: "1.5px solid " + T.gold, borderRadius: 14, padding: "14px 18px", marginBottom: 22, flexWrap: "wrap" }}>
+          <span style={{ width: 38, height: 38, borderRadius: 10, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto", color: T.gold }}>
+            {I.shieldAlert({ width: 20, height: 20 })}
+          </span>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ fontFamily: T.sans, fontSize: 14, fontWeight: 700, color: T.ink }}>Upload your student ID to book</div>
+            <div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2, marginTop: 2 }}>You need to verify your identity before placing a booking request.</div>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setTab("profile")}>Upload ID card</Button>
+        </div>
+      )}
 
       {tab === "profile" ? (
         <ProfileTab />
