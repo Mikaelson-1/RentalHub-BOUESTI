@@ -213,7 +213,7 @@ export default function InspectorSignupPage() {
             <>
               <h2 style={{ fontFamily: T.serif, fontWeight: 400, fontSize: 26, color: T.ink, margin: "0 0 6px" }}>Upload your documents</h2>
               <p style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2, marginBottom: 24, lineHeight: 1.5 }}>
-                Your Student ID and portal screenshot confirm you're enrolled. Accepted: JPEG, PNG, PDF.
+                Your Student ID and portal screenshot confirm you&apos;re enrolled. Accepted: JPEG, PNG, PDF.
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <DropZone

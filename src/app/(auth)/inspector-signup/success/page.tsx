@@ -89,7 +89,7 @@ export default function InspectorSuccessPage() {
               Your profile is undergoing admin verification. We typically review applications within <strong>24–48 hours</strong>.
             </p>
             <p style={{ fontFamily: T.sans, fontSize: 13.5, color: T.ink3, lineHeight: 1.6, marginBottom: 28 }}>
-              You'll receive an email once your account is approved. Check your inbox at the address you registered with.
+              You&apos;ll receive an email once your account is approved. Check your inbox at the address you registered with.
             </p>
 
             <div style={{ background: T.paper, borderRadius: 14, padding: "16px 20px", textAlign: "left", marginBottom: 28 }}>
