@@ -9,7 +9,7 @@ import { Button, Card, Field, Input, Select, Textarea } from "@/components/rh/ui
 import { getProperty, getLocations, updateProperty, type ApiProperty } from "@/lib/rh/api";
 
 export default function EditPropertyPage() {
-  const { go, showToast } = useApp();
+  const { go, showToast, campus } = useApp();
   const { mobile } = useViewport();
   const { id } = useParams<{ id: string }>();
 
@@ -27,7 +27,7 @@ export default function EditPropertyPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([getProperty(id), getLocations()]).then(([p, l]) => {
+    Promise.allSettled([getProperty(id), getLocations(campus.id)]).then(([p, l]) => {
       if (!active) return;
       if (l.status === "fulfilled") setLocations(l.value);
       if (p.status === "fulfilled") {

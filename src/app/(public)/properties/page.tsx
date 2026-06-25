@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { T, shortNaira, naira, I } from "@/lib/rh/theme";
-import { AREAS, AMENITY_GROUPS } from "@/lib/rh/data";
+import { CAMPUS_AREAS, AMENITY_GROUPS } from "@/lib/rh/data";
 import { apiGet, mapProperty, type UiListing, type ApiListResponse } from "@/lib/rh/api";
 import { useSaved } from "@/lib/rh/saved";
 import { useCompare } from "@/lib/rh/compare";
@@ -150,7 +150,7 @@ function SearchInner() {
           </h1>
           <div style={{ display: "flex", gap: 8, marginTop: 16, overflowX: "auto", paddingBottom: 4 }}>
             <FilterChip active={!f.area} onClick={() => setF((p) => ({ ...p, area: null }))}>All areas</FilterChip>
-            {AREAS.map((a) => <FilterChip key={a} active={f.area === a} onClick={() => setF((p) => ({ ...p, area: a }))}>{a}</FilterChip>)}
+            {(CAMPUS_AREAS[campus.id] ?? CAMPUS_AREAS.bouesti).map((a) => <FilterChip key={a} active={f.area === a} onClick={() => setF((p) => ({ ...p, area: a }))}>{a}</FilterChip>)}
           </div>
         </div>
       </div>

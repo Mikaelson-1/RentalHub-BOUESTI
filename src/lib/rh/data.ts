@@ -4,7 +4,12 @@
  * until it's wired to the backend API.
  */
 
-export const AREAS = ["Uro", "Odo Oja", "Oke 'Kere", "Afao Road", "Olumilua Estate", "Ajebandele", "Ikoyi Estate", "Amoye GS"];
+export const CAMPUS_AREAS: Record<string, string[]> = {
+  bouesti:  ["Uro", "Odo Oja", "Oke 'Kere", "Afao Road", "Olumilua Estate", "Ajebandele", "Ikoyi Estate", "Amoye GS"],
+  unilag:   ["Akoka", "Yaba", "Abule Ijesha", "Bariga", "Iwaya", "Onike", "Sabo", "Otto-Awori"],
+  unilorin: ["Tanke", "Fate", "Oke-Odo", "Challenge", "Gaa-Akanbi", "Unity Road", "Ilofa Road", "Oke-Kura"],
+};
+export const AREAS = CAMPUS_AREAS.bouesti; // kept for any external references
 
 export interface Campus { id: string; short: string; name: string; live: boolean }
 export const CAMPUSES: Campus[] = [

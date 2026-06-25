@@ -130,7 +130,7 @@ function VerificationFlow({ status, onSubmitted }: { status: string; onSubmitted
 interface WizData { title: string; type: string; units: number | string; gender: string; desc: string; area: string; dist: string; amenities: string[]; price: string; agency: string; caution: string; landmark: string }
 
 function AddPropertyWizard({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const { showToast } = useApp();
+  const { showToast, campus } = useApp();
   const { mobile } = useViewport();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizData>({ title: "", type: "", units: 1, gender: "Any", desc: "", area: "", dist: "", amenities: [], price: "", agency: "", caution: "", landmark: "" });
@@ -143,8 +143,8 @@ function AddPropertyWizard({ onClose, onCreated }: { onClose: () => void; onCrea
   const [locations, setLocations] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
-    getLocations().then(setLocations).catch(() => {});
-  }, []);
+    getLocations(campus.id).then(setLocations).catch(() => {});
+  }, [campus.id]);
 
   const distToKm = (d: string): number | undefined => ({ "Under 500m": 0.4, "500m – 1km": 0.8, "1 – 2km": 1.5, "2 – 5km": 3.5, "Over 5km": 6 } as Record<string, number>)[d];
 

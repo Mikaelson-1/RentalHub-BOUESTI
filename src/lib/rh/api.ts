@@ -211,7 +211,7 @@ export interface PropertyInput {
 export const createProperty = (body: PropertyInput) => apiPost<ApiProperty>("/api/properties", body);
 export const updateProperty = (id: string, body: Partial<PropertyInput>) => apiPut<ApiProperty>(`/api/properties/${id}`, body);
 export const getProperty = (id: string) => apiGet<ApiProperty>(`/api/properties/${id}`);
-export const getLocations = () => apiGet<Array<{ id: string; name: string }>>("/api/locations");
+export const getLocations = (campus?: string) => apiGet<Array<{ id: string; name: string }>>(`/api/locations${campus ? `?campus=${encodeURIComponent(campus)}` : ""}`);
 export const deleteProperty = (id: string) => apiDelete(`/api/properties/${id}`);
 
 export const getMyListings = () => apiGet<ApiListResponse>("/api/properties?mine=true&pageSize=50");
