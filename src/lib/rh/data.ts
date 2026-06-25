@@ -8,9 +8,10 @@ export const AREAS = ["Uro", "Odo Oja", "Oke 'Kere", "Afao Road", "Olumilua Esta
 
 export interface Campus { id: string; short: string; name: string; live: boolean }
 export const CAMPUSES: Campus[] = [
-  { id: "bouesti", short: "BOUESTI", name: "BOUESTI, Ikere-Ekiti", live: true },
-  { id: "unilag", short: "UNILAG", name: "University of Lagos", live: false },
-  { id: "ui", short: "UI", name: "University of Ibadan", live: false },
+  { id: "bouesti",  short: "BOUESTI",  name: "BOUESTI, Ikere-Ekiti",        live: true  },
+  { id: "unilag",   short: "UNILAG",   name: "University of Lagos",          live: true  },
+  { id: "unilorin", short: "UNILORIN", name: "University of Ilorin",         live: true  },
+  { id: "ui",       short: "UI",       name: "University of Ibadan",         live: false },
   { id: "oau", short: "OAU", name: "Obafemi Awolowo University", live: false },
   { id: "unn", short: "UNN", name: "University of Nigeria, Nsukka", live: false },
   { id: "abu", short: "ABU", name: "Ahmadu Bello University, Zaria", live: false },
