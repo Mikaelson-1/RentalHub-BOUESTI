@@ -57,7 +57,7 @@ export const resendOtp = (email: string) =>
 export interface ApiLandlord { id: string; name: string; email?: string; verificationStatus?: string }
 export interface ApiProperty {
   id: string; title: string; description: string; price: number | string; distanceToCampus?: number | string | null;
-  amenities?: unknown; images?: unknown; status?: string; vacantUnits?: number;
+  amenities?: unknown; images?: unknown; status?: string; listingStatus?: string; vacantUnits?: number;
   aiScamFlag?: boolean; aiScamReason?: string | null; createdAt?: string; viewCount?: number;
   location?: { id: string; name: string; lat?: number | null; lng?: number | null; campus?: string | null } | null;
   landlord?: ApiLandlord | null;
@@ -66,7 +66,7 @@ export interface ApiProperty {
 export interface ApiListResponse { items: ApiProperty[]; total: number; page: number; pageSize: number; totalPages: number }
 
 // UI listing enriched with the landlord info the detail page needs.
-export type UiListing = Listing & { landlordName: string; landlordVerified: boolean; landlordEmail?: string; image?: string | null; lat?: number; lng?: number; viewCount?: number };
+export type UiListing = Listing & { landlordName: string; landlordVerified: boolean; landlordEmail?: string; image?: string | null; lat?: number; lng?: number; viewCount?: number; listingStatus?: string };
 
 const TONES: [string, string][] = [["#d8c4a0", "#9c8055"], ["#c8bca6", "#7d7158"], ["#cdb89c", "#8a7150"], ["#bcae9a", "#6f6450"], ["#d3bd98", "#897046"], ["#c2b49c", "#776a52"]];
 function toneFor(id: string): [string, string] {
@@ -119,6 +119,7 @@ export function mapProperty(p: ApiProperty): UiListing & { images: string[] } {
     lat: p.location?.lat ?? undefined,
     lng: p.location?.lng ?? undefined,
     viewCount: p.viewCount ?? 0,
+    listingStatus: p.listingStatus ?? "AVAILABLE",
   };
 }
 

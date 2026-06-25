@@ -534,7 +534,15 @@ export function LandlordDash({ initial, openAdd }: { initial?: string; openAdd?:
                   )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: T.serif, fontSize: mobile ? 17 : 19, color: T.ink, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.title}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <div style={{ fontFamily: T.serif, fontSize: mobile ? 17 : 19, color: T.ink, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.title}</div>
+                    {l.listingStatus === "RENTED" && (
+                      <span style={{ fontSize: 10, fontWeight: 700, background: T.greenSoft, color: T.green, borderRadius: 6, padding: "2px 7px", textTransform: "uppercase", letterSpacing: ".04em", whiteSpace: "nowrap" }}>Occupied</span>
+                    )}
+                    {l.listingStatus === "PENDING" && (
+                      <span style={{ fontSize: 10, fontWeight: 700, background: T.goldSoft, color: T.gold, borderRadius: 6, padding: "2px 7px", textTransform: "uppercase", letterSpacing: ".04em", whiteSpace: "nowrap" }}>Awaiting payment</span>
+                    )}
+                  </div>
                   <div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2, display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>{I.pin({ width: 12, height: 12 })}{l.area} · {naira(l.price)}/yr</div>
                 </div>
                 <div style={{ textAlign: "center", flex: "0 0 auto" }}>

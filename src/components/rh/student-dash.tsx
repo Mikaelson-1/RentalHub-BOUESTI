@@ -109,7 +109,6 @@ function BookingRow({ bk, mobile, onAct }: { bk: UiBooking; mobile: boolean; onA
               </div>
               <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
                 <Button variant="dark" onClick={() => go("pay", bk.id)} icon={I.wallet} style={{ flex: 1, minWidth: 180 }}>Pay {naira(total)} securely</Button>
-                {!bk.agreementSigned && <Button variant="outline" size="sm" onClick={() => onAct("sign", bk)} icon={I.doc}>Sign agreement</Button>}
                 <Button variant="danger" onClick={() => onAct("cancel", bk)}>Cancel</Button>
               </div>
             </div>
@@ -124,6 +123,13 @@ function BookingRow({ bk, mobile, onAct }: { bk: UiBooking; mobile: boolean; onA
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: T.sans, fontSize: 13, color: T.ink, cursor: "pointer" }} onClick={() => go("receipt", bk.id)}>{I.doc({ width: 15, height: 15, style: { color: T.clay } })} Payment receipt</span>
               </div>
+              {!bk.agreementSigned && (
+                <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", background: T.blueSoft, borderRadius: 10, padding: "11px 14px" }}>
+                  {I.doc({ width: 15, height: 15, style: { color: T.blue, flex: "0 0 auto" } })}
+                  <span style={{ fontFamily: T.sans, fontSize: 13, color: T.blue, flex: 1, minWidth: 160 }}>Please sign your tenancy agreement to complete your move-in.</span>
+                  <Button size="sm" onClick={() => onAct("sign", bk)}>Sign agreement</Button>
+                </div>
+              )}
               {!bk.movedIn ? (
                 <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                   <span style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2, flex: 1, minWidth: 180 }}>Moved in? Confirm to release payment to your landlord.</span>
@@ -355,7 +361,7 @@ export function StudentDash({ initial }: { initial?: string }) {
 
       {signing && <AgreementModal bk={signing} onClose={() => setSigning(null)} onSign={async (name) => {
         const bk = signing; setSigning(null);
-        try { await signAgreement(bk.id, name); update(bk.id, { agreementSigned: true }); showToast("Agreement signed — you can now pay"); }
+        try { await signAgreement(bk.id, name); update(bk.id, { agreementSigned: true }); showToast("Tenancy agreement signed"); }
         catch (e) { showToast(e instanceof Error ? e.message : "Couldn't sign agreement"); }
       }} />}
     </DashShell>
