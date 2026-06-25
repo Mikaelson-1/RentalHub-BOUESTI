@@ -116,6 +116,7 @@ function SearchInner() {
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setF((prev) => ({ ...prev, area: null }));
     apiGet<ApiListResponse>(`/api/properties?pageSize=100&campus=${encodeURIComponent(campus.id)}`)
       .then((r) => { if (active) setAll(r.items.map(mapProperty)); })
       .catch((e) => { if (active) setError(e instanceof Error ? e.message : "Failed to load"); })
