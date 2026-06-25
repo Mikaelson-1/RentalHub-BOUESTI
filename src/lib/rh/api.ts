@@ -239,6 +239,8 @@ export const getAdminUsers = (role?: string) => apiGet<AdminUsersResponse>(`/api
 export interface ProfileUpdate { name?: string; phoneNumber?: string; bankName?: string; bankAccountNumber?: string; bankAccountName?: string; governmentIdUrl?: string; selfieUrl?: string; ownershipProofUrl?: string; matricCardUrl?: string }
 export interface AuthUser { id: string; name: string; email: string; role: string; emailVerified?: boolean; verificationStatus?: string; phoneNumber?: string; matricCardUrl?: string }
 export const updateProfile = (data: ProfileUpdate) => apiPatch<AuthUser>("/api/auth/me", data);
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  apiPatch<{ message: string }>("/api/auth/me", { currentPassword, newPassword });
 export const setUserRole = (role: "STUDENT" | "LANDLORD") => apiPatch<AuthUser>("/api/auth/setup-role", { role });
 
 // ── Reviews ───────────────────────────────────────────────────

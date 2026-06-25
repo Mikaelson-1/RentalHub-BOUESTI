@@ -7,7 +7,7 @@ import { Button, Card, Avatar, StatusBadge, Pill, SkeletonCard } from "@/compone
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
 import {
   getAdminSummary, getPendingProperties, getAdminLandlords, getAdminPayouts,
-  getAdminAllProperties, getAdminUsers,
+  getAdminAllProperties, getAdminUsers, changePassword,
   setPropertyStatus, setLandlordVerification, setPayoutStatus, mapProperty,
   type AdminSummary, type AdminLandlord, type AdminPayout, type ApiProperty, type AdminUser, type UiListing,
 } from "@/lib/rh/api";
@@ -26,10 +26,57 @@ function AiScore({ score, note, compact }: { score: string; note?: string | null
   );
 }
 
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const { showToast } = useApp();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setError(null);
+    if (!current || !next || !confirm) { setError("All fields are required."); return; }
+    if (next.length < 8) { setError("New password must be at least 8 characters."); return; }
+    if (next !== confirm) { setError("New passwords do not match."); return; }
+    setLoading(true);
+    try {
+      await changePassword(current, next);
+      showToast("Password updated successfully");
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update password.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fieldStyle = { width: "100%", boxSizing: "border-box" as const, padding: "10px 13px", borderRadius: 10, border: `1.5px solid ${T.line}`, fontFamily: T.sans, fontSize: 14, color: T.ink, background: T.paper, outline: "none" };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(33,29,24,.35)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 18, padding: 28, width: "100%", maxWidth: 400, boxShadow: "0 24px 60px rgba(0,0,0,.22)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+          <h2 style={{ margin: 0, fontFamily: T.serif, fontSize: 22, fontWeight: 500, color: T.ink }}>Change password</h2>
+          <span onClick={onClose} style={{ cursor: "pointer", color: T.ink2 }}>{I.x({ width: 20, height: 20 })}</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div><label style={{ display: "block", fontFamily: T.sans, fontSize: 12, fontWeight: 700, color: T.ink2, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Current password</label><input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="••••••••" style={fieldStyle} /></div>
+          <div><label style={{ display: "block", fontFamily: T.sans, fontSize: 12, fontWeight: 700, color: T.ink2, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>New password</label><input type="password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="Min. 8 characters" style={fieldStyle} /></div>
+          <div><label style={{ display: "block", fontFamily: T.sans, fontSize: 12, fontWeight: 700, color: T.ink2, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Confirm new password</label><input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" onKeyDown={(e) => { if (e.key === "Enter") void submit(); }} style={fieldStyle} /></div>
+          {error && <div style={{ fontFamily: T.sans, fontSize: 13, color: T.red, background: T.redSoft, borderRadius: 10, padding: "10px 14px" }}>{error}</div>}
+          <Button full disabled={loading} onClick={() => void submit()}>{loading ? "Updating…" : "Update password"}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminDash() {
   const { showToast, go } = useApp();
   const { mobile } = useViewport();
   const [tab, setTab] = useState("pending");
+  const [showChangePw, setShowChangePw] = useState(false);
   const [summary, setSummary] = useState<AdminSummary | null>(null);
   const [pending, setPending] = useState<ApiProperty[]>([]);
   const [verifs, setVerifs] = useState<AdminLandlord[]>([]);
@@ -85,9 +132,10 @@ export function AdminDash() {
   };
 
   return (
+    {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} />}
     <DashShell role="admin" tab={tab} setTab={setTab} title="Admin dashboard" subtitle="Review listings, verify landlords and manage payouts"
       badges={{ pending: pending.length || undefined, verifications: awaitingVerifs.length || undefined, payouts: payouts.length || undefined }}
-      action={null}>
+      action={<Button size="sm" variant="outline" icon={I.shield} onClick={() => setShowChangePw(true)}>Change password</Button>}>
 
       <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(6,1fr)", gap: mobile ? 12 : 14, marginBottom: 26 }}>
         <Stat label="Properties" value={summary?.totalProperties ?? "—"} tone="ink" icon={I.building} onClick={() => setTab("properties")} active={tab === "properties"} />
@@ -144,9 +192,16 @@ export function AdminDash() {
                       <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>{v.email}</div>
                       {v.aiPreScreenScore && <div style={{ marginTop: 10 }}><AiScore score={v.aiPreScreenScore} note={v.aiPreScreenNote} /></div>}
                       <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                        {([["Gov ID", !!v.governmentIdUrl], ["Selfie", !!v.selfieUrl], ["Ownership", !!v.ownershipProofUrl]] as const).map(([t, ok]) => (
-                          <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, background: ok ? T.blueSoft : T.paper, color: ok ? T.blue : T.ink3, border: "1px solid " + (ok ? "transparent" : T.line) }}>
-                            {ok ? I.doc({ width: 13, height: 13 }) : I.x({ width: 13, height: 13 })} {t}</span>
+                        {([["Gov ID", v.governmentIdUrl], ["Selfie", v.selfieUrl], ["Ownership", v.ownershipProofUrl]] as [string, string | null | undefined][]).map(([t, url]) => (
+                          url ? (
+                            <a key={t} href={url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, background: T.blueSoft, color: T.blue, border: "1px solid transparent", textDecoration: "none", cursor: "pointer" }}>
+                              {I.doc({ width: 13, height: 13 })} {t} {I.chevRight({ width: 11, height: 11 })}
+                            </a>
+                          ) : (
+                            <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, background: T.paper, color: T.ink3, border: "1px solid " + T.line }}>
+                              {I.x({ width: 13, height: 13 })} {t}
+                            </span>
+                          )
                         ))}
                       </div>
                     </div>
