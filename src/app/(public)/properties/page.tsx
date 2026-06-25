@@ -1,13 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { T, shortNaira, I } from "@/lib/rh/theme";
+import { T, shortNaira, naira, I } from "@/lib/rh/theme";
 import { AREAS, AMENITY_GROUPS } from "@/lib/rh/data";
 import { apiGet, mapProperty, type UiListing, type ApiListResponse } from "@/lib/rh/api";
 import { useSaved } from "@/lib/rh/saved";
+import { useCompare } from "@/lib/rh/compare";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Button, Card, Select, PropertyCard, PublicNav, Footer } from "@/components/rh/ui";
+
+const MapView = dynamic(() => import("@/components/rh/MapView"), { ssr: false, loading: () => <div style={{ height: 520, borderRadius: 18, background: T.paper, border: "1px solid " + T.line, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.sans, color: T.ink2 }}>Loading map…</div> });
 
 interface Filters { area: string | null; maxPrice: number; gender: string | null; amenities: string[] }
 const EMPTY: Filters = { area: null, maxPrice: 450000, gender: null, amenities: [] };
@@ -50,26 +54,72 @@ function FilterPanel({ f, setF, mobile }: { f: Filters; setF: React.Dispatch<Rea
   );
 }
 
+// Side-by-side comparison modal
+function CompareModal({ items, onClose, onNavigate }: { items: UiListing[]; onClose: () => void; onNavigate: (id: string) => void }) {
+  const FIELDS: [string, (l: UiListing) => React.ReactNode][] = [
+    ["Price/year", (l) => <strong>{naira(l.price)}</strong>],
+    ["Area", (l) => l.area],
+    ["Distance to gate", (l) => l.dist ? `${l.dist} km` : "—"],
+    ["Amenities", (l) => l.amenities.slice(0, 5).join(", ") || "—"],
+    ["Vacant units", (l) => l.vacant],
+    ["Landlord", (l) => l.landlordName],
+  ];
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 160, background: "rgba(33,29,24,.65)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: T.paper, borderRadius: 20, width: "100%", maxWidth: 760, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid " + T.line, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <h2 style={{ margin: 0, fontFamily: T.serif, fontSize: 26, color: T.ink, fontWeight: 500 }}>Compare homes</h2>
+          <span onClick={onClose} style={{ cursor: "pointer", color: T.ink2 }}>{I.x({ width: 22, height: 22 })}</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: `160px repeat(${items.length}, 1fr)`, borderCollapse: "collapse" } as React.CSSProperties}>
+          {/* Header */}
+          <div style={{ padding: "14px 16px", background: T.paper }} />
+          {items.map((l) => (
+            <div key={l.id} style={{ padding: "14px 16px", borderLeft: "1px solid " + T.line2 }}>
+              <div style={{ fontFamily: T.serif, fontSize: 16, color: T.ink, fontWeight: 500, lineHeight: 1.2 }}>{l.title}</div>
+              <div style={{ fontFamily: T.sans, fontSize: 12, color: T.ink2, marginTop: 4 }}>{l.area}</div>
+              <Button size="sm" variant="soft" style={{ marginTop: 10 }} onClick={() => { onClose(); onNavigate(l.id); }}>View →</Button>
+            </div>
+          ))}
+          {/* Rows */}
+          {FIELDS.map(([label, fn]) => (
+            <>
+              <div key={label + "-label"} style={{ padding: "12px 16px", fontFamily: T.sans, fontSize: 13, fontWeight: 600, color: T.ink2, background: T.paper, borderTop: "1px solid " + T.line2 }}>{label}</div>
+              {items.map((l) => (
+                <div key={label + l.id} style={{ padding: "12px 16px", fontFamily: T.sans, fontSize: 13, color: T.ink, borderLeft: "1px solid " + T.line2, borderTop: "1px solid " + T.line2 }}>{fn(l)}</div>
+              ))}
+            </>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SearchInner() {
   const { go, campus } = useApp();
   const { mobile } = useViewport();
-  const { isSaved, toggle } = useSaved();
+  const { isSaved, toggle: toggleSaved } = useSaved();
+  const { items: compareItems, toggle: toggleCompare, hasId: inCompare, clear: clearCompare, full: compareFull } = useCompare();
   const sp = useSearchParams();
   const [f, setF] = useState<Filters>({ ...EMPTY, area: sp.get("area") });
   const [sort, setSort] = useState("featured");
   const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [showCompare, setShowCompare] = useState(false);
   const [all, setAll] = useState<UiListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    apiGet<ApiListResponse>("/api/properties?pageSize=50")
+    setLoading(true);
+    apiGet<ApiListResponse>(`/api/properties?pageSize=100&campus=${encodeURIComponent(campus.id)}`)
       .then((r) => { if (active) setAll(r.items.map(mapProperty)); })
       .catch((e) => { if (active) setError(e instanceof Error ? e.message : "Failed to load"); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [campus.id]);
 
   const results = useMemo(() => {
     let r = all.filter((l) =>
@@ -88,7 +138,7 @@ function SearchInner() {
   const activeCount = (f.area ? 1 : 0) + (f.gender ? 1 : 0) + f.amenities.length + (f.maxPrice < 450000 ? 1 : 0);
 
   return (
-    <div style={{ background: T.paper, minHeight: "100vh" }}>
+    <div style={{ background: T.paper, minHeight: "100vh", paddingBottom: compareItems.length > 0 ? 80 : 0 }}>
       <PublicNav />
 
       <div style={{ background: T.paper2, borderBottom: "1px solid " + T.line2 }}>
@@ -124,14 +174,25 @@ function SearchInner() {
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
             <span style={{ fontFamily: T.sans, fontSize: 14.5, color: T.ink2 }}><strong style={{ color: T.ink }}>{results.length}</strong> {results.length === 1 ? "home" : "homes"} found</span>
-            {!mobile && (
-              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                <span style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>Sort by</span>
-                <Select value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: "auto", padding: "9px 36px 9px 13px", fontSize: 13.5 }}>
-                  <option value="featured">Featured</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="distance">Closest to campus</option>
-                </Select>
+            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+              {/* Map/List toggle */}
+              <div style={{ display: "flex", border: "1px solid " + T.line, borderRadius: 11, overflow: "hidden" }}>
+                <button onClick={() => setViewMode("list")} style={{ padding: "8px 13px", background: viewMode === "list" ? T.ink : "#fff", color: viewMode === "list" ? "#fff" : T.ink2, border: "none", cursor: "pointer", fontFamily: T.sans, fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {I.grid({ width: 14, height: 14 })} List
+                </button>
+                <button onClick={() => setViewMode("map")} style={{ padding: "8px 13px", background: viewMode === "map" ? T.ink : "#fff", color: viewMode === "map" ? "#fff" : T.ink2, border: "none", borderLeft: "1px solid " + T.line, cursor: "pointer", fontFamily: T.sans, fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {I.pin({ width: 14, height: 14 })} Map
+                </button>
               </div>
-            )}
+              {!mobile && (
+                <>
+                  <span style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>Sort by</span>
+                  <Select value={sort} onChange={(e) => setSort(e.target.value)} style={{ width: "auto", padding: "9px 36px 9px 13px", fontSize: 13.5 }}>
+                    <option value="featured">Featured</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="distance">Closest to campus</option>
+                  </Select>
+                </>
+              )}
+            </div>
           </div>
 
           {loading ? (
@@ -151,9 +212,22 @@ function SearchInner() {
               <p style={{ fontFamily: T.sans, fontSize: 14.5, color: T.ink2, marginTop: 8 }}>Try widening your price range or clearing a filter.</p>
               <div style={{ marginTop: 18, display: "inline-block" }}><Button variant="soft" onClick={() => setF(EMPTY)}>Clear all filters</Button></div>
             </Card>
+          ) : viewMode === "map" ? (
+            <MapView listings={results} onSelect={(id) => go("property", id)} />
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(auto-fill, minmax(248px, 1fr))", gap: mobile ? 16 : 20 }}>
-              {results.map((l) => <PropertyCard key={l.id} l={l} mobile={mobile} onClick={() => go("property", l.id)} saved={isSaved(l.id)} onSave={() => toggle(l)} />)}
+              {results.map((l) => (
+                <PropertyCard
+                  key={l.id}
+                  l={l}
+                  mobile={mobile}
+                  onClick={() => go("property", l.id)}
+                  saved={isSaved(l.id)}
+                  onSave={() => toggleSaved(l)}
+                  comparing={inCompare(l.id)}
+                  onCompare={() => toggleCompare(l)}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -173,6 +247,29 @@ function SearchInner() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Comparison bar */}
+      {compareItems.length > 0 && (
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100, background: T.ink, color: T.paper, padding: "14px 24px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", minWidth: 0 }}>
+            <span style={{ fontFamily: T.sans, fontSize: 13, fontWeight: 700, color: "rgba(244,238,228,.7)", whiteSpace: "nowrap" }}>Comparing {compareItems.length}/2:</span>
+            {compareItems.map((l) => (
+              <div key={l.id} style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(244,238,228,.12)", borderRadius: 999, padding: "6px 12px" }}>
+                <span style={{ fontFamily: T.sans, fontSize: 13, color: "#fff", maxWidth: 140, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.title}</span>
+                <span onClick={() => toggleCompare(l)} style={{ cursor: "pointer", color: "rgba(244,238,228,.5)", lineHeight: 0 }}>{I.x({ width: 14, height: 14 })}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Button size="sm" variant="outline" style={{ borderColor: "rgba(244,238,228,.3)", color: T.paper }} onClick={clearCompare}>Clear</Button>
+            {compareItems.length === 2 && <Button size="sm" onClick={() => setShowCompare(true)}>Compare now</Button>}
+          </div>
+        </div>
+      )}
+
+      {showCompare && compareItems.length === 2 && (
+        <CompareModal items={compareItems} onClose={() => setShowCompare(false)} onNavigate={(id) => go("property", id)} />
       )}
 
       <Footer />

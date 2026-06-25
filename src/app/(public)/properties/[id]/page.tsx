@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { T, naira, I, Photo, amenityIcon } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Pill, Button, Card, Avatar, PropertyCard, PublicNav, Footer } from "@/components/rh/ui";
-import { apiGet, mapProperty, createBooking, type ApiProperty, type ApiListResponse, type UiListing } from "@/lib/rh/api";
+import { apiGet, mapProperty, createBooking, getReviews, type ApiProperty, type ApiListResponse, type UiListing, type ReviewsResponse } from "@/lib/rh/api";
+import { StarRating } from "@/components/rh/ui";
 import { useSaved } from "@/lib/rh/saved";
 
 type DetailListing = UiListing & { images: string[] };
@@ -112,6 +113,7 @@ export default function PropertyDetailPage() {
   const [similar, setSimilar] = useState<UiListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<ReviewsResponse | null>(null);
   const { isSaved, toggle } = useSaved();
 
   useEffect(() => {
@@ -123,6 +125,9 @@ export default function PropertyDetailPage() {
       .finally(() => { if (active) setLoading(false); });
     apiGet<ApiListResponse>("/api/properties?pageSize=12")
       .then((r) => { if (active) setSimilar(r.items.map(mapProperty)); })
+      .catch(() => {});
+    getReviews(id)
+      .then((r) => { if (active) setReviews(r); })
       .catch(() => {});
     return () => { active = false; };
   }, [id]);
@@ -207,6 +212,30 @@ export default function PropertyDetailPage() {
                     <div key={a} style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: T.sans, fontSize: 14.5, color: T.ink }}>
                       <span style={{ width: 36, height: 36, borderRadius: 10, background: T.paper, color: T.clay, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>{amenityIcon(a, { width: 17, height: 17 })}</span>{a}
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {reviews && reviews.count > 0 && (
+              <div style={{ marginTop: 30 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+                  <h2 style={{ fontFamily: T.serif, fontWeight: 500, fontSize: 24, color: T.ink, margin: 0 }}>Reviews</h2>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <StarRating value={Math.round(reviews.avg)} readonly size={18} />
+                    <span style={{ fontFamily: T.sans, fontSize: 13.5, color: T.ink2 }}>{reviews.avg.toFixed(1)} · {reviews.count} review{reviews.count !== 1 ? "s" : ""}</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {reviews.reviews.slice(0, 5).map((r) => (
+                    <Card key={r.id} pad={18}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                        <span style={{ fontFamily: T.sans, fontSize: 14, fontWeight: 600, color: T.ink }}>{r.student?.name ?? "Student"}</span>
+                        <StarRating value={r.rating} readonly size={15} />
+                      </div>
+                      {r.comment && <p style={{ fontFamily: T.sans, fontSize: 13.5, color: T.ink2, margin: 0, lineHeight: 1.55 }}>{r.comment}</p>}
+                      <div style={{ fontFamily: T.sans, fontSize: 11.5, color: T.ink3, marginTop: 8 }}>{new Date(r.createdAt).toLocaleDateString("en-NG", { year: "numeric", month: "short" })}</div>
+                    </Card>
                   ))}
                 </div>
               </div>

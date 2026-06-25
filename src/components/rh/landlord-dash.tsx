@@ -9,7 +9,8 @@ import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
 import {
   getMyListings, getLandlordRequests, getEarnings, getLocations,
   setBookingStatus, mapProperty, mapRequest, uploadFile, createProperty, updateProfile,
-  type UiListing, type UiRequest, type EarningsData,
+  getReferralCode, getLandlordAnalytics,
+  type UiListing, type UiRequest, type EarningsData, type ReferralCode, type LandlordAnalytics,
 } from "@/lib/rh/api";
 
 function initialsOf(name: string) {
@@ -347,6 +348,120 @@ function ProfileTab() {
   );
 }
 
+function ReferralTab() {
+  const { showToast } = useApp();
+  const { mobile } = useViewport();
+  const [data, setData] = useState<ReferralCode | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getReferralCode()
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <Card pad={48} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2 }}>Loading…</div></Card>;
+
+  const code = data?.code ?? "—";
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 22, maxWidth: 560 }}>
+      <Card pad={28}>
+        <div style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: T.ink3, marginBottom: 8 }}>Your referral code</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ fontFamily: T.serif, fontSize: 40, letterSpacing: ".06em", color: T.clay, background: T.claySoft, padding: "12px 24px", borderRadius: 14 }}>{code}</div>
+          <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(code); showToast("Code copied to clipboard"); }}>Copy code</Button>
+        </div>
+        <p style={{ fontFamily: T.sans, fontSize: 13.5, color: T.ink2, marginTop: 14, lineHeight: 1.6 }}>
+          Share this code with students. When they apply it during booking, they get <strong>5% off</strong> the agency fee — and you track each use below.
+        </p>
+      </Card>
+      <Card pad={22}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontFamily: T.sans, fontSize: 14, color: T.ink }}>Times used</span>
+          <span style={{ fontFamily: T.serif, fontSize: 28, fontWeight: 600, color: T.ink }}>{data?.usedCount ?? 0}</span>
+        </div>
+      </Card>
+      <Card pad={16} style={{ background: T.goldSoft, border: "none", display: "flex", alignItems: "flex-start", gap: 11 }}>
+        {I.sparkle({ width: 18, height: 18, style: { color: T.gold, flex: "0 0 auto", marginTop: 1 } })}
+        <span style={{ fontFamily: T.sans, fontSize: 13, color: T.ink, lineHeight: 1.5 }}>
+          Each referral code can be used once. Students enter it on the booking page before confirming their offer.
+        </span>
+      </Card>
+      {/* Sharing shortcuts */}
+      <Card pad={20}>
+        <div style={{ fontFamily: T.sans, fontSize: 13, fontWeight: 700, color: T.ink2, marginBottom: 12 }}>Share via</div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Button size="sm" variant="outline" onClick={() => { const msg = `Use my RentalHub referral code ${code} to get 5% off when booking a home near campus!`; window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`); }}>WhatsApp</Button>
+          <Button size="sm" variant="outline" onClick={() => { const msg = `Use my RentalHub referral code ${code} to get 5% off when booking a home near campus!`; navigator.clipboard?.writeText(msg); showToast("Message copied"); }}>Copy message</Button>
+        </div>
+      </Card>
+      {mobile && null}
+    </div>
+  );
+}
+
+function AnalyticsTab() {
+  const { mobile } = useViewport();
+  const [data, setData] = useState<LandlordAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getLandlordAnalytics()
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <Card pad={48} style={{ textAlign: "center" }}><div style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2 }}>Loading analytics…</div></Card>;
+  if (!data) return <EmptyState title="No analytics yet" sub="Analytics appear once you have at least one listing." />;
+
+  const { rows, totals } = data;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4,1fr)", gap: mobile ? 12 : 18 }}>
+        <Stat label="Total views" value={totals.totalViews} tone="ink" icon={I.eye} />
+        <Stat label="Total bookings" value={totals.totalBookings} tone="clay" icon={I.inbox} />
+        <Stat label="Paid bookings" value={totals.totalPaid} tone="green" icon={I.checkCircle} />
+        <Stat label="Avg conversion" value={`${totals.avgConversion}%`} tone="gold" icon={I.chart} />
+      </div>
+      <Card pad={0} style={{ overflow: "hidden", overflowX: "auto" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid " + T.line2, fontFamily: T.serif, fontSize: 20, color: T.ink }}>Per-listing breakdown</div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: T.sans, fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: T.paper }}>
+              {["Property", "Views", "Bookings", "Paid", "Conversion", "Avg days to fill"].map((h) => (
+                <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontWeight: 700, color: T.ink2, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".04em", whiteSpace: "nowrap" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.id} style={{ borderTop: i ? "1px solid " + T.line2 : "none" }}>
+                <td style={{ padding: "13px 16px", color: T.ink, fontWeight: 600, maxWidth: 200, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.title}</td>
+                <td style={{ padding: "13px 16px", color: T.ink2 }}>{r.viewCount}</td>
+                <td style={{ padding: "13px 16px", color: T.ink2 }}>{r.totalBookings}</td>
+                <td style={{ padding: "13px 16px", color: T.green, fontWeight: 600 }}>{r.paidBookings}</td>
+                <td style={{ padding: "13px 16px" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 56, height: 6, borderRadius: 3, background: T.line2, overflow: "hidden" }}>
+                      <div style={{ width: `${r.conversionRate}%`, height: "100%", background: T.clay, borderRadius: 3 }} />
+                    </div>
+                    <span style={{ color: T.ink2 }}>{r.conversionRate}%</span>
+                  </div>
+                </td>
+                <td style={{ padding: "13px 16px", color: T.ink2 }}>{r.avgDaysToFill != null ? `${r.avgDaysToFill}d` : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
 export function LandlordDash({ initial, openAdd }: { initial?: string; openAdd?: boolean }) {
   const { go, showToast, user, updateUser } = useApp();
   const { mobile } = useViewport();
@@ -485,6 +600,10 @@ export function LandlordDash({ initial, openAdd }: { initial?: string; openAdd?:
           </Card>
         </div>
       )}
+
+      {tab === "analytics" && <AnalyticsTab />}
+
+      {tab === "referral" && <ReferralTab />}
 
       {tab === "verification" && (
         <VerificationFlow

@@ -2,11 +2,22 @@
 
 import { Bell } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { API_BASE, AUTH_STORAGE_KEY } from "@/lib/rh/api";
+
+function token() {
+  if (typeof window === "undefined") return null;
+  try { return JSON.parse(window.localStorage.getItem(AUTH_STORAGE_KEY) || "null")?.token ?? null; }
+  catch { return null; }
+}
+function authHeaders(): Record<string, string> {
+  const t = token();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
 
 interface NotificationItem {
   id: string;
   title: string;
-  message: string;
+  body: string;
   link: string | null;
   readAt: string | null;
   createdAt: string;
@@ -30,7 +41,7 @@ export default function NotificationBell() {
 
   const loadNotifications = async () => {
     try {
-      const response = await fetch("/api/notifications?limit=12", { cache: "no-store" });
+      const response = await fetch(`${API_BASE}/api/notifications?limit=12`, { cache: "no-store", headers: authHeaders() });
       const payload = (await response.json()) as NotificationResponse;
       if (!response.ok || !payload.success || !payload.data) return;
       setItems(payload.data.items);
@@ -62,9 +73,9 @@ export default function NotificationBell() {
   const onMarkAllRead = async () => {
     setIsLoading(true);
     try {
-      await fetch("/api/notifications", {
+      await fetch(`${API_BASE}/api/notifications`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ action: "readAll" }),
       });
       await loadNotifications();
@@ -127,7 +138,7 @@ export default function NotificationBell() {
                 <button
                   key={item.id}
                   onClick={async () => {
-                    await fetch(`/api/notifications/${item.id}`, { method: "PATCH" });
+                    await fetch(`${API_BASE}/api/notifications/${item.id}`, { method: "PATCH", headers: authHeaders() });
                     void loadNotifications();
                     setExpandedId((prev) => (prev === item.id ? null : item.id));
                   }}
@@ -137,7 +148,7 @@ export default function NotificationBell() {
                     <p className="text-sm font-medium text-gray-900">{item.title}</p>
                     {!item.readAt && <span className="mt-1 w-2 h-2 rounded-full bg-[#E67E22] flex-shrink-0" />}
                   </div>
-                  <p className={`mt-1 text-xs text-gray-600 ${expandedId === item.id ? "" : "line-clamp-2"}`}>{item.message}</p>
+                  <p className={`mt-1 text-xs text-gray-600 ${expandedId === item.id ? "" : "line-clamp-2"}`}>{item.body}</p>
                   <p className="mt-1 text-[11px] text-gray-400">{formatSince(item.createdAt)}</p>
                 </button>
               ))

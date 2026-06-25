@@ -4,6 +4,7 @@ import { useState, type ReactElement, type ReactNode } from "react";
 import { T, I, Logo } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Avatar, Card } from "@/components/rh/ui";
+import NotificationBell from "@/components/NotificationBell";
 
 type IconFn = (p?: Record<string, unknown>) => ReactElement;
 
@@ -16,7 +17,7 @@ const NAVS: Record<string, { label: string; color: string; items: [string, strin
     ["home", "Browse homes", I.search], ["bookings", "My bookings", I.inbox], ["saved", "Saved", I.heart], ["profile", "Profile", I.user],
   ] },
   landlord: { label: "Landlord", color: "#2F5D4F", items: [
-    ["listings", "My listings", I.building], ["requests", "Tenant requests", I.inbox], ["earnings", "Earnings", I.wallet], ["verification", "Verification", I.shield], ["profile", "Profile", I.user],
+    ["listings", "My listings", I.building], ["requests", "Tenant requests", I.inbox], ["earnings", "Earnings", I.wallet], ["analytics", "Analytics", I.chart], ["referral", "Referral", I.star], ["verification", "Verification", I.shield], ["profile", "Profile", I.user],
   ] },
   admin: { label: "Admin", color: "#A8451B", items: [
     ["pending", "Pending approvals", I.clock], ["properties", "All properties", I.building], ["verifications", "Verifications", I.shield], ["payouts", "Payouts", I.wallet], ["users", "Users", I.users], ["forecast", "Demand (AI)", I.chart],
@@ -82,7 +83,10 @@ export function DashShell({ role, tab, setTab, title, subtitle, action, children
               {subtitle && !compact && <p style={{ margin: "3px 0 0", fontFamily: T.sans, fontSize: 13.5, color: T.ink2 }}>{subtitle}</p>}
             </div>
           </div>
-          {action && <div style={{ flex: "0 0 auto" }}>{action}</div>}
+          <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 12 }}>
+            <NotificationBell />
+            {action && <div>{action}</div>}
+          </div>
         </div>
         <div style={{ padding: compact ? "20px" : "28px 36px 48px" }}>{children}</div>
       </div>

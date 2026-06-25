@@ -30,9 +30,9 @@ export const metadata: Metadata = {
     canonical: "https://rentalhub.mikaelsoninitiative.org",
   },
   icons: {
-    icon: [{ url: "/icon.png", type: "image/png" }],
-    shortcut: [{ url: "/icon.png" }],
-    apple: [{ url: "/icon.png", sizes: "180x180", type: "image/png" }],
+    icon: [{ url: "/logo-export/png/favicon-256.png", type: "image/png", sizes: "256x256" }],
+    shortcut: [{ url: "/logo-export/png/favicon-256.png" }],
+    apple: [{ url: "/logo-export/png/favicon-256.png", sizes: "256x256", type: "image/png" }],
   },
   openGraph: {
     type: "website",

@@ -5,17 +5,62 @@ import { T, naira, I, Photo } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Button, Card, Avatar, StatusBadge, Field, Input, PropertyCard, SkeletonCard } from "@/components/rh/ui";
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
-import { getBookings, mapBooking, signAgreement, confirmMoveIn, updateProfile, type UiBooking } from "@/lib/rh/api";
+import { getBookings, mapBooking, signAgreement, confirmMoveIn, updateProfile, uploadFile, submitReview, type UiBooking } from "@/lib/rh/api";
+import { StarRating } from "@/components/rh/ui";
 import { useSaved } from "@/lib/rh/saved";
 
 function initialsOf(name: string) {
   return (name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()) || "?";
 }
 
+function ReviewModal({ propertyId, propertyTitle, onClose }: { propertyId: string; propertyTitle: string; onClose: () => void }) {
+  const { showToast } = useApp();
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    if (!rating) return;
+    setSaving(true);
+    try {
+      await submitReview(propertyId, rating, comment.trim() || undefined);
+      showToast("Review submitted — thank you!");
+      onClose();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't submit review");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(33,29,24,.6)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: T.paper, borderRadius: 20, width: "100%", maxWidth: 460, padding: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <h2 style={{ margin: 0, fontFamily: T.serif, fontSize: 24, color: T.ink, fontWeight: 500 }}>Rate your stay</h2>
+          <span onClick={onClose} style={{ cursor: "pointer", color: T.ink2 }}>{I.x({ width: 22, height: 22 })}</span>
+        </div>
+        <p style={{ fontFamily: T.sans, fontSize: 13.5, color: T.ink2, margin: "0 0 18px" }}>{propertyTitle}</p>
+        <StarRating value={rating} onChange={setRating} size={32} />
+        <div style={{ marginTop: 16 }}>
+          <Field label="Comment (optional)">
+            <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Share what you liked or what could be improved…" rows={3} style={{ width: "100%", fontFamily: T.sans, fontSize: 14, color: T.ink, border: "1px solid " + T.line, borderRadius: 11, padding: "11px 14px", outline: "none", resize: "vertical", boxSizing: "border-box", background: "#fff" }} />
+          </Field>
+        </div>
+        <div style={{ marginTop: 18 }}>
+          <Button full disabled={!rating || saving} onClick={submit}>{saving ? "Submitting…" : "Submit review"}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BookingRow({ bk, mobile, onAct }: { bk: UiBooking; mobile: boolean; onAct: (a: string, b: UiBooking) => void }) {
   const { go } = useApp();
   const p = bk.property;
   const total = bk.bid + bk.agencyFee + bk.cautionFee;
+  const [reviewing, setReviewing] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   return (
     <Card pad={0} style={{ overflow: "hidden" }}>
@@ -94,7 +139,14 @@ function BookingRow({ bk, mobile, onAct }: { bk: UiBooking; mobile: boolean; onA
                   <Button variant="green" icon={I.check} onClick={() => onAct("movein", bk)}>I&apos;ve moved in</Button>
                 </div>
               ) : (
-                <div style={{ marginTop: 12, fontFamily: T.sans, fontSize: 13, color: T.green, display: "flex", alignItems: "center", gap: 7 }}>{I.checkCircle({ width: 15, height: 15 })} Move-in confirmed · payment released</div>
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontFamily: T.sans, fontSize: 13, color: T.green, display: "flex", alignItems: "center", gap: 7 }}>{I.checkCircle({ width: 15, height: 15 })} Move-in confirmed · payment released</div>
+                  {!hasReviewed && (
+                    <div style={{ marginTop: 10 }}>
+                      <Button size="sm" variant="soft" icon={I.star} onClick={() => setReviewing(true)}>Leave a review</Button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -104,6 +156,7 @@ function BookingRow({ bk, mobile, onAct }: { bk: UiBooking; mobile: boolean; onA
           </div>
         </div>
       </div>
+      {reviewing && <ReviewModal propertyId={p.id} propertyTitle={p.title} onClose={() => { setReviewing(false); setHasReviewed(true); }} />}
     </Card>
   );
 }
@@ -152,15 +205,18 @@ function AgreementModal({ bk, onClose, onSign }: { bk: UiBooking; onClose: () =>
 
 function ProfileTab() {
   const { user, updateUser, showToast } = useApp();
+  const ext = user as { phoneNumber?: string; matricCardUrl?: string } | null;
   const [name, setName] = useState(user?.name ?? "");
-  const [phone, setPhone] = useState((user as { phoneNumber?: string })?.phoneNumber ?? "");
+  const [phone, setPhone] = useState(ext?.phoneNumber ?? "");
   const [saving, setSaving] = useState(false);
+  const [matricUrl, setMatricUrl] = useState(ext?.matricCardUrl ?? "");
+  const [uploading, setUploading] = useState(false);
 
   async function save() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const updated = await updateProfile({ name: name.trim(), phoneNumber: phone.trim() || undefined });
+      const updated = await updateProfile({ name: name.trim(), phoneNumber: phone.trim() || undefined, matricCardUrl: matricUrl || undefined });
       updateUser(updated);
       showToast("Profile saved");
     } catch (e) {
@@ -169,6 +225,21 @@ function ProfileTab() {
       setSaving(false);
     }
   }
+
+  async function handleMatricUpload(file: File) {
+    setUploading(true);
+    try {
+      const result = await uploadFile(file);
+      setMatricUrl(result.url);
+      showToast("Matric card uploaded — save to confirm");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const matricDone = !!matricUrl;
 
   return (
     <Card pad={22} style={{ maxWidth: 560 }}>
@@ -183,6 +254,22 @@ function ProfileTab() {
         <Field label="Full name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Phone number" hint="Optional"><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234 800 000 0000" /></Field>
         <Field label="Email"><Input value={user?.email ?? ""} disabled style={{ opacity: 0.6 }} /></Field>
+        <div style={{ borderTop: "1px solid " + T.line2, paddingTop: 14 }}>
+          <div style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 700, color: T.ink3, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 12 }}>Student verification</div>
+          <label style={{ display: "flex", alignItems: "center", gap: 14, padding: 16, border: "1px dashed " + (matricDone ? T.green : T.line), borderRadius: 14, cursor: "pointer", background: matricDone ? T.greenSoft : "#fff" }}>
+            <span style={{ width: 42, height: 42, borderRadius: 11, background: matricDone ? "#fff" : T.paper, color: matricDone ? T.green : T.clay, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>
+              {matricDone ? I.check({ width: 20, height: 20 }) : I.user({ width: 20, height: 20 })}
+            </span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: T.sans, fontSize: 14.5, fontWeight: 600, color: T.ink }}>Student matric card</div>
+              <div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2 }}>Upload your school ID / matriculation card</div>
+            </div>
+            <span style={{ color: matricDone ? T.green : T.ink3, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600 }}>
+              {uploading ? "Uploading…" : matricDone ? "Uploaded ✓" : <>{I.upload({ width: 15, height: 15 })} Upload</>}
+            </span>
+            <input type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMatricUpload(f); }} />
+          </label>
+        </div>
         <Button disabled={!name.trim() || saving} onClick={save}>{saving ? "Saving…" : "Save changes"}</Button>
       </div>
     </Card>

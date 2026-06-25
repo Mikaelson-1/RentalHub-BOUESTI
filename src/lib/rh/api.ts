@@ -58,14 +58,15 @@ export interface ApiLandlord { id: string; name: string; email?: string; verific
 export interface ApiProperty {
   id: string; title: string; description: string; price: number | string; distanceToCampus?: number | string | null;
   amenities?: unknown; images?: unknown; status?: string; vacantUnits?: number;
-  aiScamFlag?: boolean; aiScamReason?: string | null; createdAt?: string;
-  location?: { id: string; name: string } | null; landlord?: ApiLandlord | null;
+  aiScamFlag?: boolean; aiScamReason?: string | null; createdAt?: string; viewCount?: number;
+  location?: { id: string; name: string; lat?: number | null; lng?: number | null; campus?: string | null } | null;
+  landlord?: ApiLandlord | null;
   _count?: { bookings: number };
 }
 export interface ApiListResponse { items: ApiProperty[]; total: number; page: number; pageSize: number; totalPages: number }
 
 // UI listing enriched with the landlord info the detail page needs.
-export type UiListing = Listing & { landlordName: string; landlordVerified: boolean; landlordEmail?: string; image?: string | null };
+export type UiListing = Listing & { landlordName: string; landlordVerified: boolean; landlordEmail?: string; image?: string | null; lat?: number; lng?: number; viewCount?: number };
 
 const TONES: [string, string][] = [["#d8c4a0", "#9c8055"], ["#c8bca6", "#7d7158"], ["#cdb89c", "#8a7150"], ["#bcae9a", "#6f6450"], ["#d3bd98", "#897046"], ["#c2b49c", "#776a52"]];
 function toneFor(id: string): [string, string] {
@@ -115,6 +116,9 @@ export function mapProperty(p: ApiProperty): UiListing & { images: string[] } {
     landlordName: p.landlord?.name ?? "Landlord",
     landlordVerified: p.landlord?.verificationStatus === "VERIFIED",
     landlordEmail: p.landlord?.email,
+    lat: p.location?.lat ?? undefined,
+    lng: p.location?.lng ?? undefined,
+    viewCount: p.viewCount ?? 0,
   };
 }
 
@@ -156,7 +160,7 @@ export function mapBooking(b: ApiBooking): UiBooking {
   };
 }
 
-export const createBooking = (propertyId: string, bidAmount?: number) => apiPost<ApiBooking>("/api/bookings", { propertyId, bidAmount });
+export const createBooking = (propertyId: string, bidAmount?: number, referralCode?: string) => apiPost<ApiBooking>("/api/bookings", { propertyId, bidAmount, referralCode });
 export const getBookings = () => apiGet<ApiBooking[]>("/api/bookings");
 export const getBooking = (id: string) => apiGet<ApiBooking>(`/api/bookings/${id}`);
 export const initiatePayment = (bookingId: string) => apiPost<{ authorizationUrl: string; reference: string }>("/api/payments/initiate", { bookingId });
@@ -232,7 +236,25 @@ export interface AdminUser { id: string; name: string; email: string; role: stri
 export interface AdminUsersResponse { items: AdminUser[]; total: number; page: number; pageSize: number }
 export const getAdminUsers = (role?: string) => apiGet<AdminUsersResponse>(`/api/admin/users${role ? `?role=${role}` : ""}`);
 
-export interface ProfileUpdate { name?: string; phoneNumber?: string; bankName?: string; bankAccountNumber?: string; bankAccountName?: string; governmentIdUrl?: string; selfieUrl?: string; ownershipProofUrl?: string }
-export interface AuthUser { id: string; name: string; email: string; role: string; emailVerified?: boolean; verificationStatus?: string; phoneNumber?: string }
+export interface ProfileUpdate { name?: string; phoneNumber?: string; bankName?: string; bankAccountNumber?: string; bankAccountName?: string; governmentIdUrl?: string; selfieUrl?: string; ownershipProofUrl?: string; matricCardUrl?: string }
+export interface AuthUser { id: string; name: string; email: string; role: string; emailVerified?: boolean; verificationStatus?: string; phoneNumber?: string; matricCardUrl?: string }
 export const updateProfile = (data: ProfileUpdate) => apiPatch<AuthUser>("/api/auth/me", data);
 export const setUserRole = (role: "STUDENT" | "LANDLORD") => apiPatch<AuthUser>("/api/auth/setup-role", { role });
+
+// ── Reviews ───────────────────────────────────────────────────
+export interface ApiReview { id: string; studentId: string; rating: number; comment?: string | null; createdAt: string; student?: { name?: string } | null }
+export interface ReviewsResponse { reviews: ApiReview[]; avg: number; count: number }
+export const getReviews = (propertyId: string) => apiGet<ReviewsResponse>(`/api/reviews?propertyId=${encodeURIComponent(propertyId)}`);
+export const submitReview = (propertyId: string, rating: number, comment?: string) => apiPost("/api/reviews", { propertyId, rating, comment });
+
+// ── Referral ──────────────────────────────────────────────────
+export interface ReferralCode { code: string; usedCount: number }
+export interface ReferralValidation { valid: boolean; discountPct: number; code: string }
+export const getReferralCode = () => apiGet<ReferralCode>("/api/referral");
+export const validateReferral = (code: string) => apiPost<ReferralValidation>("/api/referral", { code });
+
+// ── Landlord analytics ────────────────────────────────────────
+export interface AnalyticsRow { id: string; title: string; viewCount: number; totalBookings: number; paidBookings: number; conversionRate: number; avgDaysToFill: number | null; status: string; vacantUnits: number }
+export interface AnalyticsTotals { totalViews: number; totalBookings: number; totalPaid: number; avgConversion: number }
+export interface LandlordAnalytics { rows: AnalyticsRow[]; totals: AnalyticsTotals }
+export const getLandlordAnalytics = () => apiGet<LandlordAnalytics>("/api/landlord/analytics");

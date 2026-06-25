@@ -154,7 +154,7 @@ export function SkeletonCard({ rows = 3, imgHeight = 0, style }: { rows?: number
 }
 
 // ── Property card ────────────────────────────────────────────
-export function PropertyCard({ l, mobile, onClick, saved, onSave }: { l: Listing & { image?: string | null }; mobile?: boolean; onClick?: () => void; saved?: boolean; onSave?: (e: React.MouseEvent) => void }) {
+export function PropertyCard({ l, mobile, onClick, saved, onSave, comparing, onCompare }: { l: Listing & { image?: string | null }; mobile?: boolean; onClick?: () => void; saved?: boolean; onSave?: (e: React.MouseEvent) => void; comparing?: boolean; onCompare?: (e: React.MouseEvent) => void }) {
   return (
     <Card pad={0} hover onClick={onClick} style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <div style={{ position: "relative", height: mobile ? 168 : 188 }}>
@@ -168,6 +168,11 @@ export function PropertyCard({ l, mobile, onClick, saved, onSave }: { l: Listing
           <Pill tone="green" icon={I.shield} style={{ background: "rgba(255,255,255,.95)", backdropFilter: "blur(3px)" }}>Verified</Pill>
         </span>
         <span onClick={onSave ? (e) => { e.stopPropagation(); onSave(e); } : undefined} style={{ position: "absolute", top: 12, right: 12, width: 34, height: 34, borderRadius: 999, background: "rgba(255,255,255,.9)", display: "flex", alignItems: "center", justifyContent: "center", color: saved ? T.clay : T.ink2, cursor: onSave ? "pointer" : "default" }}>{I.heart({ width: 17, height: 17, fill: saved ? "currentColor" : "none" })}</span>
+        {onCompare !== undefined && (
+          <span onClick={(e) => { e.stopPropagation(); onCompare(e); }} title={comparing ? "Remove from comparison" : "Add to comparison"} style={{ position: "absolute", bottom: 12, right: 12, padding: "4px 9px", borderRadius: 999, background: comparing ? T.clay : "rgba(255,255,255,.9)", fontFamily: T.sans, fontSize: 11, fontWeight: 700, color: comparing ? "#fff" : T.ink2, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+            {comparing ? "✓ Compare" : "+ Compare"}
+          </span>
+        )}
       </div>
       <div style={{ padding: mobile ? 16 : 19, display: "flex", flexDirection: "column", flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5, color: T.ink2, fontFamily: T.sans, fontSize: 12.5, marginBottom: 6 }}>
@@ -195,6 +200,27 @@ export function PropertyCard({ l, mobile, onClick, saved, onSave }: { l: Listing
         </div>
       </div>
     </Card>
+  );
+}
+
+// ── Star rating ──────────────────────────────────────────────
+export function StarRating({ value, onChange, readonly = false, size = 22 }: { value: number; onChange?: (v: number) => void; readonly?: boolean; size?: number }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div style={{ display: "inline-flex", gap: 3 }}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const filled = (hover || value) >= n;
+        return (
+          <span key={n}
+            onClick={() => !readonly && onChange?.(n)}
+            onMouseEnter={() => !readonly && setHover(n)}
+            onMouseLeave={() => !readonly && setHover(0)}
+            style={{ cursor: readonly ? "default" : "pointer", color: filled ? T.gold : T.line, transition: "color .1s", fontSize: size, lineHeight: 1 }}>
+            ★
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
