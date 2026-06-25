@@ -22,10 +22,13 @@ const NAVS: Record<string, { label: string; color: string; items: [string, strin
   admin: { label: "Admin", color: "#A8451B", items: [
     ["pending", "Pending approvals", I.clock], ["properties", "All properties", I.building], ["verifications", "Verifications", I.shield], ["payouts", "Payouts", I.wallet], ["users", "Users", I.users], ["forecast", "Demand (AI)", I.chart], ["locations", "Locations", I.pin],
   ] },
+  inspector: { label: "Inspector", color: "#2B5278", items: [
+    ["jobs", "My jobs", I.search], ["profile", "Profile", I.user],
+  ] },
 };
 
 export function DashShell({ role, tab, setTab, title, subtitle, action, children, badges = {}, visibleTabs }: {
-  role: "student" | "landlord" | "admin"; tab: string; setTab: (t: string) => void; title: string; subtitle?: string;
+  role: "student" | "landlord" | "admin" | "inspector"; tab: string; setTab: (t: string) => void; title: string; subtitle?: string;
   action?: ReactNode; children: ReactNode; badges?: Record<string, number | undefined>; visibleTabs?: string[];
 }) {
   const { go, showToast, signOut, user } = useApp();
