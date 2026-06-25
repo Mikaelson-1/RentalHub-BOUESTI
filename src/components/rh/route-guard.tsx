@@ -11,7 +11,7 @@ export function RouteGuard({ role, children }: { role: "STUDENT" | "LANDLORD" | 
 
   useEffect(() => {
     if (!initialized) return;
-    if (!user) { router.replace("/login"); return; }
+    if (!user) { router.replace(role === "ADMIN" ? "/admin-login" : "/login"); return; }
     if (user.role !== role) { router.replace("/unauthorized"); }
   }, [initialized, user, role, router]);
 
