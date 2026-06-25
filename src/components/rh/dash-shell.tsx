@@ -24,9 +24,9 @@ const NAVS: Record<string, { label: string; color: string; items: [string, strin
   ] },
 };
 
-export function DashShell({ role, tab, setTab, title, subtitle, action, children, badges = {} }: {
+export function DashShell({ role, tab, setTab, title, subtitle, action, children, badges = {}, visibleTabs }: {
   role: "student" | "landlord" | "admin"; tab: string; setTab: (t: string) => void; title: string; subtitle?: string;
-  action?: ReactNode; children: ReactNode; badges?: Record<string, number | undefined>;
+  action?: ReactNode; children: ReactNode; badges?: Record<string, number | undefined>; visibleTabs?: string[];
 }) {
   const { go, showToast, signOut, user } = useApp();
   const { mobile, tablet } = useViewport();
@@ -41,7 +41,7 @@ export function DashShell({ role, tab, setTab, title, subtitle, action, children
       </div>
       <div style={{ padding: "4px 14px", flex: 1 }}>
         <div style={{ fontFamily: T.sans, fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(244,238,228,.4)", padding: "8px 10px 10px" }}>{cfg.label} workspace</div>
-        {cfg.items.map(([key, label, Ic]) => {
+        {(visibleTabs ? cfg.items.filter(([key]) => visibleTabs.includes(key)) : cfg.items).map(([key, label, Ic]) => {
           const active = tab === key;
           return (
             <div key={key} onClick={() => { setTab(key); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 12px", borderRadius: 11, cursor: "pointer", background: active ? "rgba(199,91,42,.18)" : "transparent", color: active ? "#fff" : "rgba(244,238,228,.72)", marginBottom: 2, fontFamily: T.sans, fontSize: 14, fontWeight: active ? 600 : 500, position: "relative" }}>

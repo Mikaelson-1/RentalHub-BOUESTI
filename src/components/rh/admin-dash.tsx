@@ -7,7 +7,7 @@ import { Button, Card, Avatar, StatusBadge, Pill, SkeletonCard } from "@/compone
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
 import {
   getAdminSummary, getPendingProperties, getAdminLandlords, getAdminPayouts,
-  getAdminAllProperties, getAdminUsers, changePassword,
+  getAdminAllProperties, getAdminUsers, changePassword, setUserFreeze, setUserFlag,
   setPropertyStatus, setLandlordVerification, setPayoutStatus, mapProperty,
   type AdminSummary, type AdminLandlord, type AdminPayout, type ApiProperty, type AdminUser, type UiListing,
 } from "@/lib/rh/api";
@@ -73,9 +73,19 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
 }
 
 export function AdminDash() {
-  const { showToast, go } = useApp();
+  const { showToast, go, user } = useApp();
   const { mobile } = useViewport();
-  const [tab, setTab] = useState("pending");
+  const userRole = user?.role ?? "ADMIN";
+  const canManageUsers = ["ADMIN", "MODERATOR"].includes(userRole);
+
+  const VISIBLE_TABS: Record<string, string[]> = {
+    ADMIN: ["pending", "verifications", "properties", "payouts", "users", "forecast"],
+    MODERATOR: ["pending", "verifications", "properties", "users"],
+    AUDITOR: ["payouts", "forecast", "users"],
+  };
+  const visibleTabs = VISIBLE_TABS[userRole] ?? VISIBLE_TABS.ADMIN;
+
+  const [tab, setTab] = useState(() => visibleTabs[0]);
   const [showChangePw, setShowChangePw] = useState(false);
   const [summary, setSummary] = useState<AdminSummary | null>(null);
   const [pending, setPending] = useState<ApiProperty[]>([]);
@@ -130,12 +140,30 @@ export function AdminDash() {
       showToast(action === "COMPLETE" ? "Payout marked complete — landlord notified" : "Flagged to support");
     } catch (e) { showToast(e instanceof Error ? e.message : "Action failed"); }
   };
+  const freezeUser = async (u: AdminUser, action: "FREEZE" | "UNFREEZE") => {
+    try {
+      await setUserFreeze(u.id, action);
+      const updated = { ...u, isFrozen: action === "FREEZE" };
+      setUsers((a) => a.map((x) => (x.id === u.id ? updated : x)));
+      setSelectedUser(updated);
+      showToast(action === "FREEZE" ? `${u.name} has been suspended` : `${u.name}'s account restored`);
+    } catch (e) { showToast(e instanceof Error ? e.message : "Action failed"); }
+  };
+  const flagUser = async (u: AdminUser, action: "FLAG" | "UNFLAG") => {
+    try {
+      await setUserFlag(u.id, action);
+      showToast(action === "FLAG" ? `${u.name} has been flagged for review` : `Flag removed from ${u.name}`);
+    } catch (e) { showToast(e instanceof Error ? e.message : "Action failed"); }
+  };
 
   return (
     <>
     {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} />}
-    <DashShell role="admin" tab={tab} setTab={setTab} title="Admin dashboard" subtitle="Review listings, verify landlords and manage payouts"
+    <DashShell role="admin" tab={tab} setTab={setTab}
+      title={userRole === "MODERATOR" ? "Moderator dashboard" : userRole === "AUDITOR" ? "Auditor dashboard" : "Admin dashboard"}
+      subtitle={userRole === "MODERATOR" ? "Review listings, verify landlords and manage users" : userRole === "AUDITOR" ? "Review payouts and transaction records" : "Review listings, verify landlords and manage payouts"}
       badges={{ pending: pending.length || undefined, verifications: awaitingVerifs.length || undefined, payouts: payouts.length || undefined }}
+      visibleTabs={visibleTabs}
       action={<Button size="sm" variant="outline" icon={I.shield} onClick={() => setShowChangePw(true)}>Change password</Button>}>
 
       <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(6,1fr)", gap: mobile ? 12 : 14, marginBottom: 26 }}>
@@ -295,7 +323,7 @@ export function AdminDash() {
       {tab === "users" && (
         <div>
           <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-            {(["", "STUDENT", "LANDLORD", "ADMIN"] as const).map((r) => (
+            {(["", "STUDENT", "LANDLORD", "ADMIN", "MODERATOR", "AUDITOR"] as const).map((r) => (
               <Button key={r} size="sm" variant={userRoleFilter === r ? "dark" : "outline"} onClick={() => {
                 setUserRoleFilter(r);
                 getAdminUsers(r || undefined).then((res) => setUsers(res.items)).catch(() => {});
@@ -320,9 +348,14 @@ export function AdminDash() {
                       <tr key={u.id} onClick={() => setSelectedUser(u)} style={{ borderTop: i ? "1px solid " + T.line2 : "none", cursor: "pointer" }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = T.paper2; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
-                        <td style={{ padding: "13px 16px", fontWeight: 600, color: T.ink }}>{u.name}</td>
+                        <td style={{ padding: "13px 16px", fontWeight: 600, color: T.ink }}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                            {u.name}
+                            {u.isFrozen && <span style={{ fontSize: 10, fontWeight: 700, background: T.redSoft, color: T.red, borderRadius: 6, padding: "2px 6px", textTransform: "uppercase", letterSpacing: ".04em" }}>Suspended</span>}
+                          </span>
+                        </td>
                         <td style={{ padding: "13px 16px", color: T.ink2 }}>{u.email}</td>
-                        <td style={{ padding: "13px 16px" }}><Pill tone={u.role === "ADMIN" ? "red" : u.role === "LANDLORD" ? "blue" : "clay"}>{u.role}</Pill></td>
+                        <td style={{ padding: "13px 16px" }}><Pill tone={["ADMIN","MODERATOR","AUDITOR"].includes(u.role) ? "red" : u.role === "LANDLORD" ? "blue" : "clay"}>{u.role}</Pill></td>
                         <td style={{ padding: "13px 16px" }}>{u.verificationStatus !== "UNVERIFIED" ? <StatusBadge status={u.verificationStatus} /> : <span style={{ color: T.ink3, fontSize: 12 }}>—</span>}</td>
                         <td style={{ padding: "13px 16px", color: T.ink2, textAlign: "center" }}>{u._count.properties}</td>
                         <td style={{ padding: "13px 16px", color: T.ink2, textAlign: "center" }}>{u._count.bookings}</td>
@@ -345,10 +378,10 @@ export function AdminDash() {
               <span onClick={() => setSelectedUser(null)} style={{ cursor: "pointer", color: T.ink2 }}>{I.x({ width: 22, height: 22 })}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
-              <Avatar landlord={{ initials: initialsOf(selectedUser.name), color: selectedUser.role === "ADMIN" ? "#8A3A3A" : selectedUser.role === "LANDLORD" ? "#3C5A86" : "#2F5D4F" }} size={56} />
+              <Avatar landlord={{ initials: initialsOf(selectedUser.name), color: ["ADMIN","MODERATOR","AUDITOR"].includes(selectedUser.role) ? "#8A3A3A" : selectedUser.role === "LANDLORD" ? "#3C5A86" : "#2F5D4F" }} size={56} />
               <div>
                 <div style={{ fontFamily: T.serif, fontSize: 20, color: T.ink }}>{selectedUser.name}</div>
-                <div style={{ marginTop: 6 }}><Pill tone={selectedUser.role === "ADMIN" ? "red" : selectedUser.role === "LANDLORD" ? "blue" : "clay"}>{selectedUser.role}</Pill></div>
+                <div style={{ marginTop: 6 }}><Pill tone={["ADMIN","MODERATOR","AUDITOR"].includes(selectedUser.role) ? "red" : selectedUser.role === "LANDLORD" ? "blue" : "clay"}>{selectedUser.role}</Pill></div>
               </div>
             </div>
             <div style={{ background: "#fff", borderRadius: 14, border: "1px solid " + T.line, overflow: "hidden" }}>
@@ -368,7 +401,21 @@ export function AdminDash() {
                 <span style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>Verification</span>
                 <StatusBadge status={selectedUser.verificationStatus} />
               </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderTop: "1px solid " + T.line2 }}>
+                <span style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>Account status</span>
+                <span style={{ fontFamily: T.sans, fontSize: 13, fontWeight: 600, color: selectedUser.isFrozen ? T.red : T.green }}>{selectedUser.isFrozen ? "Suspended" : "Active"}</span>
+              </div>
             </div>
+            {canManageUsers && !["ADMIN", "MODERATOR", "AUDITOR"].includes(selectedUser.role) && (
+              <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                {selectedUser.isFrozen ? (
+                  <Button full variant="outline" icon={I.check} onClick={() => void freezeUser(selectedUser, "UNFREEZE")}>Restore account</Button>
+                ) : (
+                  <Button full variant="danger" onClick={() => void freezeUser(selectedUser, "FREEZE")}>Suspend account</Button>
+                )}
+                <Button full variant="outline" size="sm" onClick={() => void flagUser(selectedUser, "FLAG")}>Flag for review</Button>
+              </div>
+            )}
           </div>
         </div>
       )}

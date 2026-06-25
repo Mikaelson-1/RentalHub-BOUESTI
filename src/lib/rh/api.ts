@@ -232,9 +232,14 @@ export const setLandlordVerification = (landlordId: string, action: "APPROVE" | 
 export const getAdminPayouts = () => apiGet<AdminPayout[]>("/api/admin/payouts");
 export const setPayoutStatus = (bookingId: string, action: "COMPLETE" | "FAIL") => apiPatch("/api/admin/payouts", { bookingId, action });
 
-export interface AdminUser { id: string; name: string; email: string; role: string; emailVerified: boolean; verificationStatus: string; createdAt: string; _count: { properties: number; bookings: number } }
+export interface AdminUser { id: string; name: string; email: string; role: string; emailVerified: boolean; verificationStatus: string; isFrozen: boolean; frozenReason?: string | null; createdAt: string; _count: { properties: number; bookings: number } }
 export interface AdminUsersResponse { items: AdminUser[]; total: number; page: number; pageSize: number }
 export const getAdminUsers = (role?: string) => apiGet<AdminUsersResponse>(`/api/admin/users${role ? `?role=${role}` : ""}`);
+export const setUserFreeze = (id: string, action: "FREEZE" | "UNFREEZE", reason?: string) => apiPatch(`/api/admin/users/${id}`, { action, reason });
+export const setUserFlag  = (id: string, action: "FLAG"   | "UNFLAG",   reason?: string) => apiPatch(`/api/admin/users/${id}`, { action, reason });
+
+export const STAFF_ROLES = ["ADMIN", "MODERATOR", "AUDITOR"] as const;
+export type StaffRole = typeof STAFF_ROLES[number];
 
 export interface ProfileUpdate { name?: string; phoneNumber?: string; bankName?: string; bankAccountNumber?: string; bankAccountName?: string; governmentIdUrl?: string; selfieUrl?: string; ownershipProofUrl?: string; matricCardUrl?: string }
 export interface AuthUser { id: string; name: string; email: string; role: string; emailVerified?: boolean; verificationStatus?: string; phoneNumber?: string; matricCardUrl?: string }

@@ -23,8 +23,8 @@ export default function AdminLoginPage() {
     setLoading(true);
     try {
       const u = await login(email.trim(), password);
-      if (u.role !== "ADMIN") {
-        setError("This portal is for administrators only.");
+      if (!["ADMIN", "MODERATOR", "AUDITOR"].includes(u.role)) {
+        setError("This portal is for authorized staff only.");
         return;
       }
       showToast(`Signed in as ${u.name}`);

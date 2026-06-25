@@ -12,7 +12,11 @@ export function RouteGuard({ role, children }: { role: "STUDENT" | "LANDLORD" | 
   useEffect(() => {
     if (!initialized) return;
     if (!user) { router.replace(role === "ADMIN" ? "/admin-login" : "/login"); return; }
-    if (user.role !== role) { router.replace("/unauthorized"); }
+    // MODERATOR and AUDITOR are also permitted on admin routes
+    const allowed = role === "ADMIN"
+      ? ["ADMIN", "MODERATOR", "AUDITOR"].includes(user.role)
+      : user.role === role;
+    if (!allowed) { router.replace("/unauthorized"); }
   }, [initialized, user, role, router]);
 
   if (!initialized) {
@@ -23,7 +27,10 @@ export function RouteGuard({ role, children }: { role: "STUDENT" | "LANDLORD" | 
     );
   }
 
-  if (!user || user.role !== role) return null;
+  const isAllowed = role === "ADMIN"
+    ? ["ADMIN", "MODERATOR", "AUDITOR"].includes(user?.role ?? "")
+    : user?.role === role;
+  if (!user || !isAllowed) return null;
 
   return <>{children}</>;
 }

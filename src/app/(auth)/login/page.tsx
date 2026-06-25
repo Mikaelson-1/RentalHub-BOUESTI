@@ -21,7 +21,8 @@ export default function LoginPage() {
     try {
       const u = await login(email.trim(), password);
       showToast(`Signed in as ${u.name}`);
-      go(u.role === "ADMIN" ? "admin" : u.role === "LANDLORD" ? "landlord" : "student");
+      const isStaff = ["ADMIN", "MODERATOR", "AUDITOR"].includes(u.role);
+      go(isStaff ? "admin" : u.role === "LANDLORD" ? "landlord" : "student");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Sign in failed.";
       if (msg === "EMAIL_NOT_VERIFIED") { go("verify", null, { email: email.trim() }); return; }
