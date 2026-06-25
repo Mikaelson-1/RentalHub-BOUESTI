@@ -95,15 +95,7 @@ function BookingRow({ bk, mobile, onAct }: { bk: UiBooking; mobile: boolean; onA
             </div>
           )}
 
-          {bk.status === "CONFIRMED" && (
-            <div style={{ marginTop: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: 200, display: "flex", alignItems: "center", gap: 9, background: T.blueSoft, borderRadius: 12, padding: "11px 14px", fontFamily: T.sans, fontSize: 13.5, color: T.blue }}>
-                {I.checkCircle({ width: 16, height: 16, style: { flex: "0 0 auto" } })} Landlord accepted! Payment instructions coming shortly.
-              </div>
-            </div>
-          )}
-
-          {bk.status === "AWAITING_PAYMENT" && (
+          {(bk.status === "CONFIRMED" || bk.status === "AWAITING_PAYMENT") && (
             <div style={{ marginTop: 16, background: T.claySoft, borderRadius: 14, padding: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                 <span style={{ fontFamily: T.sans, fontSize: 13.5, fontWeight: 700, color: T.clayDeep }}>Payment required to secure this home</span>
