@@ -20,7 +20,7 @@ const NAVS: Record<string, { label: string; color: string; items: [string, strin
     ["listings", "My listings", I.building], ["requests", "Tenant requests", I.inbox], ["earnings", "Earnings", I.wallet], ["analytics", "Analytics", I.chart], ["referral", "Referral", I.star], ["verification", "Verification", I.shield], ["profile", "Profile", I.user],
   ] },
   admin: { label: "Admin", color: "#A8451B", items: [
-    ["pending", "Pending approvals", I.clock], ["properties", "All properties", I.building], ["verifications", "Verifications", I.shield], ["payouts", "Payouts", I.wallet], ["users", "Users", I.users], ["forecast", "Demand (AI)", I.chart],
+    ["pending", "Pending approvals", I.clock], ["properties", "All properties", I.building], ["verifications", "Verifications", I.shield], ["payouts", "Payouts", I.wallet], ["users", "Users", I.users], ["forecast", "Demand (AI)", I.chart], ["locations", "Locations", I.pin],
   ] },
 };
 

@@ -9,8 +9,10 @@ import {
   getAdminSummary, getPendingProperties, getAdminLandlords, getAdminPayouts,
   getAdminAllProperties, getAdminUsers, changePassword, setUserFreeze, setUserFlag,
   setPropertyStatus, setLandlordVerification, setPayoutStatus, mapProperty,
+  getLocations, createLocation, deleteLocation,
   type AdminSummary, type AdminLandlord, type AdminPayout, type ApiProperty, type AdminUser, type UiListing,
 } from "@/lib/rh/api";
+import { CAMPUSES } from "@/lib/rh/data";
 
 
 function initialsOf(name: string) {
@@ -79,7 +81,7 @@ export function AdminDash() {
   const canManageUsers = ["ADMIN", "MODERATOR"].includes(userRole);
 
   const VISIBLE_TABS: Record<string, string[]> = {
-    ADMIN: ["pending", "verifications", "properties", "payouts", "users", "forecast"],
+    ADMIN: ["pending", "verifications", "properties", "payouts", "users", "forecast", "locations"],
     MODERATOR: ["pending", "verifications", "properties", "users"],
     AUDITOR: ["payouts", "forecast", "users"],
   };
@@ -97,6 +99,11 @@ export function AdminDash() {
   const [userRoleFilter, setUserRoleFilter] = useState("");
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [locations, setLocations] = useState<Array<{ id: string; name: string; campus: string }>>([]);
+  const [locCampus, setLocCampus] = useState(CAMPUSES.filter(c => c.live)[0]?.id ?? "bouesti");
+  const [locName, setLocName] = useState("");
+  const [locBusy, setLocBusy] = useState(false);
+  const [locError, setLocError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -118,6 +125,29 @@ export function AdminDash() {
   }, []);
 
   const awaitingVerifs = verifs.filter((v) => v.verificationStatus === "UNDER_REVIEW");
+
+  const loadLocations = () => getLocations().then(setLocations).catch(() => {});
+  useEffect(() => { if (tab === "locations") loadLocations(); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const addLocation = async () => {
+    if (!locName.trim()) return;
+    setLocBusy(true); setLocError(null);
+    try {
+      await createLocation(locName.trim(), locCampus);
+      setLocName("");
+      await loadLocations();
+      showToast("Area added");
+    } catch (e) { setLocError(e instanceof Error ? e.message : "Failed to add area"); }
+    finally { setLocBusy(false); }
+  };
+
+  const removeLocation = async (id: string) => {
+    try {
+      await deleteLocation(id);
+      setLocations((prev) => prev.filter((l) => l.id !== id));
+      showToast("Area removed");
+    } catch (e) { showToast(e instanceof Error ? e.message : "Cannot remove this area"); }
+  };
 
   const decideProperty = async (id: string, status: "APPROVED" | "REJECTED") => {
     try {
@@ -417,6 +447,77 @@ export function AdminDash() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {tab === "locations" && (
+        <div>
+          {/* Add area form */}
+          <Card pad={22} style={{ marginBottom: 24 }}>
+            <div style={{ fontFamily: T.serif, fontSize: 20, color: T.ink, marginBottom: 16 }}>Add a new area</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div style={{ flex: "0 0 auto" }}>
+                <div style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 700, color: T.ink2, textTransform: "uppercase" as const, letterSpacing: ".05em", marginBottom: 6 }}>Campus</div>
+                <select
+                  value={locCampus}
+                  onChange={(e) => setLocCampus(e.target.value)}
+                  style={{ fontFamily: T.sans, fontSize: 14, color: T.ink, background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: "10px 14px", outline: "none", cursor: "pointer" }}
+                >
+                  {CAMPUSES.filter(c => c.live).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 700, color: T.ink2, textTransform: "uppercase" as const, letterSpacing: ".05em", marginBottom: 6 }}>Area name</div>
+                <input
+                  value={locName}
+                  onChange={(e) => setLocName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") void addLocation(); }}
+                  placeholder="e.g. Akoka, Tanke, Uro…"
+                  style={{ width: "100%", boxSizing: "border-box" as const, fontFamily: T.sans, fontSize: 14, color: T.ink, background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: "10px 14px", outline: "none" }}
+                />
+              </div>
+              <button
+                onClick={() => void addLocation()}
+                disabled={locBusy || !locName.trim()}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 20px", borderRadius: 999, background: T.clay, color: "#fff", border: "none", fontFamily: T.sans, fontSize: 14, fontWeight: 600, cursor: locBusy || !locName.trim() ? "not-allowed" : "pointer", opacity: locBusy || !locName.trim() ? 0.55 : 1, whiteSpace: "nowrap" as const }}
+              >
+                {I.plus({ width: 16, height: 16 })} {locBusy ? "Adding…" : "Add area"}
+              </button>
+            </div>
+            {locError && <div style={{ marginTop: 12, fontFamily: T.sans, fontSize: 13, color: T.red, background: T.redSoft, borderRadius: 10, padding: "10px 14px" }}>{locError}</div>}
+          </Card>
+
+          {/* Areas grouped by campus */}
+          {CAMPUSES.filter(c => c.live).map(campus => {
+            const campusLocs = locations.filter(l => l.campus === campus.id);
+            return (
+              <Card key={campus.id} pad={22} style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: campusLocs.length ? 14 : 0 }}>
+                  {I.pin({ width: 15, height: 15, style: { color: T.clay, flex: "0 0 auto" } })}
+                  <span style={{ fontFamily: T.serif, fontSize: 18, color: T.ink }}>{campus.name}</span>
+                  <span style={{ marginLeft: "auto", fontFamily: T.sans, fontSize: 12.5, color: T.ink3 }}>{campusLocs.length} area{campusLocs.length !== 1 ? "s" : ""}</span>
+                </div>
+                {campusLocs.length === 0 ? (
+                  <div style={{ fontFamily: T.sans, fontSize: 13.5, color: T.ink3, fontStyle: "italic" }}>No areas yet — add one above.</div>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {campusLocs.map(loc => (
+                      <div key={loc.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: T.paper, border: `1px solid ${T.line}`, borderRadius: 999, padding: "6px 10px 6px 14px", fontFamily: T.sans, fontSize: 13.5, color: T.ink }}>
+                        {loc.name}
+                        <span
+                          onClick={() => void removeLocation(loc.id)}
+                          title="Remove area"
+                          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 999, background: T.line2, cursor: "pointer", color: T.ink2, flexShrink: 0 }}
+                        >
+                          {I.x({ width: 10, height: 10 })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
 
