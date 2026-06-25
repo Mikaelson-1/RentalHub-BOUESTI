@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const ADMIN_HOST = process.env.ADMIN_HOST ?? "admin.rentalhub.ng";
+const ADMIN_HOST = process.env.ADMIN_HOST ?? "hazard.rentalhub.ng";
 const PUBLIC_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://rentalhub.ng";
 
 export function middleware(req: NextRequest) {
