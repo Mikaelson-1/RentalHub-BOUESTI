@@ -511,7 +511,7 @@ export function LandlordDash({ initial, openAdd }: { initial?: string; openAdd?:
 
       <VerifyBanner status={vstatus} onStart={() => setTab("verification")} />
 
-      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4,1fr)", gap: mobile ? 12 : 18, marginBottom: 26 }}>
+      <div className="rh-m-col2" style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4,1fr)", gap: mobile ? 12 : 18, marginBottom: 26 }}>
         <Stat label="Total listings" value={listings.length} tone="ink" icon={I.building} onClick={() => setTab("listings")} active={tab === "listings"} />
         <Stat label="Pending requests" value={pendingReqs} tone="clay" icon={I.inbox} onClick={() => setTab("requests")} active={tab === "requests"} />
         <Stat label="Paid bookings" value={earnings?.totalPaidBookings ?? 0} tone="green" icon={I.checkCircle} />

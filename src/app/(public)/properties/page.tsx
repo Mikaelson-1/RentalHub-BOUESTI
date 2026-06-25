@@ -155,9 +155,9 @@ function SearchInner() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: mobile ? "20px" : "28px 40px 56px", display: mobile ? "block" : "grid", gridTemplateColumns: "264px 1fr", gap: 36, alignItems: "start" }}>
+      <div className="rh-m-block" style={{ maxWidth: 1280, margin: "0 auto", padding: mobile ? "20px" : "28px 40px 56px", display: mobile ? "block" : "grid", gridTemplateColumns: "264px 1fr", gap: 36, alignItems: "start" }}>
         {!mobile ? (
-          <div style={{ position: "sticky", top: 92 }}>
+          <div className="rh-m-hide" style={{ position: "sticky", top: 92 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
               <span style={{ fontFamily: T.serif, fontSize: 22, color: T.ink }}>Filters</span>
               {activeCount > 0 && <span onClick={() => setF(EMPTY)} style={{ fontFamily: T.sans, fontSize: 12.5, color: T.clay, cursor: "pointer", fontWeight: 600 }}>Clear all</span>}

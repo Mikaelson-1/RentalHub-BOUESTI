@@ -166,7 +166,7 @@ export function AdminDash() {
       visibleTabs={visibleTabs}
       action={<Button size="sm" variant="outline" icon={I.shield} onClick={() => setShowChangePw(true)}>Change password</Button>}>
 
-      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(6,1fr)", gap: mobile ? 12 : 14, marginBottom: 26 }}>
+      <div className="rh-m-col2" style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(6,1fr)", gap: mobile ? 12 : 14, marginBottom: 26 }}>
         <Stat label="Properties" value={summary?.totalProperties ?? "—"} tone="ink" icon={I.building} onClick={() => setTab("properties")} active={tab === "properties"} />
         <Stat label="Pending" value={pending.length} tone="gold" icon={I.clock} onClick={() => setTab("pending")} active={tab === "pending"} />
         <Stat label="Verifications" value={awaitingVerifs.length} tone="blue" icon={I.shield} onClick={() => setTab("verifications")} active={tab === "verifications"} />

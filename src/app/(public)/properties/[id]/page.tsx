@@ -178,7 +178,7 @@ export default function PropertyDetailPage() {
           </button>
         </div>
 
-        <div style={{ display: mobile ? "block" : "grid", gridTemplateColumns: "1.7fr 1fr", gap: 40, alignItems: "start" }}>
+        <div className="rh-m-block" style={{ display: mobile ? "block" : "grid", gridTemplateColumns: "1.7fr 1fr", gap: 40, alignItems: "start" }}>
           <div>
             <Gallery l={l} mobile={mobile} />
 

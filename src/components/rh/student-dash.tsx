@@ -332,7 +332,7 @@ export function StudentDash({ initial }: { initial?: string }) {
       badges={{ bookings: counts.active || undefined }}
       action={<Button variant="dark" icon={I.search} onClick={() => go("search")} size={mobile ? "sm" : "md"}>{mobile ? "Browse" : "Browse homes"}</Button>}>
 
-      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4,1fr)", gap: mobile ? 12 : 18, marginBottom: 26 }}>
+      <div className="rh-m-col2" style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4,1fr)", gap: mobile ? 12 : 18, marginBottom: 26 }}>
         <Stat label="Total bookings" value={counts.total} tone="ink" icon={I.inbox} />
         <Stat label="Paid & secured" value={counts.paid} tone="green" icon={I.checkCircle} />
         <Stat label="Awaiting action" value={counts.active} tone="clay" icon={I.clock} />

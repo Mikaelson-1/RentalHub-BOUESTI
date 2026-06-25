@@ -8,7 +8,13 @@
  * prototype's `go(route, arg, params)` calls onto real Next.js routes so the
  * ported components work almost verbatim.
  */
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+
+// On the client, useLayoutEffect fires synchronously after DOM mutation but
+// BEFORE the browser paints — so the mobile layout is applied before the user
+// ever sees the desktop-default layout. On the server useLayoutEffect is a no-op
+// (SSR never paints), so we fall back to useEffect to silence the server warning.
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 import { useRouter } from "next/navigation";
 import { T, I } from "@/lib/rh/theme";
 import { CAMPUSES, type Campus } from "@/lib/rh/data";
@@ -98,7 +104,7 @@ export function useApp(): AppValue {
 
 export function useViewport() {
   const [w, setW] = useState(1200); // SSR-safe default (desktop)
-  useEffect(() => {
+  useIsoLayoutEffect(() => {
     const on = () => setW(window.innerWidth);
     on();
     window.addEventListener("resize", on);

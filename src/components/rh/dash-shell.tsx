@@ -35,7 +35,7 @@ export function DashShell({ role, tab, setTab, title, subtitle, action, children
   const compact = mobile || tablet;
 
   const Sidebar = ({ inSheet }: { inSheet?: boolean }) => (
-    <div style={{ width: 248, flex: "0 0 248px", background: T.ink, color: T.paper, minHeight: inSheet ? "auto" : "100vh", display: "flex", flexDirection: "column", position: inSheet ? "static" : "sticky", top: 0, height: inSheet ? "auto" : "100vh" }}>
+    <div className={inSheet ? undefined : "rh-m-hide"} style={{ width: 248, flex: "0 0 248px", background: T.ink, color: T.paper, minHeight: inSheet ? "auto" : "100vh", display: "flex", flexDirection: "column", position: inSheet ? "static" : "sticky", top: 0, height: inSheet ? "auto" : "100vh" }}>
       <div style={{ padding: "22px 22px 18px" }}>
         <div onClick={() => go("home")} style={{ cursor: "pointer" }}><Logo ink={T.paper} color={T.clay} fontSize={21} size={26} /></div>
       </div>

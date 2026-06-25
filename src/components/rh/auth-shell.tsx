@@ -9,9 +9,9 @@ import { Pill } from "@/components/rh/ui";
 export function AuthShell({ children, title, sub, mobile }: { children: ReactNode; title: string; sub?: string; mobile: boolean }) {
   const { go } = useApp();
   return (
-    <div style={{ minHeight: "100vh", background: T.paper, display: mobile ? "block" : "grid", gridTemplateColumns: "1fr 1.05fr" }}>
+    <div className="rh-m-block" style={{ minHeight: "100vh", background: T.paper, display: mobile ? "block" : "grid", gridTemplateColumns: "1fr 1.05fr" }}>
       {!mobile && (
-        <div style={{ position: "relative", overflow: "hidden", padding: 48, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div className="rh-m-hide" style={{ position: "relative", overflow: "hidden", padding: 48, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div style={{ position: "absolute", inset: 0 }}><Photo from="#b89668" to="#5e4730" tag={false} /></div>
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(33,29,24,.45), rgba(33,29,24,.78))" }} />
           <div style={{ position: "relative" }}><div onClick={() => go("home")} style={{ cursor: "pointer" }}><Logo ink="#fff" color="#fff" /></div></div>

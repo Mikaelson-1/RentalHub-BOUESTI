@@ -33,6 +33,20 @@ body {
 
 input, textarea, select, button { font-family: inherit; }
 img, video, iframe { max-width: 100%; }
+
+/* ─── Pre-hydration mobile layout utilities ──────────────────
+   These CSS classes apply immediately on small screens before
+   JavaScript loads, preventing the desktop-layout flash.
+   !important is required to override component inline styles.  */
+@media (max-width: 767px) {
+  .rh-m-block  { display: block  !important; }
+  .rh-m-hide   { display: none   !important; }
+  .rh-m-col1   { grid-template-columns: 1fr        !important; }
+  .rh-m-col2   { grid-template-columns: 1fr 1fr    !important; }
+}
+@media (min-width: 768px) {
+  .rh-d-hide   { display: none   !important; }
+}
 ::selection { background: #C75B2A; color: #fff; }
 
 /* range track */

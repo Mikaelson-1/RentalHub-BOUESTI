@@ -40,7 +40,7 @@ export default function HomePage() {
       <PublicNav />
 
       {/* Hero */}
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: mobile ? "24px 20px 30px" : "40px 40px 60px", display: mobile ? "block" : "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "center" }}>
+      <div className="rh-m-block" style={{ maxWidth: 1280, margin: "0 auto", padding: mobile ? "24px 20px 30px" : "40px 40px 60px", display: mobile ? "block" : "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "center" }}>
         <div>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8, color: T.clay, fontSize: 12.5, fontWeight: 600, background: "rgba(199,91,42,.09)", padding: "6px 13px 6px 11px", borderRadius: 999, whiteSpace: "nowrap", fontFamily: T.sans }}>
             {I.shield({ width: 14, height: 14, style: { flex: "0 0 auto" } })} Verified student housing across Nigeria
@@ -91,7 +91,7 @@ export default function HomePage() {
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: pad }}>
           <SectionHead eyebrow="Latest listings" title="Featured homes" mobile={mobile}
             action={!mobile ? <Button variant="ghost" iconRight={I.arrow} onClick={() => go("search")}>View all</Button> : undefined} />
-          <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(4,1fr)", gap: mobile ? 16 : 20 }}>
+          <div className="rh-m-col1" style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(4,1fr)", gap: mobile ? 16 : 20 }}>
             {featured.map((l) => <PropertyCard key={l.id} l={l} mobile={mobile} onClick={() => go("property", l.id)} />)}
           </div>
           {mobile && <div style={{ marginTop: 18 }}><Button full variant="outline" iconRight={I.arrow} onClick={() => go("search")}>View all homes</Button></div>}
@@ -101,7 +101,7 @@ export default function HomePage() {
       {/* How it stays safe */}
       <div id="how-it-works" style={{ maxWidth: 1280, margin: "0 auto", padding: mobile ? "38px 20px" : "64px 40px" }}>
         <SectionHead eyebrow="Built on trust" title="How it stays safe" mobile={mobile} />
-        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(3,1fr)", gap: mobile ? 14 : 22 }}>
+        <div className="rh-m-col1" style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(3,1fr)", gap: mobile ? 14 : 22 }}>
           {([[I.shield, "01", "Listings are reviewed", "Our admins check every property and its photos before it ever appears in search."],
             [I.user, "02", "Landlords are ID-checked", "Government ID, a selfie and proof of ownership — all verified before a landlord can list."],
             [I.wallet, "03", "Payment is protected", "We hold your rent securely and release it to the landlord only after you confirm move-in."]] as const).map(([Ic, n, t, d]) => (
@@ -120,7 +120,7 @@ export default function HomePage() {
       {/* Areas */}
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mobile ? "0 20px 40px" : "0 40px 64px" }}>
         <SectionHead eyebrow={"In " + campus.short} title="Browse by area" mobile={mobile} />
-        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4,1fr)", gap: mobile ? 12 : 16 }}>
+        <div className="rh-m-col2" style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4,1fr)", gap: mobile ? 12 : 16 }}>
           {AREAS.map((a, i) => {
             const tones: [string, string][] = [["#d8c4a0", "#9c8055"], ["#c8bca6", "#7d7158"], ["#cdb89c", "#8a7150"], ["#bcae9a", "#6f6450"]];
             return (
@@ -139,7 +139,7 @@ export default function HomePage() {
 
       {/* CTA band */}
       <div style={{ background: T.clay, color: "#fff", padding: mobile ? "40px 20px" : "64px 40px" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", display: mobile ? "block" : "flex", alignItems: "center", justifyContent: "space-between", gap: 40 }}>
+        <div className="rh-m-block" style={{ maxWidth: 1280, margin: "0 auto", display: mobile ? "block" : "flex", alignItems: "center", justifyContent: "space-between", gap: 40 }}>
           <div>
             <h2 style={{ margin: 0, fontFamily: T.serif, fontWeight: 400, fontSize: mobile ? 32 : 46, letterSpacing: "-.02em", lineHeight: 1.05 }}>Have a place to rent out?</h2>
             <p style={{ fontFamily: T.sans, fontSize: mobile ? 15.5 : 18, opacity: 0.9, marginTop: 14, maxWidth: 460, lineHeight: 1.5 }}>

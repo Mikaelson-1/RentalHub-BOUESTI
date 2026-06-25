@@ -273,7 +273,7 @@ export function PublicNav() {
           {!m && <CampusPicker />}
         </div>
         {!m ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 30, fontFamily: T.sans, fontSize: 14.5, color: T.ink2, whiteSpace: "nowrap" }}>
+          <div className="rh-m-hide" style={{ display: "flex", alignItems: "center", gap: 30, fontFamily: T.sans, fontSize: 14.5, color: T.ink2, whiteSpace: "nowrap" }}>
             {links.map(([t, r]) => <span key={t} onClick={() => go(r)} style={{ cursor: "pointer" }}>{t}</span>)}
             {dash
               ? <Button size="sm" variant="dark" onClick={() => go(dash)} icon={I.grid}>Dashboard</Button>
@@ -314,7 +314,7 @@ export function Footer() {
   ];
   return (
     <div style={{ background: T.card, color: T.ink, padding: m ? "40px 20px 30px" : "60px 40px 40px", borderTop: "1px solid " + T.line }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: m ? "1fr" : "1.4fr 1fr 1fr 1fr", gap: m ? 30 : 40 }}>
+      <div className="rh-m-col1" style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: m ? "1fr" : "1.4fr 1fr 1fr 1fr", gap: m ? 30 : 40 }}>
         <div>
           <Logo />
           <p style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2, lineHeight: 1.6, marginTop: 16, maxWidth: 280 }}>
