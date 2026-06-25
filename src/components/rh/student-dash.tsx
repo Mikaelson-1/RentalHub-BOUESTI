@@ -108,9 +108,8 @@ function BookingRow({ bk, mobile, onAct }: { bk: UiBooking; mobile: boolean; onA
                 <span style={{ fontFamily: T.serif, fontSize: 22, fontWeight: 700, color: T.ink }}>{naira(total)}</span>
               </div>
               <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-                {!bk.agreementSigned
-                  ? <Button onClick={() => onAct("sign", bk)} icon={I.doc} style={{ flex: 1, minWidth: 180 }}>Review &amp; sign agreement</Button>
-                  : <Button variant="dark" onClick={() => go("pay", bk.id)} icon={I.wallet} style={{ flex: 1, minWidth: 180 }}>Pay {naira(total)} securely</Button>}
+                <Button variant="dark" onClick={() => go("pay", bk.id)} icon={I.wallet} style={{ flex: 1, minWidth: 180 }}>Pay {naira(total)} securely</Button>
+                {!bk.agreementSigned && <Button variant="outline" size="sm" onClick={() => onAct("sign", bk)} icon={I.doc}>Sign agreement</Button>}
                 <Button variant="danger" onClick={() => onAct("cancel", bk)}>Cancel</Button>
               </div>
             </div>
