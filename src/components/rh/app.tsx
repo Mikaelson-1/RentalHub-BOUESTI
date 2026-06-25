@@ -8,11 +8,25 @@
  * prototype's `go(route, arg, params)` calls onto real Next.js routes so the
  * ported components work almost verbatim.
  */
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { T, I } from "@/lib/rh/theme";
 import { CAMPUSES, type Campus } from "@/lib/rh/data";
 import { apiPost, AUTH_STORAGE_KEY } from "@/lib/rh/api";
+
+const INACTIVITY_MS = 2 * 60 * 60 * 1000; // 2 hours
+const ACTIVITY_KEY = "rh_auth_activity";
+
+function getLastActivity(): number {
+  try { return parseInt(window.localStorage.getItem(ACTIVITY_KEY) || "0", 10); } catch { return 0; }
+}
+function touchActivity(): void {
+  try { window.localStorage.setItem(ACTIVITY_KEY, String(Date.now())); } catch { /* ignore */ }
+}
+function isSessionExpired(): boolean {
+  const last = getLastActivity();
+  return last > 0 && Date.now() - last > INACTIVITY_MS;
+}
 
 type Params = Record<string, string> | undefined;
 
@@ -104,7 +118,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (savedCampus) setCampusId(savedCampus);
     try {
       const a = JSON.parse(window.localStorage.getItem(AUTH_STORAGE_KEY) || "null");
-      if (a?.token && a?.user) setAuth(a);
+      if (a?.token && a?.user) {
+        if (isSessionExpired()) {
+          window.localStorage.removeItem(AUTH_STORAGE_KEY);
+          window.localStorage.removeItem(ACTIVITY_KEY);
+        } else {
+          setAuth(a);
+          touchActivity();
+        }
+      }
     } catch { /* ignore */ }
     setInitialized(true);
   }, []);
@@ -119,6 +141,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const data = await apiPost<{ token: string; user: AuthUser }>("/api/auth/login", { email, password });
     window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
+    touchActivity();
     setAuth(data);
     return data.user;
   }, []);
@@ -134,9 +157,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(() => {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    window.localStorage.removeItem(ACTIVITY_KEY);
     setAuth(null);
     router.push("/");
   }, [router]);
+
+  // Keep a stable ref so the interval/visibility handler always calls the latest signOut
+  const signOutRef = useRef(signOut);
+  useEffect(() => { signOutRef.current = signOut; }, [signOut]);
+
+  useEffect(() => {
+    if (!auth) return;
+
+    let lastWrite = Date.now();
+    const onActivity = () => {
+      const now = Date.now();
+      if (now - lastWrite > 30_000) { lastWrite = now; touchActivity(); }
+    };
+
+    const checkExpiry = () => { if (isSessionExpired()) signOutRef.current(); };
+
+    const onVisible = () => { if (document.visibilityState === "visible") checkExpiry(); };
+
+    const interval = setInterval(checkExpiry, 60_000);
+    const events = ["mousemove", "keydown", "pointerdown", "touchstart", "scroll"] as const;
+    events.forEach((e) => document.addEventListener(e, onActivity, { passive: true }));
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      events.forEach((e) => document.removeEventListener(e, onActivity));
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [auth]);
 
   const setCampus = useCallback((id: string) => {
     setCampusId(id);
