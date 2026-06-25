@@ -239,7 +239,7 @@ export function CampusPicker() {
       {open && (
         <>
           <div style={{ position: "fixed", inset: 0, zIndex: 90 }} onClick={() => setOpen(false)} />
-          <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 91, background: "#fff", border: "1px solid " + T.line, borderRadius: 16, boxShadow: "0 24px 50px -20px rgba(33,29,24,.35)", padding: 8, width: 270 }}>
+          <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 91, background: "#fff", border: "1px solid " + T.line, borderRadius: 16, boxShadow: "0 24px 50px -20px rgba(33,29,24,.35)", padding: 8, width: "min(270px, calc(100vw - 40px))" }}>
             <div style={{ fontFamily: T.sans, fontSize: 11, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: T.ink3, padding: "8px 10px 6px" }}>Choose your campus</div>
             {CAMPUSES.map((c) => (
               <div key={c.id} onClick={() => { if (c.live) { setCampus(c.id); setOpen(false); showToast("Now browsing " + c.short); } else { showToast(c.short + " is launching soon — join the waitlist"); } }}

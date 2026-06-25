@@ -30,7 +30,7 @@ function Gallery({ l, mobile }: { l: DetailListing; mobile: boolean }) {
         )}
         <span style={{ position: "absolute", top: 16, left: 16 }}><Pill tone="green" icon={I.shield} style={{ background: "rgba(255,255,255,.95)", fontSize: 12.5, padding: "7px 13px" }}>Admin-verified listing</Pill></span>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: mobile ? 8 : 12, marginTop: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(4,minmax(0,1fr))" : "repeat(4,1fr)", gap: mobile ? 8 : 12, marginTop: 12 }}>
         {tones.map((t, i) => (
           <div key={i} onClick={() => setActive(i)} style={{ position: "relative", height: mobile ? 56 : 84, borderRadius: 12, overflow: "hidden", cursor: "pointer", outline: active === i ? `2.5px solid ${T.clay}` : "2.5px solid transparent", outlineOffset: 2 }}>
             {l.images[i] ? (

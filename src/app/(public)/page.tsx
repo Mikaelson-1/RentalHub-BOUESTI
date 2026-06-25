@@ -14,7 +14,7 @@ function HeroSearch({ mobile }: { mobile: boolean }) {
     <div style={{ background: "#fff", border: "1px solid " + T.line, borderRadius: mobile ? 18 : 999, padding: mobile ? 12 : 8, display: "flex", flexDirection: mobile ? "column" : "row", gap: mobile ? 10 : 6, alignItems: "center", boxShadow: "0 18px 40px -30px rgba(33,29,24,.6)", maxWidth: mobile ? "100%" : 460 }}>
       <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", gap: 9, padding: mobile ? "8px" : "4px 16px" }}>
         {I.search({ width: 18, height: 18, style: { color: T.ink2, flex: "0 0 auto" } })}
-        <span style={{ color: T.ink2, fontSize: 15, whiteSpace: "nowrap", fontFamily: T.sans }}>Search your campus or area…</span>
+        <span style={{ color: T.ink2, fontSize: 15, whiteSpace: "nowrap", fontFamily: T.sans, overflow: "hidden", textOverflow: "ellipsis" }}>Search your campus or area…</span>
       </div>
       <Button size="md" full={mobile} onClick={() => go("search")} style={{ borderRadius: mobile ? 12 : 999, whiteSpace: "nowrap" }}>Search homes</Button>
     </div>
@@ -68,12 +68,12 @@ export default function HomePage() {
             <TourVideo />
           </div>
           <div style={{ position: "absolute", left: mobile ? 14 : 20, right: mobile ? 14 : 20, bottom: mobile ? 14 : 20, background: "rgba(255,255,255,.93)", backdropFilter: "blur(8px)", borderRadius: 18, padding: mobile ? 14 : 18 }}>
-            <div style={{ display: "flex", gap: 6, marginBottom: 11 }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 11, flexWrap: "wrap" }}>
               <Pill>Self-contain</Pill><Pill>0.5 km to gate</Pill>
             </div>
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontFamily: T.serif, fontSize: mobile ? 18 : 21, fontWeight: 600, lineHeight: 1.15, whiteSpace: "nowrap" }}>Spacious Self-Contain</div>
+                <div style={{ fontFamily: T.serif, fontSize: mobile ? 18 : 21, fontWeight: 600, lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Spacious Self-Contain</div>
                 <div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2, marginTop: 4 }}>Uro · Listed by Adebayo O.</div>
               </div>
               <div style={{ fontFamily: T.serif, fontSize: mobile ? 20 : 24, fontWeight: 700, color: T.clay, flex: "0 0 auto" }}>{naira(180000)}</div>

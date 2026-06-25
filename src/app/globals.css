@@ -32,6 +32,7 @@ body {
 }
 
 input, textarea, select, button { font-family: inherit; }
+img, video, iframe { max-width: 100%; }
 ::selection { background: #C75B2A; color: #fff; }
 
 /* range track */
