@@ -1,24 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ADMIN_HOST = process.env.ADMIN_HOST ?? "hazard.rentalhub.ng";
-const PUBLIC_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://rentalhub.ng";
+const ADMIN_LOGIN = "/admin-login";
+const STAFF_ROLES = new Set(["ADMIN", "MODERATOR", "AUDITOR"]);
 
 export function middleware(req: NextRequest) {
   const host = req.nextUrl.hostname;
   const { pathname } = req.nextUrl;
 
   const isAdminHost = host === ADMIN_HOST;
-  // Covers /admin, /admin-login, /admin/properties/... etc.
   const isAdminRoute = pathname.startsWith("/admin");
 
   if (isAdminHost) {
     if (pathname === "/") {
-      // hazard.rentalhub.ng/ → take them straight to the login page
-      return NextResponse.redirect(new URL("/admin-login", req.url));
+      return NextResponse.redirect(new URL(ADMIN_LOGIN, req.url));
     }
     if (!isAdminRoute) {
-      // Any other non-admin path on the admin host → 404
       return new NextResponse(null, { status: 404 });
+    }
+    // /admin-login itself is always accessible; all other admin routes require a staff session.
+    if (pathname !== ADMIN_LOGIN) {
+      const role = req.cookies.get("rh_role")?.value ?? "";
+      if (!STAFF_ROLES.has(role)) {
+        return NextResponse.redirect(new URL(ADMIN_LOGIN, req.url));
+      }
     }
   }
 

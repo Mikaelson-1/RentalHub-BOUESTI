@@ -29,6 +29,14 @@ function getLastActivity(): number {
 function touchActivity(): void {
   try { window.localStorage.setItem(ACTIVITY_KEY, String(Date.now())); } catch { /* ignore */ }
 }
+
+function setRoleCookie(role: string) {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `rh_role=${role}; path=/; max-age=86400; SameSite=Lax${secure}`;
+}
+function clearRoleCookie() {
+  document.cookie = "rh_role=; path=/; max-age=0; SameSite=Lax";
+}
 function isSessionExpired(): boolean {
   const last = getLastActivity();
   return last > 0 && Date.now() - last > INACTIVITY_MS;
@@ -132,6 +140,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } else {
           setAuth(a);
           touchActivity();
+          setRoleCookie(a.user.role);
         }
       }
     } catch { /* ignore */ }
@@ -149,6 +158,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const data = await apiPost<{ token: string; user: AuthUser }>("/api/auth/login", { email, password });
     window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
     touchActivity();
+    setRoleCookie(data.user.role);
     setAuth(data);
     return data.user;
   }, []);
@@ -165,6 +175,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     window.localStorage.removeItem(ACTIVITY_KEY);
+    clearRoleCookie();
     setAuth(null);
     router.push("/");
   }, [router]);
