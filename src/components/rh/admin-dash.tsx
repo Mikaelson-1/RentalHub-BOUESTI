@@ -132,6 +132,7 @@ export function AdminDash() {
   };
 
   return (
+    <>
     {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} />}
     <DashShell role="admin" tab={tab} setTab={setTab} title="Admin dashboard" subtitle="Review listings, verify landlords and manage payouts"
       badges={{ pending: pending.length || undefined, verifications: awaitingVerifs.length || undefined, payouts: payouts.length || undefined }}
@@ -407,5 +408,6 @@ export function AdminDash() {
         </div>
       )}
     </DashShell>
+    </>
   );
 }
