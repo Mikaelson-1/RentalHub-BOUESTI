@@ -76,10 +76,10 @@ export function DashShell({ role, tab, setTab, title, subtitle, action, children
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(244,238,228,.9)", backdropFilter: "blur(8px)", borderBottom: "1px solid " + T.line2, padding: compact ? "14px 20px" : "18px 36px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, flex: 1, overflow: "hidden" }}>
             {compact && <span onClick={() => setOpen(true)} style={{ cursor: "pointer", color: T.ink, flex: "0 0 auto" }}>{I.menu({ width: 24, height: 24 })}</span>}
-            <div style={{ minWidth: 0 }}>
-              <h1 style={{ margin: 0, fontFamily: T.serif, fontWeight: 400, fontSize: compact ? 24 : 32, letterSpacing: "-.02em", color: T.ink, lineHeight: 1.1, whiteSpace: "nowrap" }}>{title}</h1>
+            <div style={{ minWidth: 0, overflow: "hidden" }}>
+              <h1 style={{ margin: 0, fontFamily: T.serif, fontWeight: 400, fontSize: compact ? 22 : 32, letterSpacing: "-.02em", color: T.ink, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</h1>
               {subtitle && !compact && <p style={{ margin: "3px 0 0", fontFamily: T.sans, fontSize: 13.5, color: T.ink2 }}>{subtitle}</p>}
             </div>
           </div>

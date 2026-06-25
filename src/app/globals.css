@@ -14,12 +14,21 @@
 
 * { box-sizing: border-box; }
 
+html {
+  overflow-x: hidden;
+}
+
 html, body {
   margin: 0;
   padding: 0;
   background: #F4EEE4;
   -webkit-font-smoothing: antialiased;
   font-family: var(--rh-sans);
+}
+
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 input, textarea, select, button { font-family: inherit; }

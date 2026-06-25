@@ -71,7 +71,8 @@ function CompareModal({ items, onClose, onNavigate }: { items: UiListing[]; onCl
           <h2 style={{ margin: 0, fontFamily: T.serif, fontSize: 26, color: T.ink, fontWeight: 500 }}>Compare homes</h2>
           <span onClick={onClose} style={{ cursor: "pointer", color: T.ink2 }}>{I.x({ width: 22, height: 22 })}</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: `160px repeat(${items.length}, 1fr)`, borderCollapse: "collapse" } as React.CSSProperties}>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+        <div style={{ display: "grid", gridTemplateColumns: `160px repeat(${items.length}, minmax(180px, 1fr))`, borderCollapse: "collapse", minWidth: 400 } as React.CSSProperties}>
           {/* Header */}
           <div style={{ padding: "14px 16px", background: T.paper }} />
           {items.map((l) => (
@@ -91,6 +92,7 @@ function CompareModal({ items, onClose, onNavigate }: { items: UiListing[]; onCl
             </>
           ))}
         </div>
+        </div>{/* end overflow wrapper */}
       </div>
     </div>
   );
@@ -251,7 +253,7 @@ function SearchInner() {
 
       {/* Comparison bar */}
       {compareItems.length > 0 && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100, background: T.ink, color: T.paper, padding: "14px 24px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100, background: T.ink, color: T.paper, padding: "14px 24px", paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div style={{ flex: 1, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", minWidth: 0 }}>
             <span style={{ fontFamily: T.sans, fontSize: 13, fontWeight: 700, color: "rgba(244,238,228,.7)", whiteSpace: "nowrap" }}>Comparing {compareItems.length}/2:</span>
             {compareItems.map((l) => (

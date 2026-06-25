@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
@@ -6,6 +6,12 @@ import GoogleAnalytics from "@/components/GoogleAnalytics";
 import { AppProvider } from "@/components/rh/app";
 
 const hanken = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-hanken" });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://rentalhub.ng"),
@@ -90,7 +96,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
       </head>
-      <body className="overflow-x-hidden">
+      <body>
         <Providers>
           <AppProvider>{children}</AppProvider>
         </Providers>

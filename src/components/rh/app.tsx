@@ -206,7 +206,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppCtx.Provider value={{ go, role: auth?.user.role?.toLowerCase() ?? "guest", user: auth?.user ?? null, initialized, login, updateUser, signOut, campus, setCampus, showToast }}>
       {children}
       {toast && (
-        <div style={{ position: "fixed", bottom: 26, left: "50%", transform: "translateX(-50%)", zIndex: 200, background: T.ink, color: T.paper, padding: "13px 22px", borderRadius: 12, fontFamily: T.sans, fontSize: 14.5, fontWeight: 500, boxShadow: "0 16px 40px -12px rgba(0,0,0,.5)", display: "flex", alignItems: "center", gap: 9, maxWidth: "90vw" }}>
+        <div style={{ position: "fixed", bottom: "calc(26px + env(safe-area-inset-bottom, 0px))", left: "50%", transform: "translateX(-50%)", zIndex: 200, background: T.ink, color: T.paper, padding: "13px 22px", borderRadius: 12, fontFamily: T.sans, fontSize: 14.5, fontWeight: 500, boxShadow: "0 16px 40px -12px rgba(0,0,0,.5)", display: "flex", alignItems: "center", gap: 9, maxWidth: "min(90vw, 480px)", width: "max-content" }}>
           {I.checkCircle({ width: 18, height: 18, style: { color: "#7FD6A6", flex: "0 0 auto" } })}
           {toast}
         </div>
