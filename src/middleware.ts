@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const ADMIN_HOST = process.env.ADMIN_HOST ?? "hazard.rentalhub.ng";
 const ADMIN_LOGIN = "/admin-login";
 const STAFF_ROLES = new Set(["ADMIN", "MODERATOR", "AUDITOR"]);
+const INSPECTOR_LOGIN = "/login";
 
 export function middleware(req: NextRequest) {
   const host = req.nextUrl.hostname;
@@ -30,6 +31,14 @@ export function middleware(req: NextRequest) {
   if (!isAdminHost && isAdminRoute) {
     // rentalhub.ng/admin* → genuine 404, no hint the route exists
     return new NextResponse(null, { status: 404 });
+  }
+
+  // Inspector dashboard requires an active INSPECTOR session.
+  if (pathname.startsWith("/inspector-dashboard")) {
+    const role = req.cookies.get("rh_role")?.value ?? "";
+    if (role !== "INSPECTOR") {
+      return NextResponse.redirect(new URL(INSPECTOR_LOGIN, req.url));
+    }
   }
 
   return NextResponse.next();
