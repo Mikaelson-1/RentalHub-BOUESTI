@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { T, I, Logo } from "@/lib/rh/theme";
 import { CAMPUSES } from "@/lib/rh/data";
@@ -16,58 +16,7 @@ interface FormData {
   campus: string;
 }
 
-function DropZone({
-  label,
-  hint,
-  file,
-  onFile,
-}: {
-  label: string;
-  hint: string;
-  file: File | null;
-  onFile: (f: File) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [dragging, setDragging] = useState(false);
-
-  const accept = useCallback(
-    (f: File) => {
-      const ok = ["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(f.type);
-      if (ok) onFile(f);
-    },
-    [onFile]
-  );
-
-  return (
-    <div
-      onClick={() => inputRef.current?.click()}
-      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) accept(f); }}
-      style={{
-        border: `2px dashed ${dragging ? T.clay : file ? T.green : T.line}`,
-        borderRadius: 14,
-        padding: "24px 20px",
-        textAlign: "center",
-        cursor: "pointer",
-        background: dragging ? T.claySoft : file ? T.greenSoft : "#fff",
-        transition: "all .15s",
-      }}
-    >
-      <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" style={{ display: "none" }}
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) accept(f); }} />
-      <div style={{ color: file ? T.green : T.ink3, marginBottom: 8 }}>
-        {file ? I.shield({ width: 26, height: 26 }) : I.upload({ width: 26, height: 26 })}
-      </div>
-      <div style={{ fontFamily: T.sans, fontSize: 14, fontWeight: 600, color: T.ink }}>
-        {file ? file.name : label}
-      </div>
-      <div style={{ fontFamily: T.sans, fontSize: 12, color: T.ink3, marginTop: 4 }}>
-        {file ? `${(file.size / 1024).toFixed(0)} KB — click to replace` : hint}
-      </div>
-    </div>
-  );
-}
+const isDriveLink = (v: string) => /^https:\/\/(drive|docs)\.google\.com\//.test(v.trim());
 
 export default function InspectorSignupPage() {
   const router = useRouter();
@@ -76,8 +25,8 @@ export default function InspectorSignupPage() {
   const [form, setForm] = useState<FormData>({ name: "", email: "", password: "", matricNumber: "", campus: "bouesti" });
   const set = (k: keyof FormData, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
-  const [idFile, setIdFile] = useState<File | null>(null);
-  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [idLink, setIdLink] = useState("");
+  const [screenshotLink, setScreenshotLink] = useState("");
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,8 +49,8 @@ export default function InspectorSignupPage() {
   };
 
   const submit = async () => {
-    if (!idFile) { setError("Upload your Student ID card."); return; }
-    if (!screenshotFile) { setError("Upload your student portal screenshot."); return; }
+    if (!isDriveLink(idLink)) { setError("Paste a valid Google Drive link for your Student ID."); return; }
+    if (!isDriveLink(screenshotLink)) { setError("Paste a valid Google Drive link for your portal screenshot."); return; }
     setError(null);
     setBusy(true);
 
@@ -116,45 +65,17 @@ export default function InspectorSignupPage() {
       if (!regRes.ok || regJson.success === false) throw new Error(regJson.error ?? "Registration failed.");
       const { token, user } = regJson.data ?? regJson;
 
-      const authHeader = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-
-      // 2. Get presigned URLs for both documents.
-      async function signUrl(file: File, purpose: string) {
-        const res = await fetch(`${API_BASE}/api/inspections/sign-url`, {
-          method: "POST",
-          headers: authHeader,
-          body: JSON.stringify({ purpose, contentType: file.type, fileName: file.name }),
-        });
-        const json = await res.json();
-        if (!res.ok || json.success === false) throw new Error(json.error ?? "Failed to get upload URL.");
-        return (json.data ?? json) as { uploadUrl: string; publicUrl: string };
-      }
-
-      const [idSigned, ssSigned] = await Promise.all([
-        signUrl(idFile, "studentId"),
-        signUrl(screenshotFile, "portalScreenshot"),
-      ]);
-
-      // 3. Upload files directly to cloud storage.
-      async function putFile(file: File, uploadUrl: string) {
-        const res = await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-        if (!res.ok) throw new Error("Document upload failed. Please try again.");
-      }
-
-      await Promise.all([putFile(idFile, idSigned.uploadUrl), putFile(screenshotFile, ssSigned.uploadUrl)]);
-
-      // 4. Save the public URLs back to the user profile.
+      // 2. Save document links to the profile.
       const patchRes = await fetch(`${API_BASE}/api/auth/me`, {
         method: "PATCH",
-        headers: authHeader,
-        body: JSON.stringify({ studentIdUrl: idSigned.publicUrl, portalScreenshotUrl: ssSigned.publicUrl }),
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ studentIdUrl: idLink.trim(), portalScreenshotUrl: screenshotLink.trim() }),
       });
       const patchJson = await patchRes.json();
       if (!patchRes.ok || patchJson.success === false) throw new Error(patchJson.error ?? "Profile update failed.");
 
-      // 5. Store session so the success page can read the user state.
+      // 3. Store session so the success page can read the user state.
       window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, user }));
-
       router.push("/inspector-signup/success");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
@@ -211,23 +132,36 @@ export default function InspectorSignupPage() {
 
           {step === 1 && (
             <>
-              <h2 style={{ fontFamily: T.serif, fontWeight: 400, fontSize: 26, color: T.ink, margin: "0 0 6px" }}>Upload your documents</h2>
-              <p style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2, marginBottom: 24, lineHeight: 1.5 }}>
-                Your Student ID and portal screenshot confirm you&apos;re enrolled. Accepted: JPEG, PNG, PDF.
+              <h2 style={{ fontFamily: T.serif, fontWeight: 400, fontSize: 26, color: T.ink, margin: "0 0 6px" }}>Share your documents</h2>
+              <p style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2, marginBottom: 8, lineHeight: 1.5 }}>
+                Upload your documents to Google Drive, set sharing to <strong>Anyone with the link</strong>, then paste each link below.
               </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <DropZone
-                  label="Student ID card"
-                  hint="Drag & drop or click to upload"
-                  file={idFile}
-                  onFile={setIdFile}
-                />
-                <DropZone
-                  label="Student portal screenshot"
-                  hint="Current semester showing your name & matric number"
-                  file={screenshotFile}
-                  onFile={setScreenshotFile}
-                />
+              <div style={{ background: T.paper, borderRadius: 12, padding: "10px 14px", marginBottom: 20 }}>
+                <div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink3, lineHeight: 1.6 }}>
+                  Documents needed: <strong style={{ color: T.ink }}>Student ID card</strong> and <strong style={{ color: T.ink }}>student portal screenshot</strong> (showing your name &amp; matric number).
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <Field
+                  label="Student ID card — Google Drive link"
+                  hint="drive.google.com/file/d/… or drive.google.com/open?id=…"
+                >
+                  <Input
+                    value={idLink}
+                    onChange={(e) => setIdLink(e.target.value)}
+                    placeholder="https://drive.google.com/file/d/…"
+                  />
+                </Field>
+                <Field
+                  label="Portal screenshot — Google Drive link"
+                  hint="Current semester showing your name and matric number."
+                >
+                  <Input
+                    value={screenshotLink}
+                    onChange={(e) => setScreenshotLink(e.target.value)}
+                    placeholder="https://drive.google.com/file/d/…"
+                  />
+                </Field>
               </div>
               {error && <div style={{ fontFamily: T.sans, fontSize: 13, color: T.red, background: T.redSoft, borderRadius: 10, padding: "10px 14px", marginTop: 16 }}>{error}</div>}
               <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
