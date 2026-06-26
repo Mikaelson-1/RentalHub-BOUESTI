@@ -277,6 +277,8 @@ export interface InspectorProfile {
   id: string; name: string; campus: string | null;
   completedCount: number; avgRating: number | null;
 }
+export const googleAuth = (accessToken: string) =>
+  apiPost<{ token: string; isNewUser: boolean; user: AuthUser }>("/api/auth/google", { accessToken });
 export const getInspectors     = (campus?: string) => apiGet<InspectorProfile[]>(`/api/inspectors${campus ? `?campus=${encodeURIComponent(campus)}` : ""}`);
 export const requestInspection = (propertyId: string, inspectorId?: string) => apiPost<ApiInspection>("/api/inspections", { propertyId, ...(inspectorId ? { inspectorId } : {}) });
 export const getMyInspections  = () => apiGet<ApiInspection[]>("/api/inspections");

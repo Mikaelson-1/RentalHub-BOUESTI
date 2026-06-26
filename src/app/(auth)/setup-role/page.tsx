@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { T, I, Logo } from "@/lib/rh/theme";
+import { CAMPUSES } from "@/lib/rh/data";
 import { useApp, useViewport } from "@/components/rh/app";
-import { Button, Card } from "@/components/rh/ui";
-import { setUserRole } from "@/lib/rh/api";
+import { Button, Card, Field, Select } from "@/components/rh/ui";
+import { apiPatch, type AuthUser } from "@/lib/rh/api";
 
 export default function SetupRolePage() {
-  const { go, showToast, user, updateUser } = useApp();
+  const { go, showToast, user, updateUser, setCampus } = useApp();
   const { mobile } = useViewport();
   const [sel, setSel] = useState<"STUDENT" | "LANDLORD" | null>(null);
+  const [campusId, setCampusId] = useState(CAMPUSES[0].id);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,8 +22,12 @@ export default function SetupRolePage() {
     setError(null);
     setSaving(true);
     try {
-      const updated = await setUserRole(sel);
-      updateUser({ role: updated.role });
+      const updated = await apiPatch<AuthUser>("/api/auth/setup-role", {
+        role: sel,
+        ...(sel === "STUDENT" ? { campus: campusId } : {}),
+      });
+      updateUser(updated);
+      if (sel === "STUDENT") setCampus(campusId);
       showToast("Account ready");
       go(sel.toLowerCase() as "student" | "landlord");
     } catch (e) {
@@ -50,6 +56,17 @@ export default function SetupRolePage() {
               </div>
             ))}
           </div>
+          {sel === "STUDENT" && (
+            <div style={{ marginTop: 18 }}>
+              <Field label="Your school">
+                <Select value={campusId} onChange={(e) => setCampusId(e.target.value)}>
+                  {CAMPUSES.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}{c.live ? "" : " (coming soon)"}</option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+          )}
           {error && <div style={{ fontFamily: T.sans, fontSize: 13, color: T.red, background: T.redSoft, borderRadius: 10, padding: "10px 14px", marginTop: 16 }}>{error}</div>}
           <div style={{ marginTop: 24 }}>
             <Button full size="lg" disabled={!sel || saving} iconRight={I.arrow} onClick={confirm}>

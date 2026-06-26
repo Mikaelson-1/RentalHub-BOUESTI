@@ -18,7 +18,8 @@ const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : use
 import { useRouter } from "next/navigation";
 import { T, I } from "@/lib/rh/theme";
 import { CAMPUSES, type Campus } from "@/lib/rh/data";
-import { apiGet, apiPost, AUTH_STORAGE_KEY } from "@/lib/rh/api";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+import { apiGet, apiPost, googleAuth, AUTH_STORAGE_KEY } from "@/lib/rh/api";
 
 const INACTIVITY_MS = 2 * 60 * 60 * 1000; // 2 hours
 const ACTIVITY_KEY = "rh_auth_activity";
@@ -98,6 +99,7 @@ interface AppValue {
   user: AuthUser | null;
   initialized: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
+  loginWithGoogle: (accessToken: string) => Promise<{ user: AuthUser; isNewUser: boolean }>;
   updateUser: (patch: Partial<AuthUser>) => void;
   signOut: () => void;
   campus: Campus;
@@ -187,6 +189,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return data.user;
   }, []);
 
+  const loginWithGoogle = useCallback(async (accessToken: string) => {
+    const data = await googleAuth(accessToken);
+    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: data.token, user: data.user }));
+    touchActivity();
+    setRoleCookie(data.user.role);
+    setAuth({ token: data.token, user: data.user });
+    return { user: data.user, isNewUser: data.isNewUser };
+  }, []);
+
   const updateUser = useCallback((patch: Partial<AuthUser>) => {
     setAuth((prev) => {
       if (!prev) return prev;
@@ -244,7 +255,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AppCtx.Provider value={{ go, role: auth?.user.role?.toLowerCase() ?? "guest", user: auth?.user ?? null, initialized, login, updateUser, signOut, campus, setCampus, showToast }}>
+    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ""}>
+    <AppCtx.Provider value={{ go, role: auth?.user.role?.toLowerCase() ?? "guest", user: auth?.user ?? null, initialized, login, loginWithGoogle, updateUser, signOut, campus, setCampus, showToast }}>
       {children}
       {toast && (
         <div style={{ position: "fixed", bottom: "calc(26px + env(safe-area-inset-bottom, 0px))", left: "50%", transform: "translateX(-50%)", zIndex: 200, background: T.ink, color: T.paper, padding: "13px 22px", borderRadius: 12, fontFamily: T.sans, fontSize: 14.5, fontWeight: 500, boxShadow: "0 16px 40px -12px rgba(0,0,0,.5)", display: "flex", alignItems: "center", gap: 9, maxWidth: "min(90vw, 480px)", width: "max-content" }}>
@@ -253,5 +265,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         </div>
       )}
     </AppCtx.Provider>
+    </GoogleOAuthProvider>
   );
 }

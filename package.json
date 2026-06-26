@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@react-oauth/google": "^0.13.5",
     "@sentry/nextjs": "^10.48.0",
     "@types/leaflet": "^1.9.21",
     "@vercel/blob": "^0.27.3",
