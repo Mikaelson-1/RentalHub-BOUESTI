@@ -22,7 +22,12 @@ export default function LoginPage() {
       const u = await login(email.trim(), password);
       showToast(`Signed in as ${u.name}`);
       const isStaff = ["ADMIN", "MODERATOR", "AUDITOR"].includes(u.role);
-      go(isStaff ? "admin" : u.role === "LANDLORD" ? "landlord" : "student");
+      if (isStaff) { go("admin"); return; }
+      if (u.role === "INSPECTOR") {
+        go(u.verificationStatus === "VERIFIED" ? "inspector" : "inspector-pending");
+        return;
+      }
+      go(u.role === "LANDLORD" ? "landlord" : "student");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Sign in failed.";
       if (msg === "EMAIL_NOT_VERIFIED") { go("verify", null, { email: email.trim() }); return; }
