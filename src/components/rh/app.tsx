@@ -91,7 +91,7 @@ const ROUTE_MAP: Record<string, (arg?: string | null, params?: Params) => string
 
 export type GoFn = (route: string, arg?: string | null, params?: Params) => void;
 
-export interface AuthUser { id: string; name: string; email: string; role: string; verificationStatus?: string; avatarUrl?: string | null }
+export interface AuthUser { id: string; name: string; email: string; role: string; verificationStatus?: string; avatarUrl?: string | null; campus?: string | null }
 
 interface AppValue {
   go: GoFn;
@@ -152,18 +152,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setInitialized(true);
   }, []);
 
-  // Background refresh: pull latest verificationStatus from the server on every
-  // app mount so that admin approvals are reflected without requiring a re-login.
+  // Background refresh: pull latest verificationStatus + campus from the server
+  // on every app mount so that admin approvals are reflected without re-login.
   useEffect(() => {
     const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
     if (!raw) return;
     let cancelled = false;
-    apiGet<{ verificationStatus?: string }>("/api/auth/me")
+    apiGet<{ verificationStatus?: string; campus?: string | null }>("/api/auth/me")
       .then((fresh) => {
-        if (!cancelled && fresh.verificationStatus) {
+        if (!cancelled) {
           setAuth((prev) => {
             if (!prev) return prev;
-            const updated = { ...prev, user: { ...prev.user, verificationStatus: fresh.verificationStatus } };
+            const patch: Partial<AuthUser> = {};
+            if (fresh.verificationStatus) patch.verificationStatus = fresh.verificationStatus;
+            if (fresh.campus !== undefined) patch.campus = fresh.campus;
+            if (!Object.keys(patch).length) return prev;
+            const updated = { ...prev, user: { ...prev.user, ...patch } };
             window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
             return updated;
           });

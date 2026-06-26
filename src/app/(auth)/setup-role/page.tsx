@@ -24,10 +24,10 @@ export default function SetupRolePage() {
     try {
       const updated = await apiPatch<AuthUser>("/api/auth/setup-role", {
         role: sel,
-        ...(sel === "STUDENT" ? { campus: campusId } : {}),
+        campus: campusId,
       });
       updateUser(updated);
-      if (sel === "STUDENT") setCampus(campusId);
+      setCampus(campusId);
       showToast("Account ready");
       go(sel.toLowerCase() as "student" | "landlord");
     } catch (e) {
@@ -56,12 +56,12 @@ export default function SetupRolePage() {
               </div>
             ))}
           </div>
-          {sel === "STUDENT" && (
+          {(sel === "STUDENT" || sel === "LANDLORD") && (
             <div style={{ marginTop: 18 }}>
-              <Field label="Your school">
+              <Field label={sel === "LANDLORD" ? "Your campus area" : "Your school"}>
                 <Select value={campusId} onChange={(e) => setCampusId(e.target.value)}>
-                  {CAMPUSES.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}{c.live ? "" : " (coming soon)"}</option>
+                  {CAMPUSES.filter((c) => c.live).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </Select>
               </Field>

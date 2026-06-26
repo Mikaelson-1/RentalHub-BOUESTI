@@ -5,15 +5,17 @@ import { useRouter } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useSession } from "@/lib/auth-stub";
+import { useApp } from "@/components/rh/app";
+import { getLocations } from "@/lib/rh/api";
+import { CAMPUSES } from "@/lib/rh/data";
 import { upload } from "@vercel/blob/client";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Check, 
-  Home, 
-  MapPin, 
-  Wallet, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Home,
+  MapPin,
+  Wallet,
   Camera,
   Upload,
   Video,
@@ -24,7 +26,6 @@ import {
   Box
 } from "lucide-react";
 import Link from "next/link";
-import { SCHOOL_OPTIONS } from "@/lib/schools";
 
 // Validation Schema
 const toNumber = (value: unknown) => {
@@ -126,7 +127,7 @@ const amenityCategories = {
 
 export default function AddPropertyForm() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { user } = useApp();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -138,16 +139,17 @@ export default function AddPropertyForm() {
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
   const [selectedVerificationDoc, setSelectedVerificationDoc] = useState<File | null>(null);
+  const [locations, setLocations] = useState<Array<{ id: string; name: string; campus: string }>>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const verificationInputRef = useRef<HTMLInputElement>(null);
-  const verificationStatus = (session?.user as { verificationStatus?: string } | undefined)?.verificationStatus;
-  const listingLocked = session?.user?.role === "LANDLORD" && verificationStatus !== "VERIFIED";
+  const listingLocked = user?.role === "LANDLORD" && user?.verificationStatus !== "VERIFIED";
 
   const methods = useForm<PropertyFormInput, unknown, PropertyFormData>({
     resolver: zodResolver(propertySchema),
     defaultValues: {
-      targetUniversity: "BOUESTI - Ikere-Ekiti",
+      targetUniversity: "",
       vacantUnits: 1,
       amenities: {
         water: [],
@@ -162,6 +164,19 @@ export default function AddPropertyForm() {
   });
 
   const { register, handleSubmit, formState: { errors }, trigger, watch, setValue, setError, clearErrors } = methods;
+
+  // Sync targetUniversity display label and fetch areas whenever the landlord's campus changes.
+  useEffect(() => {
+    const campusId = user?.campus || "bouesti";
+    const campusData = CAMPUSES.find((c) => c.id === campusId);
+    setValue("targetUniversity", campusData?.name ?? "BOUESTI, Ikere-Ekiti");
+
+    setLocationsLoading(true);
+    getLocations(campusId)
+      .then((locs) => setLocations(locs))
+      .catch(() => setLocations([]))
+      .finally(() => setLocationsLoading(false));
+  }, [user?.campus, setValue]);
 
   const watchAmenities = watch("amenities");
 
@@ -692,30 +707,31 @@ export default function AddPropertyForm() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Target University
+                        University / Campus
                       </label>
-                      <select
+                      <input
                         {...register("targetUniversity")}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all bg-white"
-                      >
-                        {SCHOOL_OPTIONS.map((school) => (
-                          <option key={school.value} value={school.value}>
-                            {school.label}
-                          </option>
-                        ))}
-                      </select>
+                        type="text"
+                        readOnly
+                        className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                      />
+                      <p className="mt-1 text-xs text-gray-400">Set from your account campus. Change in profile settings.</p>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Environment/Area *
+                        Area / Neighbourhood *
                       </label>
-                      <input
+                      <select
                         {...register("environment")}
-                        type="text"
-                        placeholder="e.g., Odo Oja, Ikere-Ekiti"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-                      />
+                        disabled={locationsLoading}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all bg-white disabled:bg-gray-50 disabled:text-gray-400"
+                      >
+                        <option value="">{locationsLoading ? "Loading areas…" : "Select an area"}</option>
+                        {locations.map((loc) => (
+                          <option key={loc.id} value={loc.name}>{loc.name}</option>
+                        ))}
+                      </select>
                       {errors.environment && (
                         <p className="mt-1 text-sm text-red-500">{errors.environment.message}</p>
                       )}
