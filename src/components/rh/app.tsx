@@ -73,6 +73,7 @@ const ROUTE_MAP: Record<string, (arg?: string | null, params?: Params) => string
   manage: (arg) => `/landlord/properties/${arg ?? ""}`,
   "edit-property": (arg) => `/landlord/edit-property/${arg ?? ""}`,
   inspector: () => "/inspector",
+  "inspector-signup": () => "/inspector-signup",
   "inspector-pending": () => "/inspector-signup/success",
   "admin-login": () => "/admin-login",
   admin: () => "/admin",

@@ -137,6 +137,45 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Inspector CTA */}
+      <div style={{ background: T.ink, color: "#fff", padding: mobile ? "40px 20px" : "64px 40px" }}>
+        <div className="rh-m-block" style={{ maxWidth: 1280, margin: "0 auto", display: mobile ? "block" : "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "center" }}>
+          <div>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: T.clay, background: "rgba(199,91,42,.15)", padding: "5px 12px", borderRadius: 999, fontFamily: T.sans, marginBottom: 16 }}>
+              {I.shield({ width: 13, height: 13 })} Campus inspectors
+            </span>
+            <h2 style={{ margin: 0, fontFamily: T.serif, fontWeight: 400, fontSize: mobile ? 32 : 46, letterSpacing: "-.02em", lineHeight: 1.05 }}>Help students find safe homes.</h2>
+            <p style={{ fontFamily: T.sans, fontSize: mobile ? 15.5 : 18, opacity: 0.75, marginTop: 14, maxWidth: 440, lineHeight: 1.55 }}>
+              As a RentalHub inspector, you visit properties near your campus and submit a report on behalf of students who can&apos;t inspect in person. You earn per completed inspection.
+            </p>
+            <div style={{ display: "flex", gap: mobile ? 24 : 36, marginTop: mobile ? 22 : 28 }}>
+              {[["Earn per job", "Get paid for every report you submit"], ["Flexible hours", "Accept jobs that fit your schedule"], ["Help your peers", "Give students confidence before they pay"]].map(([t, d]) => (
+                <div key={t} style={{ flex: 1 }}>
+                  <div style={{ fontFamily: T.sans, fontSize: 13, fontWeight: 700, color: "#fff" }}>{t}</div>
+                  <div style={{ fontFamily: T.sans, fontSize: 12.5, color: "rgba(255,255,255,.55)", marginTop: 4, lineHeight: 1.5 }}>{d}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginTop: mobile ? 28 : 0, display: "flex", flexDirection: "column", gap: 12, alignItems: mobile ? "stretch" : "flex-start" }}>
+            <div style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 18, padding: mobile ? "20px 18px" : "28px 26px" }}>
+              <div style={{ fontFamily: T.serif, fontSize: 17, color: "#fff", marginBottom: 6 }}>Who can apply?</div>
+              {["Must be a registered student at a live campus", "You need a valid matric card and student portal access", "Applications are reviewed by our team within 48 hours"].map((item) => (
+                <div key={item} style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 12 }}>
+                  <span style={{ width: 18, height: 18, borderRadius: 999, background: T.clay, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto", marginTop: 1 }}>
+                    {I.check({ width: 10, height: 10, style: { color: "#fff" } })}
+                  </span>
+                  <span style={{ fontFamily: T.sans, fontSize: 13.5, color: "rgba(255,255,255,.75)", lineHeight: 1.5 }}>{item}</span>
+                </div>
+              ))}
+              <div style={{ marginTop: 22 }}>
+                <Button size="lg" full={mobile} iconRight={I.arrow} onClick={() => go("inspector-signup")}>Apply to be an inspector</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* CTA band */}
       <div style={{ background: T.clay, color: "#fff", padding: mobile ? "40px 20px" : "64px 40px" }}>
         <div className="rh-m-block" style={{ maxWidth: 1280, margin: "0 auto", display: mobile ? "block" : "flex", alignItems: "center", justifyContent: "space-between", gap: 40 }}>
