@@ -34,7 +34,7 @@ export function middleware(req: NextRequest) {
   }
 
   // Inspector dashboard requires an active INSPECTOR session.
-  if (pathname.startsWith("/inspector-dashboard")) {
+  if (pathname.startsWith("/inspector")) {
     const role = req.cookies.get("rh_role")?.value ?? "";
     if (role !== "INSPECTOR") {
       return NextResponse.redirect(new URL(INSPECTOR_LOGIN, req.url));
