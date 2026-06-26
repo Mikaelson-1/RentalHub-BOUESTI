@@ -263,7 +263,8 @@ export function PublicNav() {
   const { go, role } = useApp();
   const { mobile: m } = useViewport();
   const [open, setOpen] = useState(false);
-  const links: [string, string][] = [["Browse", "search"], ["How it works", "how-it-works"], ["For landlords", "landlord-info"]];
+  const allLinks: [string, string][] = [["Browse", "search"], ["How it works", "how-it-works"], ["For landlords", "landlord-info"]];
+  const links = role === "guest" ? allLinks : allLinks.filter(([, r]) => r !== "landlord-info");
   const dash = role === "student" ? "student" : role === "landlord" ? "landlord" : role === "admin" ? "admin" : null;
   return (
     <div style={{ position: "sticky", top: 0, zIndex: 60, background: "rgba(244,238,228,.88)", backdropFilter: "blur(10px)", borderBottom: "1px solid " + T.line2 }}>
