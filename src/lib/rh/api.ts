@@ -235,11 +235,12 @@ export const setLandlordVerification = (landlordId: string, action: "APPROVE" | 
 export const getAdminPayouts = () => apiGet<AdminPayout[]>("/api/admin/payouts");
 export const setPayoutStatus = (bookingId: string, action: "COMPLETE" | "FAIL") => apiPatch("/api/admin/payouts", { bookingId, action });
 
-export interface AdminUser { id: string; name: string; email: string; role: string; emailVerified: boolean; verificationStatus: string; isFrozen: boolean; frozenReason?: string | null; createdAt: string; _count: { properties: number; bookings: number } }
+export interface AdminUser { id: string; name: string; email: string; role: string; emailVerified: boolean; verificationStatus: string; isFrozen: boolean; frozenReason?: string | null; createdAt: string; campus?: string | null; matricCardUrl?: string | null; studentIdUrl?: string | null; portalScreenshotUrl?: string | null; _count: { properties: number; bookings: number } }
 export interface AdminUsersResponse { items: AdminUser[]; total: number; page: number; pageSize: number }
 export const getAdminUsers = (role?: string) => apiGet<AdminUsersResponse>(`/api/admin/users${role ? `?role=${role}` : ""}`);
-export const setUserFreeze = (id: string, action: "FREEZE" | "UNFREEZE", reason?: string) => apiPatch(`/api/admin/users/${id}`, { action, reason });
-export const setUserFlag  = (id: string, action: "FLAG"   | "UNFLAG",   reason?: string) => apiPatch(`/api/admin/users/${id}`, { action, reason });
+export const setUserFreeze      = (id: string, action: "FREEZE" | "UNFREEZE", reason?: string) => apiPatch(`/api/admin/users/${id}`, { action, reason });
+export const setUserFlag        = (id: string, action: "FLAG"   | "UNFLAG",   reason?: string) => apiPatch(`/api/admin/users/${id}`, { action, reason });
+export const setUserVerification = (id: string, action: "VERIFY" | "REJECT")                  => apiPatch(`/api/admin/users/${id}`, { action });
 
 export const STAFF_ROLES = ["ADMIN", "MODERATOR", "AUDITOR"] as const;
 export type StaffRole = typeof STAFF_ROLES[number];

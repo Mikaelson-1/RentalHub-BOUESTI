@@ -8,7 +8,7 @@ import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
 import {
   getAdminSummary, getPendingProperties, getAdminLandlords, getAdminPayouts,
   getAdminAllProperties, getAdminUsers, changePassword, setUserFreeze, setUserFlag,
-  setPropertyStatus, setLandlordVerification, setPayoutStatus, mapProperty,
+  setPropertyStatus, setLandlordVerification, setPayoutStatus, setUserVerification, mapProperty,
   getLocations, createLocation, deleteLocation,
   type AdminSummary, type AdminLandlord, type AdminPayout, type ApiProperty, type AdminUser, type UiListing,
 } from "@/lib/rh/api";
@@ -185,6 +185,15 @@ export function AdminDash() {
       showToast(action === "FLAG" ? `${u.name} has been flagged for review` : `Flag removed from ${u.name}`);
     } catch (e) { showToast(e instanceof Error ? e.message : "Action failed"); }
   };
+  const verifyUser = async (u: AdminUser, action: "VERIFY" | "REJECT") => {
+    try {
+      await setUserVerification(u.id, action);
+      const updated = { ...u, verificationStatus: action === "VERIFY" ? "VERIFIED" : "REJECTED" };
+      setUsers((a) => a.map((x) => (x.id === u.id ? updated : x)));
+      setSelectedUser(updated);
+      showToast(action === "VERIFY" ? `${u.name} verified` : `${u.name} verification rejected`);
+    } catch (e) { showToast(e instanceof Error ? e.message : "Action failed"); }
+  };
 
   return (
     <>
@@ -192,14 +201,14 @@ export function AdminDash() {
     <DashShell role="admin" tab={tab} setTab={setTab}
       title={userRole === "MODERATOR" ? "Moderator dashboard" : userRole === "AUDITOR" ? "Auditor dashboard" : "Admin dashboard"}
       subtitle={userRole === "MODERATOR" ? "Review listings, verify landlords and manage users" : userRole === "AUDITOR" ? "Review payouts and transaction records" : "Review listings, verify landlords and manage payouts"}
-      badges={{ pending: pending.length || undefined, verifications: awaitingVerifs.length || undefined, payouts: payouts.length || undefined }}
+      badges={{ pending: pending.length || undefined, verifications: (awaitingVerifs.length + users.filter((u) => (u.role === "INSPECTOR" || u.role === "STUDENT") && u.verificationStatus === "UNDER_REVIEW").length) || undefined, payouts: payouts.length || undefined }}
       visibleTabs={visibleTabs}
       action={<Button size="sm" variant="outline" icon={I.shield} onClick={() => setShowChangePw(true)}>Change password</Button>}>
 
       <div className="rh-m-col2" style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(6,1fr)", gap: mobile ? 12 : 14, marginBottom: 26 }}>
         <Stat label="Properties" value={summary?.totalProperties ?? "—"} tone="ink" icon={I.building} onClick={() => setTab("properties")} active={tab === "properties"} />
         <Stat label="Pending" value={pending.length} tone="gold" icon={I.clock} onClick={() => setTab("pending")} active={tab === "pending"} />
-        <Stat label="Verifications" value={awaitingVerifs.length} tone="blue" icon={I.shield} onClick={() => setTab("verifications")} active={tab === "verifications"} />
+        <Stat label="Verifications" value={awaitingVerifs.length + users.filter((u) => (u.role === "INSPECTOR" || u.role === "STUDENT") && u.verificationStatus === "UNDER_REVIEW").length} tone="blue" icon={I.shield} onClick={() => setTab("verifications")} active={tab === "verifications"} />
         <Stat label="Payouts" value={payouts.length} tone="green" icon={I.wallet} onClick={() => setTab("payouts")} active={tab === "payouts"} />
         <Stat label="Users" value={summary ? summary.totalUsers.toLocaleString() : "—"} tone="ink" icon={I.users} onClick={() => setTab("users")} active={tab === "users"} />
         <Stat label="Bookings" value={summary?.totalBookings ?? "—"} tone="clay" icon={I.inbox} onClick={() => setTab("forecast")} active={tab === "forecast"} />
@@ -236,47 +245,136 @@ export function AdminDash() {
         )
       )}
 
-      {tab === "verifications" && (
-        loading ? <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{[1,2,3].map((i) => <SkeletonCard key={i} rows={4} />)}</div>
-        : verifs.length === 0 ? <EmptyState icon={I.shield} title="No verifications pending" sub="All landlord submissions have been reviewed." />
-        : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {verifs.map((v) => (
-              <Card key={v.id} pad={mobile ? 16 : 20} style={{ opacity: v.verificationStatus === "REJECTED" ? 0.7 : 1 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-                  <div style={{ display: "flex", gap: 14, flex: 1, minWidth: 200 }}>
-                    <Avatar landlord={{ initials: initialsOf(v.name), color: "#8A5A6B" }} size={46} />
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}><span style={{ fontFamily: T.sans, fontSize: 15.5, fontWeight: 700, color: T.ink }}>{v.name}</span><StatusBadge status={v.verificationStatus} /></div>
-                      <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>{v.email}</div>
-                      {v.aiPreScreenScore && <div style={{ marginTop: 10 }}><AiScore score={v.aiPreScreenScore} note={v.aiPreScreenNote} /></div>}
-                      <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                        {([["Gov ID", v.governmentIdUrl], ["Selfie", v.selfieUrl], ["Ownership", v.ownershipProofUrl]] as [string, string | null | undefined][]).map(([t, url]) => (
-                          url ? (
-                            <a key={t} href={url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, background: T.blueSoft, color: T.blue, border: "1px solid transparent", textDecoration: "none", cursor: "pointer" }}>
-                              {I.doc({ width: 13, height: 13 })} {t} {I.chevRight({ width: 11, height: 11 })}
-                            </a>
-                          ) : (
-                            <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, background: T.paper, color: T.ink3, border: "1px solid " + T.line }}>
-                              {I.x({ width: 13, height: 13 })} {t}
-                            </span>
-                          )
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  {v.verificationStatus === "UNDER_REVIEW" && (
-                    <div style={{ display: "flex", flexDirection: mobile ? "row" : "column", gap: 8, flex: "0 0 auto", width: mobile ? "100%" : "auto" }}>
-                      <Button variant="green" size="sm" full={mobile} onClick={() => decideVerif(v.id, "APPROVE")}>Approve</Button>
-                      <Button variant="danger" size="sm" full={mobile} onClick={() => decideVerif(v.id, "REJECT")}>Reject</Button>
-                    </div>
-                  )}
-                </div>
-              </Card>
+      {tab === "verifications" && (() => {
+        const pendingInspectors = users.filter((u) => u.role === "INSPECTOR" && u.verificationStatus === "UNDER_REVIEW");
+        const pendingStudents   = users.filter((u) => u.role === "STUDENT"   && u.verificationStatus === "UNDER_REVIEW");
+        const totalPending = awaitingVerifs.length + pendingInspectors.length + pendingStudents.length;
+
+        const DocLinks = ({ docs }: { docs: [string, string | null | undefined][] }) => (
+          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+            {docs.map(([t, url]) => url ? (
+              <a key={t} href={url} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, background: T.blueSoft, color: T.blue, textDecoration: "none" }}>
+                {I.doc({ width: 13, height: 13 })} {t} {I.chevRight({ width: 11, height: 11 })}
+              </a>
+            ) : (
+              <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, background: T.paper, color: T.ink3, border: "1px solid " + T.line }}>
+                {I.x({ width: 13, height: 13 })} {t} missing
+              </span>
             ))}
           </div>
-        )
-      )}
+        );
+
+        return loading ? <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{[1,2,3].map((i) => <SkeletonCard key={i} rows={4} />)}</div>
+        : totalPending === 0 ? <EmptyState icon={I.shield} title="No verifications pending" sub="All submissions have been reviewed." />
+        : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+            {/* Inspectors */}
+            {pendingInspectors.length > 0 && (
+              <section>
+                <div style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: T.ink3, marginBottom: 12 }}>Inspectors ({pendingInspectors.length})</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {pendingInspectors.map((u) => (
+                    <Card key={u.id} pad={mobile ? 16 : 20}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 14, flex: 1, minWidth: 200 }}>
+                          <Avatar landlord={{ initials: initialsOf(u.name), color: "#2B5278" }} size={46} />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <span style={{ fontFamily: T.sans, fontSize: 15.5, fontWeight: 700, color: T.ink }}>{u.name}</span>
+                              <StatusBadge status={u.verificationStatus} />
+                            </div>
+                            <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>{u.email}{u.campus ? ` · ${u.campus}` : ""}</div>
+                            <DocLinks docs={[["Student ID", u.studentIdUrl], ["Portal screenshot", u.portalScreenshotUrl]]} />
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: mobile ? "row" : "column", gap: 8, flex: "0 0 auto", width: mobile ? "100%" : "auto" }}>
+                          <Button variant="green" size="sm" full={mobile} onClick={() => verifyUser(u, "VERIFY")}>Approve</Button>
+                          <Button variant="danger" size="sm" full={mobile} onClick={() => verifyUser(u, "REJECT")}>Reject</Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Students */}
+            {pendingStudents.length > 0 && (
+              <section>
+                <div style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: T.ink3, marginBottom: 12 }}>Students ({pendingStudents.length})</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {pendingStudents.map((u) => (
+                    <Card key={u.id} pad={mobile ? 16 : 20}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 14, flex: 1, minWidth: 200 }}>
+                          <Avatar landlord={{ initials: initialsOf(u.name), color: "#2F5D4F" }} size={46} />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <span style={{ fontFamily: T.sans, fontSize: 15.5, fontWeight: 700, color: T.ink }}>{u.name}</span>
+                              <StatusBadge status={u.verificationStatus} />
+                            </div>
+                            <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>{u.email}{u.campus ? ` · ${u.campus}` : ""}</div>
+                            <DocLinks docs={[["Matric card", u.matricCardUrl]]} />
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: mobile ? "row" : "column", gap: 8, flex: "0 0 auto", width: mobile ? "100%" : "auto" }}>
+                          <Button variant="green" size="sm" full={mobile} onClick={() => verifyUser(u, "VERIFY")}>Approve</Button>
+                          <Button variant="danger" size="sm" full={mobile} onClick={() => verifyUser(u, "REJECT")}>Reject</Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Landlords */}
+            {awaitingVerifs.length > 0 && (
+              <section>
+                <div style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: T.ink3, marginBottom: 12 }}>Landlords ({awaitingVerifs.length})</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {verifs.filter((v) => v.verificationStatus === "UNDER_REVIEW").map((v) => (
+                    <Card key={v.id} pad={mobile ? 16 : 20}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 14, flex: 1, minWidth: 200 }}>
+                          <Avatar landlord={{ initials: initialsOf(v.name), color: "#8A5A6B" }} size={46} />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <span style={{ fontFamily: T.sans, fontSize: 15.5, fontWeight: 700, color: T.ink }}>{v.name}</span>
+                              <StatusBadge status={v.verificationStatus} />
+                            </div>
+                            <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>{v.email}</div>
+                            {v.aiPreScreenScore && <div style={{ marginTop: 10 }}><AiScore score={v.aiPreScreenScore} note={v.aiPreScreenNote} /></div>}
+                            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                              {([["Gov ID", v.governmentIdUrl], ["Selfie", v.selfieUrl], ["Ownership", v.ownershipProofUrl]] as [string, string | null | undefined][]).map(([t, url]) => url ? (
+                                <a key={t} href={url} target="_blank" rel="noopener noreferrer"
+                                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, background: T.blueSoft, color: T.blue, textDecoration: "none" }}>
+                                  {I.doc({ width: 13, height: 13 })} {t} {I.chevRight({ width: 11, height: 11 })}
+                                </a>
+                              ) : (
+                                <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, background: T.paper, color: T.ink3, border: "1px solid " + T.line }}>
+                                  {I.x({ width: 13, height: 13 })} {t} missing
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: mobile ? "row" : "column", gap: 8, flex: "0 0 auto", width: mobile ? "100%" : "auto" }}>
+                          <Button variant="green" size="sm" full={mobile} onClick={() => decideVerif(v.id, "APPROVE")}>Approve</Button>
+                          <Button variant="danger" size="sm" full={mobile} onClick={() => decideVerif(v.id, "REJECT")}>Reject</Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            )}
+
+          </div>
+        );
+      })()}
 
       {tab === "payouts" && (
         loading ? <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{[1,2,3].map((i) => <SkeletonCard key={i} rows={3} />)}</div>
@@ -353,7 +451,7 @@ export function AdminDash() {
       {tab === "users" && (
         <div>
           <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-            {(["", "STUDENT", "LANDLORD", "ADMIN", "MODERATOR", "AUDITOR"] as const).map((r) => (
+            {(["", "STUDENT", "LANDLORD", "INSPECTOR", "ADMIN", "MODERATOR", "AUDITOR"] as const).map((r) => (
               <Button key={r} size="sm" variant={userRoleFilter === r ? "dark" : "outline"} onClick={() => {
                 setUserRoleFilter(r);
                 getAdminUsers(r || undefined).then((res) => setUsers(res.items)).catch(() => {});
@@ -436,14 +534,39 @@ export function AdminDash() {
                 <span style={{ fontFamily: T.sans, fontSize: 13, fontWeight: 600, color: selectedUser.isFrozen ? T.red : T.green }}>{selectedUser.isFrozen ? "Suspended" : "Active"}</span>
               </div>
             </div>
+            {/* Document links for students and inspectors */}
+            {(selectedUser.role === "STUDENT" || selectedUser.role === "INSPECTOR") && (
+              <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: T.ink3, marginBottom: 4 }}>Documents</div>
+                {([
+                  ["Student ID", selectedUser.studentIdUrl],
+                  ["Portal screenshot", selectedUser.portalScreenshotUrl],
+                  ["Matric card", selectedUser.matricCardUrl],
+                ] as [string, string | null | undefined][]).filter(([, url]) => url).map(([label, url]) => (
+                  <a key={label} href={url!} target="_blank" rel="noopener noreferrer"
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, fontFamily: T.sans, fontSize: 13.5, fontWeight: 600, background: T.blueSoft, color: T.blue, textDecoration: "none" }}>
+                    {I.doc({ width: 14, height: 14 })} {label} {I.chevRight({ width: 12, height: 12 })}
+                  </a>
+                ))}
+                {!selectedUser.studentIdUrl && !selectedUser.portalScreenshotUrl && !selectedUser.matricCardUrl && (
+                  <span style={{ fontFamily: T.sans, fontSize: 13, color: T.ink3 }}>No documents uploaded.</span>
+                )}
+              </div>
+            )}
             {canManageUsers && !["ADMIN", "MODERATOR", "AUDITOR"].includes(selectedUser.role) && (
               <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                {/* Verify/Reject for pending users */}
+                {selectedUser.verificationStatus === "UNDER_REVIEW" && (selectedUser.role === "STUDENT" || selectedUser.role === "INSPECTOR") && (
+                  <>
+                    <Button full variant="green" icon={I.check} onClick={() => void verifyUser(selectedUser, "VERIFY")}>Approve verification</Button>
+                    <Button full variant="danger" onClick={() => void verifyUser(selectedUser, "REJECT")}>Reject verification</Button>
+                  </>
+                )}
                 {selectedUser.isFrozen ? (
                   <Button full variant="outline" icon={I.check} onClick={() => void freezeUser(selectedUser, "UNFREEZE")}>Restore account</Button>
                 ) : (
                   <Button full variant="danger" onClick={() => void freezeUser(selectedUser, "FREEZE")}>Suspend account</Button>
                 )}
-                <Button full variant="outline" size="sm" onClick={() => void flagUser(selectedUser, "FLAG")}>Flag for review</Button>
               </div>
             )}
           </div>
