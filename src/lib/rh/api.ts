@@ -259,7 +259,14 @@ export interface ApiInspection {
   expiresAt: string;
   notes: string | null;
   videoLink: string | null;
-  property: { id: string; title: string; location: { name: string } | null } | null;
+  property: {
+    id: string;
+    title: string;
+    description: string;
+    images: string[];
+    distanceToCampus: number | null;
+    location: { name: string } | null;
+  } | null;
   student: { id: string; name: string; email: string } | null;
   inspector: { id: string; name: string } | null;
 }

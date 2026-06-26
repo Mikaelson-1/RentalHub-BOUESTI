@@ -13,7 +13,11 @@ interface InspectionJob {
   expiresAt: string;
   notes: string | null;
   videoLink: string | null;
-  property: { id: string; title: string; location: { name: string } | null } | null;
+  property: {
+    id: string; title: string; description: string;
+    images: string[]; distanceToCampus: number | null;
+    location: { name: string } | null;
+  } | null;
   student: { id: string; name: string; email: string } | null;
 }
 
@@ -30,6 +34,69 @@ function timeLeft(expiresAt: string): string {
   const h = Math.floor(ms / 3_600_000);
   const m = Math.floor((ms % 3_600_000) / 60_000);
   return h > 0 ? `${h}h ${m}m left` : `${m}m left`;
+}
+
+function JobPropertyPreview({ job, mobile }: { job: InspectionJob; mobile: boolean }) {
+  const { go } = useApp();
+  const p = job.property;
+  const firstImage = Array.isArray(p?.images) ? p.images[0] : null;
+
+  return (
+    <div style={{ display: "flex", gap: 0, flexDirection: mobile ? "column" : "row" }}>
+      {/* Photo */}
+      <div style={{ width: mobile ? "100%" : 160, height: mobile ? 160 : "auto", flexShrink: 0, position: "relative", overflow: "hidden", background: T.paper2 }}>
+        {firstImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={firstImage} alt={p?.title ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        ) : (
+          <div style={{ width: "100%", height: "100%", minHeight: 120, background: `linear-gradient(135deg, ${T.clay}22, ${T.clay}44)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {I.building({ width: 32, height: 32, style: { color: T.clay, opacity: 0.5 } })}
+          </div>
+        )}
+      </div>
+
+      {/* Details */}
+      <div style={{ flex: 1, padding: mobile ? "16px 16px 0" : "18px 20px", minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ fontFamily: T.sans, fontSize: 15.5, fontWeight: 700, color: T.ink }}>{p?.title ?? "—"}</div>
+          <span
+            onClick={() => p?.id && go("property", p.id)}
+            style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 600, color: T.clay, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+            View listing →
+          </span>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 5, flexWrap: "wrap" }}>
+          {p?.location?.name && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: T.sans, fontSize: 12.5, color: T.ink2 }}>
+              {I.pin({ width: 12, height: 12 })} {p.location.name}
+            </span>
+          )}
+          {p?.distanceToCampus != null && (
+            <span style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2 }}>
+              · {Number(p.distanceToCampus).toFixed(1)} km from campus
+            </span>
+          )}
+        </div>
+
+        {p?.description && (
+          <p style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, marginTop: 8, lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            {p.description}
+          </p>
+        )}
+
+        {/* Thumbnail strip for extra images */}
+        {Array.isArray(p?.images) && p.images.length > 1 && (
+          <div style={{ display: "flex", gap: 6, marginTop: 10, overflow: "hidden" }}>
+            {p.images.slice(1, 5).map((src, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={i} src={src} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", border: "1px solid " + T.line, flexShrink: 0 }} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function CompleteModal({
@@ -186,20 +253,14 @@ export default function InspectorDashboard() {
                 </h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {active.map((job) => (
-                    <Card key={job.id} pad={mobile ? 16 : 20}>
-                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: T.sans, fontSize: 15, fontWeight: 700, color: T.ink }}>{job.property?.title ?? "—"}</div>
-                          <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, marginTop: 3 }}>
-                            {job.property?.location?.name ?? ""} · {job.student?.name ?? ""}
-                          </div>
-                          <div style={{ fontFamily: T.sans, fontSize: 12, color: T.red, marginTop: 6, fontWeight: 600 }}>
-                            {I.clock({ width: 12, height: 12 })} {timeLeft(job.expiresAt)}
-                          </div>
+                    <Card key={job.id} pad={0} style={{ overflow: "hidden" }}>
+                      <JobPropertyPreview job={job} mobile={mobile} />
+                      <div style={{ padding: mobile ? "14px 16px" : "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                        <div style={{ fontFamily: T.sans, fontSize: 12, color: T.red, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+                          {I.clock({ width: 12, height: 12 })} {timeLeft(job.expiresAt)}
+                          {job.student?.name && <span style={{ color: T.ink3, fontWeight: 400 }}>· Student: {job.student.name}</span>}
                         </div>
-                        <Button size="sm" onClick={() => setCompleting(job)}>
-                          Submit video link
-                        </Button>
+                        <Button size="sm" onClick={() => setCompleting(job)}>Submit video link</Button>
                       </div>
                     </Card>
                   ))}
@@ -215,20 +276,13 @@ export default function InspectorDashboard() {
                 </h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {open.map((job) => (
-                    <Card key={job.id} pad={mobile ? 16 : 20}>
-                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: T.sans, fontSize: 15, fontWeight: 700, color: T.ink }}>{job.property?.title ?? "—"}</div>
-                          <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, marginTop: 3 }}>
-                            {job.property?.location?.name ?? ""}
-                          </div>
-                          <div style={{ fontFamily: T.sans, fontSize: 12, color: T.ink3, marginTop: 6 }}>
-                            Expires {timeLeft(job.expiresAt)}
-                          </div>
+                    <Card key={job.id} pad={0} style={{ overflow: "hidden" }}>
+                      <JobPropertyPreview job={job} mobile={mobile} />
+                      <div style={{ padding: mobile ? "14px 16px" : "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                        <div style={{ fontFamily: T.sans, fontSize: 12, color: T.ink3 }}>
+                          Expires {timeLeft(job.expiresAt)}
                         </div>
-                        <Button size="sm" onClick={() => accept(job)}>
-                          Accept job
-                        </Button>
+                        <Button size="sm" onClick={() => accept(job)}>Accept job</Button>
                       </div>
                     </Card>
                   ))}
