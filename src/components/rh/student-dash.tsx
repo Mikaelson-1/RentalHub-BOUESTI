@@ -5,7 +5,7 @@ import { T, naira, I, Photo } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Button, Card, Avatar, StatusBadge, Field, Input, PropertyCard, SkeletonCard } from "@/components/rh/ui";
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
-import { getBookings, mapBooking, signAgreement, confirmMoveIn, updateProfile, uploadFile, submitReview, getMyInspections, type UiBooking, type ApiInspection } from "@/lib/rh/api";
+import { getBookings, mapBooking, signAgreement, confirmMoveIn, updateProfile, uploadFile, submitReview, getMyInspections, reviewInspection, type UiBooking, type ApiInspection } from "@/lib/rh/api";
 import { StarRating } from "@/components/rh/ui";
 import { useSaved } from "@/lib/rh/saved";
 
@@ -45,6 +45,64 @@ function ReviewModal({ propertyId, propertyTitle, onClose }: { propertyId: strin
         <div style={{ marginTop: 16 }}>
           <Field label="Comment (optional)">
             <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Share what you liked or what could be improved…" rows={3} style={{ width: "100%", fontFamily: T.sans, fontSize: 14, color: T.ink, border: "1px solid " + T.line, borderRadius: 11, padding: "11px 14px", outline: "none", resize: "vertical", boxSizing: "border-box", background: "#fff" }} />
+          </Field>
+        </div>
+        <div style={{ marginTop: 18 }}>
+          <Button full disabled={!rating || saving} onClick={submit}>{saving ? "Submitting…" : "Submit review"}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InspectorReviewModal({ inspection, onClose, onDone }: { inspection: ApiInspection; onClose: () => void; onDone: (updated: ApiInspection) => void }) {
+  const { showToast } = useApp();
+  const { mobile } = useViewport();
+  const [rating, setRating] = useState(0);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    if (!rating) return;
+    setSaving(true);
+    try {
+      const updated = await reviewInspection(inspection.id, rating, note.trim() || undefined);
+      showToast("Review submitted — thank you!");
+      onDone(updated);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't submit review");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(33,29,24,.6)", backdropFilter: "blur(3px)", display: "flex", alignItems: mobile ? "flex-end" : "center", justifyContent: "center", padding: mobile ? 0 : 20 }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: T.paper, borderRadius: mobile ? "20px 20px 0 0" : 20, width: "100%", maxWidth: 460, padding: mobile ? "28px 22px 36px" : 28 }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <h2 style={{ margin: 0, fontFamily: T.serif, fontSize: 22, color: T.ink, fontWeight: 500 }}>Rate your inspector</h2>
+          <span onClick={onClose} style={{ cursor: "pointer", color: T.ink2 }}>{I.x({ width: 22, height: 22 })}</span>
+        </div>
+        <p style={{ fontFamily: T.sans, fontSize: 13.5, color: T.ink2, margin: "0 0 4px" }}>
+          {inspection.inspector?.name ?? "Inspector"} — {inspection.property?.title ?? ""}
+        </p>
+        <div style={{ marginTop: 14 }}>
+          <StarRating value={rating} onChange={setRating} size={32} />
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <Field label="Note (optional)">
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="How was the inspection? Was it thorough and helpful?"
+              rows={3}
+              style={{ width: "100%", fontFamily: T.sans, fontSize: 14, color: T.ink, border: "1px solid " + T.line, borderRadius: 11, padding: "11px 14px", outline: "none", resize: "vertical", boxSizing: "border-box", background: "#fff" }}
+            />
           </Field>
         </div>
         <div style={{ marginTop: 18 }}>
@@ -296,6 +354,7 @@ export function StudentDash({ initial }: { initial?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [signing, setSigning] = useState<UiBooking | null>(null);
   const [inspections, setInspections] = useState<ApiInspection[]>([]);
+  const [reviewingInspection, setReviewingInspection] = useState<ApiInspection | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -368,6 +427,7 @@ export function StudentDash({ initial }: { initial?: string }) {
             {inspections.map((insp) => {
               const statusColor: Record<string, string> = { REQUESTED: T.gold ?? "#C99500", ACCEPTED: T.blue ?? "#2B5278", COMPLETED: T.green, EXPIRED: T.ink3 };
               const statusLabel: Record<string, string> = { REQUESTED: "Waiting for inspector", ACCEPTED: "Inspector assigned", COMPLETED: "Completed", EXPIRED: "Expired" };
+              const canReview = insp.status === "COMPLETED" && insp.inspector && insp.inspectorRating == null;
               return (
                 <Card key={insp.id} pad={mobile ? 16 : 20}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -388,6 +448,23 @@ export function StudentDash({ initial }: { initial?: string }) {
                       {insp.notes && (
                         <div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2, marginTop: 8, padding: "10px 12px", background: T.paper, borderRadius: 10, lineHeight: 1.5 }}>
                           {insp.notes}
+                        </div>
+                      )}
+                      {insp.inspectorRating != null && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+                          {[1,2,3,4,5].map((n) => (
+                            <span key={n} style={{ fontSize: 14, color: n <= insp.inspectorRating! ? T.gold : T.ink3 }}>★</span>
+                          ))}
+                          {insp.inspectorReviewNote && (
+                            <span style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2, marginLeft: 4 }}>{insp.inspectorReviewNote}</span>
+                          )}
+                        </div>
+                      )}
+                      {canReview && (
+                        <div style={{ marginTop: 10 }}>
+                          <Button size="sm" variant="soft" icon={I.star} onClick={() => setReviewingInspection(insp)}>
+                            Rate inspector
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -423,6 +500,16 @@ export function StudentDash({ initial }: { initial?: string }) {
         try { await signAgreement(bk.id, name); update(bk.id, { agreementSigned: true }); showToast("Tenancy agreement signed"); }
         catch (e) { showToast(e instanceof Error ? e.message : "Couldn't sign agreement"); }
       }} />}
+      {reviewingInspection && (
+        <InspectorReviewModal
+          inspection={reviewingInspection}
+          onClose={() => setReviewingInspection(null)}
+          onDone={(updated) => {
+            setInspections((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+            setReviewingInspection(null);
+          }}
+        />
+      )}
     </DashShell>
   );
 }

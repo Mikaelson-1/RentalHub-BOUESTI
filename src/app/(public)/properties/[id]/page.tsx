@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { T, naira, I, Photo, amenityIcon } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Pill, Button, Card, Avatar, PropertyCard, PublicNav, Footer } from "@/components/rh/ui";
-import { apiGet, mapProperty, createBooking, requestInspection, getReviews, type ApiProperty, type ApiListResponse, type UiListing, type ReviewsResponse } from "@/lib/rh/api";
+import { apiGet, mapProperty, createBooking, requestInspection, getInspectors, getReviews, type ApiProperty, type ApiListResponse, type UiListing, type ReviewsResponse, type InspectorProfile } from "@/lib/rh/api";
 import { StarRating } from "@/components/rh/ui";
 import { useSaved } from "@/lib/rh/saved";
 
@@ -46,12 +46,142 @@ function Gallery({ l, mobile }: { l: DetailListing; mobile: boolean }) {
   );
 }
 
+function StarDisplay({ value, size = 14 }: { value: number | null; size?: number }) {
+  if (value == null) return null;
+  return (
+    <span style={{ display: "inline-flex", gap: 2 }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span key={n} style={{ fontSize: size, color: n <= Math.round(value) ? T.gold : T.ink3 }}>★</span>
+      ))}
+    </span>
+  );
+}
+
+function InspectorPickerModal({ propertyId, campus, onClose, onDone }: { propertyId: string; campus?: string; onClose: () => void; onDone: () => void }) {
+  const { mobile } = useViewport();
+  const [inspectors, setInspectors] = useState<InspectorProfile[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getInspectors(campus)
+      .then(setInspectors)
+      .catch(() => setInspectors([]))
+      .finally(() => setLoadingList(false));
+  }, [campus]);
+
+  const pick = async (inspectorId?: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await requestInspection(propertyId, inspectorId);
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't request inspection");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(33,29,24,.55)", backdropFilter: "blur(3px)", display: "flex", alignItems: mobile ? "flex-end" : "center", justifyContent: "center", padding: mobile ? 0 : 24 }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: T.paper, borderRadius: mobile ? "20px 20px 0 0" : 20, width: "100%", maxWidth: 520, maxHeight: mobile ? "80vh" : "72vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+      >
+        <div style={{ padding: "20px 22px 16px", borderBottom: "1px solid " + T.line }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <h2 style={{ margin: 0, fontFamily: T.serif, fontSize: 22, fontWeight: 500, color: T.ink }}>Choose an inspector</h2>
+              <p style={{ margin: "4px 0 0", fontFamily: T.sans, fontSize: 13, color: T.ink2 }}>Pick a specific inspector or let any available one take it.</p>
+            </div>
+            <span onClick={onClose} style={{ cursor: "pointer", color: T.ink2, flexShrink: 0 }}>{I.x({ width: 20, height: 20 })}</span>
+          </div>
+        </div>
+
+        <div style={{ overflowY: "auto", flex: 1, padding: "12px 16px 20px" }}>
+          {loadingList ? (
+            <div style={{ padding: "32px 0", display: "flex", justifyContent: "center", color: T.ink3 }}>
+              {I.clock({ width: 22, height: 22 })}
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {/* Any available option */}
+              <button
+                disabled={busy}
+                onClick={() => pick(undefined)}
+                style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 14, border: "1.5px solid " + T.line, background: "#fff", cursor: busy ? "not-allowed" : "pointer", textAlign: "left", width: "100%", opacity: busy ? 0.6 : 1 }}
+              >
+                <span style={{ width: 40, height: 40, borderRadius: 12, background: T.paper, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: T.clay }}>
+                  {I.search({ width: 18, height: 18 })}
+                </span>
+                <div>
+                  <div style={{ fontFamily: T.sans, fontSize: 14.5, fontWeight: 700, color: T.ink }}>Any available inspector</div>
+                  <div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2, marginTop: 2 }}>First verified inspector to accept within 24 hours</div>
+                </div>
+              </button>
+
+              {inspectors.length > 0 && (
+                <div style={{ fontFamily: T.sans, fontSize: 11.5, fontWeight: 700, color: T.ink3, textTransform: "uppercase", letterSpacing: ".07em", padding: "8px 4px 4px" }}>
+                  Or pick a specific inspector
+                </div>
+              )}
+
+              {inspectors.map((insp) => (
+                <button
+                  key={insp.id}
+                  disabled={busy}
+                  onClick={() => pick(insp.id)}
+                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 14, border: "1.5px solid " + T.line, background: "#fff", cursor: busy ? "not-allowed" : "pointer", textAlign: "left", width: "100%", opacity: busy ? 0.6 : 1 }}
+                >
+                  <span style={{ width: 40, height: 40, borderRadius: 12, background: T.claySoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: T.serif, fontSize: 16, fontWeight: 700, color: T.clay }}>
+                    {insp.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: T.sans, fontSize: 14.5, fontWeight: 700, color: T.ink }}>{insp.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
+                      {insp.avgRating != null ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: T.sans, fontSize: 12.5, color: T.ink2 }}>
+                          <StarDisplay value={insp.avgRating} size={12} /> {insp.avgRating}
+                        </span>
+                      ) : null}
+                      <span style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink3 }}>{insp.completedCount} inspection{insp.completedCount !== 1 ? "s" : ""} done</span>
+                    </div>
+                  </div>
+                  <span style={{ fontFamily: T.sans, fontSize: 12, color: T.clay, fontWeight: 600 }}>
+                    {I.arrow({ width: 14, height: 14 })}
+                  </span>
+                </button>
+              ))}
+
+              {inspectors.length === 0 && !loadingList && (
+                <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, padding: "8px 4px", lineHeight: 1.5 }}>
+                  No verified inspectors registered for this area yet. You can still request an open inspection above.
+                </div>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <div style={{ fontFamily: T.sans, fontSize: 13, color: T.red, background: T.redSoft, borderRadius: 10, padding: "10px 14px", marginTop: 12 }}>
+              {error}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BookingCard({ l, mobile }: { l: DetailListing; mobile: boolean }) {
   const { go, role, showToast } = useApp();
   const [bid, setBid] = useState(l.price);
   const [placed, setPlaced] = useState(false);
   const [placing, setPlacing] = useState(false);
-  const [inspecting, setInspecting] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
   const [inspectionRequested, setInspectionRequested] = useState(false);
   const firstName = l.landlordName.split(" ")[0];
 
@@ -70,72 +200,78 @@ function BookingCard({ l, mobile }: { l: DetailListing; mobile: boolean }) {
     }
   };
 
-  const requestInspect = async () => {
+  const openPicker = () => {
     if (role === "guest") { go("login"); return; }
     if (role !== "student") { showToast("Switch to a student account to request an inspection"); return; }
-    setInspecting(true);
-    try {
-      await requestInspection(l.id);
-      setInspectionRequested(true);
-      showToast("Inspection requested — a campus inspector will pick it up shortly.");
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : "Couldn't request inspection");
-    } finally {
-      setInspecting(false);
-    }
+    setShowPicker(true);
   };
 
   return (
-    <Card pad={mobile ? 20 : 24} style={{ boxShadow: "0 24px 50px -34px rgba(33,29,24,.5)" }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <div>
-          <span style={{ fontFamily: T.serif, fontSize: mobile ? 30 : 36, fontWeight: 600, color: T.ink }}>{naira(l.price)}</span>
-          <span style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2 }}> /year</span>
+    <>
+      <Card pad={mobile ? 20 : 24} style={{ boxShadow: "0 24px 50px -34px rgba(33,29,24,.5)" }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+          <div>
+            <span style={{ fontFamily: T.serif, fontSize: mobile ? 30 : 36, fontWeight: 600, color: T.ink }}>{naira(l.price)}</span>
+            <span style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2 }}> /year</span>
+          </div>
+          <Pill tone="green">{l.vacant} {l.vacant === 1 ? "unit" : "units"} left</Pill>
         </div>
-        <Pill tone="green">{l.vacant} {l.vacant === 1 ? "unit" : "units"} left</Pill>
-      </div>
 
-      {!placed ? (
-        <>
-          <div style={{ marginTop: 18, padding: 14, background: T.paper, borderRadius: 12, border: "1px solid " + T.line2 }}>
-            <div style={{ fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, color: T.ink2, marginBottom: 8 }}>Make an offer (your bid / year)</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid " + T.line, borderRadius: 11, padding: "4px 6px 4px 14px" }}>
-              <span style={{ fontFamily: T.serif, fontSize: 20, color: T.ink2 }}>₦</span>
-              <input type="number" value={bid} onChange={(e) => setBid(+e.target.value)} style={{ flex: 1, border: "none", outline: "none", fontFamily: T.sans, fontSize: 18, fontWeight: 600, color: T.ink, width: "100%", background: "transparent" }} />
+        {!placed ? (
+          <>
+            <div style={{ marginTop: 18, padding: 14, background: T.paper, borderRadius: 12, border: "1px solid " + T.line2 }}>
+              <div style={{ fontFamily: T.sans, fontSize: 12.5, fontWeight: 600, color: T.ink2, marginBottom: 8 }}>Make an offer (your bid / year)</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid " + T.line, borderRadius: 11, padding: "4px 6px 4px 14px" }}>
+                <span style={{ fontFamily: T.serif, fontSize: 20, color: T.ink2 }}>₦</span>
+                <input type="number" value={bid} onChange={(e) => setBid(+e.target.value)} style={{ flex: 1, border: "none", outline: "none", fontFamily: T.sans, fontSize: 18, fontWeight: 600, color: T.ink, width: "100%", background: "transparent" }} />
+              </div>
+              <div style={{ fontFamily: T.sans, fontSize: 11.5, color: T.ink3, marginTop: 8 }}>Offer the asking price or bid your budget. The landlord reviews all offers.</div>
             </div>
-            <div style={{ fontFamily: T.sans, fontSize: 11.5, color: T.ink3, marginTop: 8 }}>Offer the asking price or bid your budget. The landlord reviews all offers.</div>
-          </div>
-          <div style={{ marginTop: 16 }}><Button full size="lg" onClick={place} disabled={placing} iconRight={I.arrow}>{placing ? "Sending…" : "Request to book"}</Button></div>
-        </>
-      ) : (
-        <div style={{ marginTop: 18, padding: 16, background: T.goldSoft, borderRadius: 14, border: "1px solid " + T.gold + "33" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{I.clock({ width: 18, height: 18, style: { color: T.gold } })}<span style={{ fontFamily: T.sans, fontWeight: 700, color: T.gold, fontSize: 14 }}>Request sent — pending landlord</span></div>
-          <p style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, marginTop: 8, lineHeight: 1.5 }}>{firstName} usually responds within a day. Track it in your bookings.</p>
-          <div style={{ marginTop: 12 }}><Button full variant="soft" onClick={() => go("student")}>Go to my bookings</Button></div>
-        </div>
-      )}
-
-      {/* Inspection CTA — separate from booking */}
-      <div style={{ marginTop: 14, borderTop: "1px solid " + T.line2, paddingTop: 14 }}>
-        {inspectionRequested ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: T.blueSoft, borderRadius: 12 }}>
-            {I.shield({ width: 15, height: 15, style: { color: T.blue, flex: "0 0 auto" } })}
-            <span style={{ fontFamily: T.sans, fontSize: 13, color: T.blue, fontWeight: 600 }}>Inspection requested — track it in your dashboard</span>
-          </div>
+            <div style={{ marginTop: 16 }}><Button full size="lg" onClick={place} disabled={placing} iconRight={I.arrow}>{placing ? "Sending…" : "Request to book"}</Button></div>
+          </>
         ) : (
-          <Button full variant="outline" icon={I.search} disabled={inspecting} onClick={requestInspect}>
-            {inspecting ? "Requesting…" : "Request a campus inspection"}
-          </Button>
+          <div style={{ marginTop: 18, padding: 16, background: T.goldSoft, borderRadius: 14, border: "1px solid " + T.gold + "33" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{I.clock({ width: 18, height: 18, style: { color: T.gold } })}<span style={{ fontFamily: T.sans, fontWeight: 700, color: T.gold, fontSize: 14 }}>Request sent — pending landlord</span></div>
+            <p style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, marginTop: 8, lineHeight: 1.5 }}>{firstName} usually responds within a day. Track it in your bookings.</p>
+            <div style={{ marginTop: 12 }}><Button full variant="soft" onClick={() => go("student")}>Go to my bookings</Button></div>
+          </div>
         )}
-        <p style={{ fontFamily: T.sans, fontSize: 11.5, color: T.ink3, marginTop: 8, lineHeight: 1.5 }}>
-          Not sure yet? A verified campus inspector will visit and send you a video report before you commit.
-        </p>
-      </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, justifyContent: "center", fontFamily: T.sans, fontSize: 12.5, color: T.ink2 }}>
-        {I.lock({ width: 14, height: 14 })} Your payment is held safely until you move in
-      </div>
-    </Card>
+        {/* Inspection CTA */}
+        <div style={{ marginTop: 14, borderTop: "1px solid " + T.line2, paddingTop: 14 }}>
+          {inspectionRequested ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: T.blueSoft, borderRadius: 12 }}>
+              {I.shield({ width: 15, height: 15, style: { color: T.blue, flex: "0 0 auto" } })}
+              <span style={{ fontFamily: T.sans, fontSize: 13, color: T.blue, fontWeight: 600 }}>Inspection requested — track it in your dashboard</span>
+            </div>
+          ) : (
+            <Button full variant="outline" icon={I.search} onClick={openPicker}>
+              Request a campus inspection
+            </Button>
+          )}
+          <p style={{ fontFamily: T.sans, fontSize: 11.5, color: T.ink3, marginTop: 8, lineHeight: 1.5 }}>
+            Not sure yet? A verified campus inspector will visit and send you a video report before you commit.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, justifyContent: "center", fontFamily: T.sans, fontSize: 12.5, color: T.ink2 }}>
+          {I.lock({ width: 14, height: 14 })} Your payment is held safely until you move in
+        </div>
+      </Card>
+
+      {showPicker && (
+        <InspectorPickerModal
+          propertyId={l.id}
+          campus={l.campus}
+          onClose={() => setShowPicker(false)}
+          onDone={() => {
+            setShowPicker(false);
+            setInspectionRequested(true);
+            showToast("Inspection requested — track it in your student dashboard.");
+          }}
+        />
+      )}
+    </>
   );
 }
 

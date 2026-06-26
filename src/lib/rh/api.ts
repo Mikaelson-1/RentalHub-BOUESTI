@@ -66,7 +66,7 @@ export interface ApiProperty {
 export interface ApiListResponse { items: ApiProperty[]; total: number; page: number; pageSize: number; totalPages: number }
 
 // UI listing enriched with the landlord info the detail page needs.
-export type UiListing = Listing & { landlordName: string; landlordVerified: boolean; landlordEmail?: string; image?: string | null; lat?: number; lng?: number; viewCount?: number; listingStatus?: string };
+export type UiListing = Listing & { landlordName: string; landlordVerified: boolean; landlordEmail?: string; image?: string | null; lat?: number; lng?: number; viewCount?: number; listingStatus?: string; campus?: string };
 
 const TONES: [string, string][] = [["#d8c4a0", "#9c8055"], ["#c8bca6", "#7d7158"], ["#cdb89c", "#8a7150"], ["#bcae9a", "#6f6450"], ["#d3bd98", "#897046"], ["#c2b49c", "#776a52"]];
 function toneFor(id: string): [string, string] {
@@ -120,6 +120,7 @@ export function mapProperty(p: ApiProperty): UiListing & { images: string[] } {
     lng: p.location?.lng ?? undefined,
     viewCount: p.viewCount ?? 0,
     listingStatus: p.listingStatus ?? "AVAILABLE",
+    campus: p.location?.campus ?? undefined,
   };
 }
 
@@ -259,6 +260,8 @@ export interface ApiInspection {
   expiresAt: string;
   notes: string | null;
   videoLink: string | null;
+  inspectorRating: number | null;
+  inspectorReviewNote: string | null;
   property: {
     id: string;
     title: string;
@@ -270,8 +273,14 @@ export interface ApiInspection {
   student: { id: string; name: string; email: string } | null;
   inspector: { id: string; name: string } | null;
 }
-export const requestInspection = (propertyId: string) => apiPost<ApiInspection>("/api/inspections", { propertyId });
+export interface InspectorProfile {
+  id: string; name: string; campus: string | null;
+  completedCount: number; avgRating: number | null;
+}
+export const getInspectors     = (campus?: string) => apiGet<InspectorProfile[]>(`/api/inspectors${campus ? `?campus=${encodeURIComponent(campus)}` : ""}`);
+export const requestInspection = (propertyId: string, inspectorId?: string) => apiPost<ApiInspection>("/api/inspections", { propertyId, ...(inspectorId ? { inspectorId } : {}) });
 export const getMyInspections  = () => apiGet<ApiInspection[]>("/api/inspections");
+export const reviewInspection  = (id: string, rating: number, reviewNote?: string) => apiPatch<ApiInspection>(`/api/inspections/${id}`, { action: "review", rating, reviewNote });
 
 // ── Reviews ───────────────────────────────────────────────────
 export interface ApiReview { id: string; studentId: string; rating: number; comment?: string | null; createdAt: string; student?: { name?: string } | null }

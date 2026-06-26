@@ -59,11 +59,12 @@ function JobPropertyPreview({ job, mobile }: { job: InspectionJob; mobile: boole
       <div style={{ flex: 1, padding: mobile ? "16px 16px 0" : "18px 20px", minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
           <div style={{ fontFamily: T.sans, fontSize: 15.5, fontWeight: 700, color: T.ink }}>{p?.title ?? "—"}</div>
-          <span
-            onClick={() => p?.id && go("property", p.id)}
-            style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 600, color: T.clay, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+          <a
+            href={p?.id ? `/properties/${p.id}` : undefined}
+            target="_blank" rel="noopener noreferrer"
+            style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 600, color: T.clay, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, textDecoration: "none" }}>
             View listing →
-          </span>
+          </a>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 5, flexWrap: "wrap" }}>
