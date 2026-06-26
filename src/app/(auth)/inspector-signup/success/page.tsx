@@ -38,9 +38,12 @@ export default function InspectorSuccessPage() {
     return (
       <div style={{ minHeight: "100vh", background: T.paper, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
         <div style={{ textAlign: "center" }}>
-          <p style={{ fontFamily: T.sans, color: T.ink2, marginBottom: 16 }}>No active inspector session found.</p>
-          <span onClick={() => router.push("/inspector-signup")} style={{ fontFamily: T.sans, fontWeight: 600, color: T.clay, cursor: "pointer" }}>
-            Apply to become an inspector →
+          <p style={{ fontFamily: T.sans, color: T.ink2, marginBottom: 20 }}>No active inspector session found.</p>
+          <span onClick={() => router.push("/login")} style={{ fontFamily: T.sans, fontWeight: 600, color: T.clay, cursor: "pointer", display: "block", marginBottom: 12 }}>
+            Sign in to your account →
+          </span>
+          <span onClick={() => router.push("/inspector-signup")} style={{ fontFamily: T.sans, fontSize: 13.5, color: T.ink3, cursor: "pointer" }}>
+            Apply to become an inspector
           </span>
         </div>
       </div>
@@ -108,8 +111,11 @@ export default function InspectorSuccessPage() {
               ))}
             </div>
 
-            <span onClick={() => router.push("/")} style={{ fontFamily: T.sans, fontSize: 14, fontWeight: 600, color: T.clay, cursor: "pointer" }}>
-              Back to homepage →
+            <span onClick={() => router.push("/login")} style={{ fontFamily: T.sans, fontSize: 14, fontWeight: 600, color: T.clay, cursor: "pointer", display: "block", marginBottom: 12 }}>
+              Already approved? Sign in →
+            </span>
+            <span onClick={() => router.push("/")} style={{ fontFamily: T.sans, fontSize: 13.5, color: T.ink3, cursor: "pointer" }}>
+              Back to homepage
             </span>
           </>
         )}

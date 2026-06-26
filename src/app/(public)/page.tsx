@@ -170,6 +170,10 @@ export default function HomePage() {
               ))}
               <div style={{ marginTop: 22 }}>
                 <Button size="lg" full={mobile} iconRight={I.arrow} onClick={() => go("inspector-signup")}>Apply to be an inspector</Button>
+                <p style={{ fontFamily: T.sans, fontSize: 13.5, color: "rgba(255,255,255,.45)", margin: "14px 0 0" }}>
+                  Already an inspector?{" "}
+                  <span onClick={() => go("login")} style={{ color: "rgba(255,255,255,.75)", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}>Sign in</span>
+                </p>
               </div>
             </div>
           </div>
