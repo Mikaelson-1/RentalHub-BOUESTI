@@ -77,8 +77,9 @@ export default function InspectorSignupPage() {
   const [form, setForm] = useState<FormData>({ name: "", email: "", password: "", matricNumber: "", campus: "bouesti" });
   const set = (k: keyof FormData, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
-  // Files are held in state and only uploaded to Cloudinary at submit time,
-  // after registration gives us a token.
+  const [otp, setOtp] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
   const [idFile, setIdFile] = useState<File | null>(null);
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
 
@@ -96,13 +97,83 @@ export default function InspectorSignupPage() {
     return null;
   };
 
-  const nextStep = () => {
+  // Step 0 → 1: register account and send OTP email
+  const registerAndContinue = async () => {
     const err = validateStep0();
     if (err) { setError(err); return; }
     setError(null);
-    setStep(1);
+    setBusy(true);
+    setBusyLabel("Creating account…");
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/inspector-register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) throw new Error(json.error ?? "Registration failed.");
+      const { token, user } = json.data ?? json;
+      // Store session so uploadFile() can use it later (step 2)
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, user }));
+      setStep(1);
+      startResendCooldown();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+      setBusyLabel("");
+    }
   };
 
+  const startResendCooldown = () => {
+    setResendCooldown(60);
+    const interval = setInterval(() => {
+      setResendCooldown((n) => {
+        if (n <= 1) { clearInterval(interval); return 0; }
+        return n - 1;
+      });
+    }, 1000);
+  };
+
+  const resendOtp = async () => {
+    if (resendCooldown > 0) return;
+    try {
+      await fetch(`${API_BASE}/api/auth/verify-email/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email }),
+      });
+      startResendCooldown();
+    } catch { /* silent */ }
+  };
+
+  // Step 1: verify OTP — updates the stored token with the verified one
+  const verifyEmail = async () => {
+    if (otp.length < 6) { setError("Enter the 6-digit code sent to your email."); return; }
+    setError(null);
+    setBusy(true);
+    setBusyLabel("Verifying…");
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/verify-email/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, otp }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) throw new Error(json.error ?? "Verification failed.");
+      const { token, user } = json.data ?? json;
+      // Replace the pre-verification token with the verified one
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, user }));
+      setStep(2);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+      setBusyLabel("");
+    }
+  };
+
+  // Step 2: upload documents and save URLs
   const submit = async () => {
     if (!idFile) { setError("Upload your Student ID card."); return; }
     if (!screenshotFile) { setError("Upload your student portal screenshot."); return; }
@@ -110,28 +181,17 @@ export default function InspectorSignupPage() {
     setBusy(true);
 
     try {
-      // 1. Register — get a token so subsequent requests are authenticated.
-      setBusyLabel("Creating account…");
-      const regRes = await fetch(`${API_BASE}/api/auth/inspector-register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const regJson = await regRes.json();
-      if (!regRes.ok || regJson.success === false) throw new Error(regJson.error ?? "Registration failed.");
-      const { token, user } = regJson.data ?? regJson;
+      const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+      const session = raw ? JSON.parse(raw) : null;
+      const token: string = session?.token;
+      if (!token) throw new Error("Session expired. Please start again.");
 
-      // 2. Store session so uploadFile() can find the token via authToken().
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, user }));
-
-      // 3. Upload both documents to Cloudinary.
       setBusyLabel("Uploading ID card…");
       const idResult = await uploadFile(idFile);
 
       setBusyLabel("Uploading portal screenshot…");
       const ssResult = await uploadFile(screenshotFile);
 
-      // 4. Save the Cloudinary URLs to the profile.
       setBusyLabel("Saving documents…");
       const patchRes = await fetch(`${API_BASE}/api/auth/me`, {
         method: "PATCH",
@@ -150,7 +210,7 @@ export default function InspectorSignupPage() {
     }
   };
 
-  const steps = ["Your details", "Documents"];
+  const steps = ["Your details", "Verify email", "Documents"];
 
   return (
     <div style={{ minHeight: "100vh", background: T.paper, display: "flex", alignItems: "center", justifyContent: "center", padding: mobile ? "32px 20px 48px" : 48 }}>
@@ -171,6 +231,7 @@ export default function InspectorSignupPage() {
             ))}
           </div>
 
+          {/* Step 0 — details */}
           {step === 0 && (
             <>
               <h1 style={{ fontFamily: T.serif, fontWeight: 400, fontSize: 28, color: T.ink, margin: "0 0 6px" }}>Become a campus inspector</h1>
@@ -190,12 +251,52 @@ export default function InspectorSignupPage() {
               </div>
               {error && <div style={{ fontFamily: T.sans, fontSize: 13, color: T.red, background: T.redSoft, borderRadius: 10, padding: "10px 14px", marginTop: 16 }}>{error}</div>}
               <div style={{ marginTop: 22 }}>
-                <Button full size="lg" iconRight={I.arrow} onClick={nextStep}>Continue</Button>
+                <Button full size="lg" iconRight={I.arrow} disabled={busy} onClick={registerAndContinue}>
+                  {busy ? busyLabel || "Please wait…" : "Continue"}
+                </Button>
               </div>
             </>
           )}
 
+          {/* Step 1 — email verification */}
           {step === 1 && (
+            <>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: T.claySoft, color: T.clay, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18 }}>
+                {I.inbox({ width: 24, height: 24 })}
+              </div>
+              <h2 style={{ fontFamily: T.serif, fontWeight: 400, fontSize: 26, color: T.ink, margin: "0 0 8px" }}>Check your email</h2>
+              <p style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2, marginBottom: 24, lineHeight: 1.55 }}>
+                We sent a 6-digit code to <strong>{form.email}</strong>. Enter it below to verify your account.
+              </p>
+              <Field label="Verification code">
+                <Input
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="123456"
+                  style={{ letterSpacing: "0.2em", fontSize: 22, textAlign: "center" }}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                />
+              </Field>
+              {error && <div style={{ fontFamily: T.sans, fontSize: 13, color: T.red, background: T.redSoft, borderRadius: 10, padding: "10px 14px", marginTop: 16 }}>{error}</div>}
+              <div style={{ marginTop: 22 }}>
+                <Button full size="lg" disabled={busy} onClick={verifyEmail}>
+                  {busy ? busyLabel || "Verifying…" : "Verify email"}
+                </Button>
+              </div>
+              <p style={{ fontFamily: T.sans, fontSize: 13, color: T.ink3, textAlign: "center", marginTop: 16 }}>
+                Didn&apos;t receive it?{" "}
+                <span
+                  onClick={resendOtp}
+                  style={{ color: resendCooldown > 0 ? T.ink3 : T.clay, fontWeight: 600, cursor: resendCooldown > 0 ? "default" : "pointer" }}>
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+                </span>
+              </p>
+            </>
+          )}
+
+          {/* Step 2 — documents */}
+          {step === 2 && (
             <>
               <h2 style={{ fontFamily: T.serif, fontWeight: 400, fontSize: 26, color: T.ink, margin: "0 0 6px" }}>Upload your documents</h2>
               <p style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2, marginBottom: 24, lineHeight: 1.5 }}>
@@ -219,8 +320,7 @@ export default function InspectorSignupPage() {
                 <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, marginTop: 14, textAlign: "center" }}>{busyLabel}</div>
               )}
               {error && <div style={{ fontFamily: T.sans, fontSize: 13, color: T.red, background: T.redSoft, borderRadius: 10, padding: "10px 14px", marginTop: 16 }}>{error}</div>}
-              <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
-                <Button size="lg" onClick={() => { setError(null); setStep(0); }} style={{ flex: "0 0 auto" }}>Back</Button>
+              <div style={{ marginTop: 22 }}>
                 <Button full size="lg" disabled={busy} onClick={submit}>
                   {busy ? busyLabel || "Submitting…" : "Submit application"}
                 </Button>
