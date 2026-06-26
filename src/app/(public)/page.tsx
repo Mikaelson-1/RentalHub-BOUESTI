@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { T, naira, I, Photo } from "@/lib/rh/theme";
 import { CAMPUS_AREAS } from "@/lib/rh/data";
+
 import { useApp, useViewport } from "@/components/rh/app";
 import { Pill, Button, Card, SectionHead, PropertyCard, PublicNav, Footer } from "@/components/rh/ui";
 import { TourVideo } from "@/components/rh/tour-video";
-import { apiGet, mapProperty, type UiListing, type ApiListResponse } from "@/lib/rh/api";
+import { apiGet, getLocations, mapProperty, type UiListing, type ApiListResponse } from "@/lib/rh/api";
 
 function HeroSearch({ mobile }: { mobile: boolean }) {
   const { go } = useApp();
@@ -25,6 +26,7 @@ export default function HomePage() {
   const { go, campus } = useApp();
   const { mobile } = useViewport();
   const [featured, setFeatured] = useState<UiListing[]>([]);
+  const [areas, setAreas] = useState<string[]>(CAMPUS_AREAS[campus.id] ?? CAMPUS_AREAS.bouesti);
   const pad = mobile ? "0 20px" : "0 40px";
 
   useEffect(() => {
@@ -34,6 +36,14 @@ export default function HomePage() {
       .catch(() => {});
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    getLocations(campus.id)
+      .then((locs) => { if (active && locs.length) setAreas(locs.map((l) => l.name)); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [campus.id]);
 
   return (
     <div style={{ background: T.paper, minHeight: "100vh" }}>
@@ -121,7 +131,7 @@ export default function HomePage() {
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: mobile ? "0 20px 40px" : "0 40px 64px" }}>
         <SectionHead eyebrow={"In " + campus.short} title="Browse by area" mobile={mobile} />
         <div className="rh-m-col2" style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4,1fr)", gap: mobile ? 12 : 16 }}>
-          {(CAMPUS_AREAS[campus.id] ?? CAMPUS_AREAS.bouesti).map((a, i) => {
+          {areas.map((a, i) => {
             const tones: [string, string][] = [["#d8c4a0", "#9c8055"], ["#c8bca6", "#7d7158"], ["#cdb89c", "#8a7150"], ["#bcae9a", "#6f6450"]];
             return (
               <div key={a} onClick={() => go("search", null, { area: a })} style={{ position: "relative", height: mobile ? 110 : 150, borderRadius: 16, overflow: "hidden", cursor: "pointer" }}>

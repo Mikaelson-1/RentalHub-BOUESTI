@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { T, naira, I, Photo, amenityIcon } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Pill, Button, Card, Avatar, PropertyCard, PublicNav, Footer } from "@/components/rh/ui";
-import { apiGet, mapProperty, createBooking, getReviews, type ApiProperty, type ApiListResponse, type UiListing, type ReviewsResponse } from "@/lib/rh/api";
+import { apiGet, mapProperty, createBooking, requestInspection, getReviews, type ApiProperty, type ApiListResponse, type UiListing, type ReviewsResponse } from "@/lib/rh/api";
 import { StarRating } from "@/components/rh/ui";
 import { useSaved } from "@/lib/rh/saved";
 
@@ -51,6 +51,8 @@ function BookingCard({ l, mobile }: { l: DetailListing; mobile: boolean }) {
   const [bid, setBid] = useState(l.price);
   const [placed, setPlaced] = useState(false);
   const [placing, setPlacing] = useState(false);
+  const [inspecting, setInspecting] = useState(false);
+  const [inspectionRequested, setInspectionRequested] = useState(false);
   const firstName = l.landlordName.split(" ")[0];
 
   const place = async () => {
@@ -65,6 +67,21 @@ function BookingCard({ l, mobile }: { l: DetailListing; mobile: boolean }) {
       showToast(e instanceof Error ? e.message : "Couldn't place booking");
     } finally {
       setPlacing(false);
+    }
+  };
+
+  const requestInspect = async () => {
+    if (role === "guest") { go("login"); return; }
+    if (role !== "student") { showToast("Switch to a student account to request an inspection"); return; }
+    setInspecting(true);
+    try {
+      await requestInspection(l.id);
+      setInspectionRequested(true);
+      showToast("Inspection requested — a campus inspector will pick it up shortly.");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't request inspection");
+    } finally {
+      setInspecting(false);
     }
   };
 
@@ -98,7 +115,24 @@ function BookingCard({ l, mobile }: { l: DetailListing; mobile: boolean }) {
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, justifyContent: "center", fontFamily: T.sans, fontSize: 12.5, color: T.ink2 }}>
+      {/* Inspection CTA — separate from booking */}
+      <div style={{ marginTop: 14, borderTop: "1px solid " + T.line2, paddingTop: 14 }}>
+        {inspectionRequested ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: T.blueSoft, borderRadius: 12 }}>
+            {I.shield({ width: 15, height: 15, style: { color: T.blue, flex: "0 0 auto" } })}
+            <span style={{ fontFamily: T.sans, fontSize: 13, color: T.blue, fontWeight: 600 }}>Inspection requested — track it in your dashboard</span>
+          </div>
+        ) : (
+          <Button full variant="outline" icon={I.search} disabled={inspecting} onClick={requestInspect}>
+            {inspecting ? "Requesting…" : "Request a campus inspection"}
+          </Button>
+        )}
+        <p style={{ fontFamily: T.sans, fontSize: 11.5, color: T.ink3, marginTop: 8, lineHeight: 1.5 }}>
+          Not sure yet? A verified campus inspector will visit and send you a video report before you commit.
+        </p>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, justifyContent: "center", fontFamily: T.sans, fontSize: 12.5, color: T.ink2 }}>
         {I.lock({ width: 14, height: 14 })} Your payment is held safely until you move in
       </div>
     </Card>

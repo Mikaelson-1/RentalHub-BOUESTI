@@ -18,7 +18,7 @@ const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : use
 import { useRouter } from "next/navigation";
 import { T, I } from "@/lib/rh/theme";
 import { CAMPUSES, type Campus } from "@/lib/rh/data";
-import { apiPost, AUTH_STORAGE_KEY } from "@/lib/rh/api";
+import { apiGet, apiPost, AUTH_STORAGE_KEY } from "@/lib/rh/api";
 
 const INACTIVITY_MS = 2 * 60 * 60 * 1000; // 2 hours
 const ACTIVITY_KEY = "rh_auth_activity";
@@ -149,6 +149,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
     setInitialized(true);
   }, []);
+
+  // Background refresh: pull latest verificationStatus from the server on every
+  // app mount so that admin approvals are reflected without requiring a re-login.
+  useEffect(() => {
+    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return;
+    let cancelled = false;
+    apiGet<{ verificationStatus?: string }>("/api/auth/me")
+      .then((fresh) => {
+        if (!cancelled && fresh.verificationStatus) {
+          setAuth((prev) => {
+            if (!prev) return prev;
+            const updated = { ...prev, user: { ...prev.user, verificationStatus: fresh.verificationStatus } };
+            window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+            return updated;
+          });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const campus = CAMPUSES.find((c) => c.id === campusId) || CAMPUSES[0];
 

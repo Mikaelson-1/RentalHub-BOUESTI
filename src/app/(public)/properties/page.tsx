@@ -5,7 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { T, shortNaira, naira, I } from "@/lib/rh/theme";
 import { CAMPUS_AREAS, AMENITY_GROUPS } from "@/lib/rh/data";
-import { apiGet, mapProperty, type UiListing, type ApiListResponse } from "@/lib/rh/api";
+import { apiGet, getLocations, mapProperty, type UiListing, type ApiListResponse } from "@/lib/rh/api";
 import { useSaved } from "@/lib/rh/saved";
 import { useCompare } from "@/lib/rh/compare";
 import { useApp, useViewport } from "@/components/rh/app";
@@ -112,6 +112,7 @@ function SearchInner() {
   const [all, setAll] = useState<UiListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [areas, setAreas] = useState<string[]>(CAMPUS_AREAS[campus.id] ?? CAMPUS_AREAS.bouesti);
 
   useEffect(() => {
     let active = true;
@@ -121,6 +122,9 @@ function SearchInner() {
       .then((r) => { if (active) setAll(r.items.map(mapProperty)); })
       .catch((e) => { if (active) setError(e instanceof Error ? e.message : "Failed to load"); })
       .finally(() => { if (active) setLoading(false); });
+    getLocations(campus.id)
+      .then((locs) => { if (active && locs.length) setAreas(locs.map((l) => l.name)); })
+      .catch(() => {});
     return () => { active = false; };
   }, [campus.id]);
 
@@ -151,7 +155,7 @@ function SearchInner() {
           </h1>
           <div style={{ display: "flex", gap: 8, marginTop: 16, overflowX: "auto", paddingBottom: 4 }}>
             <FilterChip active={!f.area} onClick={() => setF((p) => ({ ...p, area: null }))}>All areas</FilterChip>
-            {(CAMPUS_AREAS[campus.id] ?? CAMPUS_AREAS.bouesti).map((a) => <FilterChip key={a} active={f.area === a} onClick={() => setF((p) => ({ ...p, area: a }))}>{a}</FilterChip>)}
+            {areas.map((a) => <FilterChip key={a} active={f.area === a} onClick={() => setF((p) => ({ ...p, area: a }))}>{a}</FilterChip>)}
           </div>
         </div>
       </div>

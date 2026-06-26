@@ -252,6 +252,20 @@ export const changePassword = (currentPassword: string, newPassword: string) =>
   apiPatch<{ message: string }>("/api/auth/me", { currentPassword, newPassword });
 export const setUserRole = (role: "STUDENT" | "LANDLORD") => apiPatch<AuthUser>("/api/auth/setup-role", { role });
 
+// ── Inspections ───────────────────────────────────────────────
+export interface ApiInspection {
+  id: string;
+  status: "REQUESTED" | "ACCEPTED" | "COMPLETED" | "EXPIRED";
+  expiresAt: string;
+  notes: string | null;
+  videoLink: string | null;
+  property: { id: string; title: string; location: { name: string } | null } | null;
+  student: { id: string; name: string; email: string } | null;
+  inspector: { id: string; name: string } | null;
+}
+export const requestInspection = (propertyId: string) => apiPost<ApiInspection>("/api/inspections", { propertyId });
+export const getMyInspections  = () => apiGet<ApiInspection[]>("/api/inspections");
+
 // ── Reviews ───────────────────────────────────────────────────
 export interface ApiReview { id: string; studentId: string; rating: number; comment?: string | null; createdAt: string; student?: { name?: string } | null }
 export interface ReviewsResponse { reviews: ApiReview[]; avg: number; count: number }

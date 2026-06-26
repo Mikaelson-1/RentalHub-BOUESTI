@@ -14,7 +14,7 @@ function initialsOf(name: string) {
 
 const NAVS: Record<string, { label: string; color: string; items: [string, string, IconFn][] }> = {
   student: { label: "Student", color: "#3C5A86", items: [
-    ["home", "Browse homes", I.search], ["bookings", "My bookings", I.inbox], ["saved", "Saved", I.heart], ["profile", "Profile", I.user],
+    ["home", "Browse homes", I.search], ["bookings", "My bookings", I.inbox], ["inspections", "Inspections", I.shield], ["saved", "Saved", I.heart], ["profile", "Profile", I.user],
   ] },
   landlord: { label: "Landlord", color: "#2F5D4F", items: [
     ["listings", "My listings", I.building], ["requests", "Tenant requests", I.inbox], ["earnings", "Earnings", I.wallet], ["analytics", "Analytics", I.chart], ["referral", "Referral", I.star], ["verification", "Verification", I.shield], ["profile", "Profile", I.user],

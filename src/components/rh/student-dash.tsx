@@ -5,7 +5,7 @@ import { T, naira, I, Photo } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
 import { Button, Card, Avatar, StatusBadge, Field, Input, PropertyCard, SkeletonCard } from "@/components/rh/ui";
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
-import { getBookings, mapBooking, signAgreement, confirmMoveIn, updateProfile, uploadFile, submitReview, type UiBooking } from "@/lib/rh/api";
+import { getBookings, mapBooking, signAgreement, confirmMoveIn, updateProfile, uploadFile, submitReview, getMyInspections, type UiBooking, type ApiInspection } from "@/lib/rh/api";
 import { StarRating } from "@/components/rh/ui";
 import { useSaved } from "@/lib/rh/saved";
 
@@ -295,6 +295,7 @@ export function StudentDash({ initial }: { initial?: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [signing, setSigning] = useState<UiBooking | null>(null);
+  const [inspections, setInspections] = useState<ApiInspection[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -302,6 +303,9 @@ export function StudentDash({ initial }: { initial?: string }) {
       .then((bs) => { if (active) setBookings(bs.map(mapBooking)); })
       .catch((e) => { if (active) setError(e instanceof Error ? e.message : "Failed to load bookings"); })
       .finally(() => { if (active) setLoading(false); });
+    getMyInspections()
+      .then((items) => { if (active) setInspections(items); })
+      .catch(() => {});
     return () => { active = false; };
   }, []);
 
@@ -329,7 +333,7 @@ export function StudentDash({ initial }: { initial?: string }) {
 
   return (
     <DashShell role="student" tab={tab} setTab={(t) => (t === "home" ? go("search") : setTab(t))} title="Student dashboard" subtitle="Browse homes and manage your bookings"
-      badges={{ bookings: counts.active || undefined }}
+      badges={{ bookings: counts.active || undefined, inspections: inspections.filter((i) => i.status === "REQUESTED" || i.status === "ACCEPTED").length || undefined }}
       action={<Button variant="dark" icon={I.search} onClick={() => go("search")} size={mobile ? "sm" : "md"}>{mobile ? "Browse" : "Browse homes"}</Button>}>
 
       <div className="rh-m-col2" style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4,1fr)", gap: mobile ? 12 : 18, marginBottom: 26 }}>
@@ -356,6 +360,46 @@ export function StudentDash({ initial }: { initial?: string }) {
         <ProfileTab />
       ) : tab === "saved" ? (
         <SavedTab />
+      ) : tab === "inspections" ? (
+        inspections.length === 0 ? (
+          <EmptyState icon={I.search} title="No inspections yet" sub="Request a campus inspection on any property page to get a video report before you commit." action={<Button onClick={() => go("search")} iconRight={I.arrow}>Browse homes</Button>} />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {inspections.map((insp) => {
+              const statusColor: Record<string, string> = { REQUESTED: T.gold ?? "#C99500", ACCEPTED: T.blue ?? "#2B5278", COMPLETED: T.green, EXPIRED: T.ink3 };
+              const statusLabel: Record<string, string> = { REQUESTED: "Waiting for inspector", ACCEPTED: "Inspector assigned", COMPLETED: "Completed", EXPIRED: "Expired" };
+              return (
+                <Card key={insp.id} pad={mobile ? 16 : 20}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: T.sans, fontSize: 15, fontWeight: 700, color: T.ink }}>{insp.property?.title ?? "—"}</div>
+                      <div style={{ fontFamily: T.sans, fontSize: 13, color: T.ink2, marginTop: 2 }}>{insp.property?.location?.name ?? ""}</div>
+                      {insp.inspector && (
+                        <div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2, marginTop: 4 }}>
+                          Inspector: <strong>{insp.inspector.name}</strong>
+                        </div>
+                      )}
+                      {insp.videoLink && (
+                        <a href={insp.videoLink} target="_blank" rel="noopener noreferrer"
+                          style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, padding: "7px 13px", borderRadius: 10, background: T.claySoft, color: T.clay, fontFamily: T.sans, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                          {I.arrow({ width: 13, height: 13 })} Watch inspection video
+                        </a>
+                      )}
+                      {insp.notes && (
+                        <div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2, marginTop: 8, padding: "10px 12px", background: T.paper, borderRadius: 10, lineHeight: 1.5 }}>
+                          {insp.notes}
+                        </div>
+                      )}
+                    </div>
+                    <span style={{ fontFamily: T.sans, fontSize: 12, fontWeight: 700, color: statusColor[insp.status] ?? T.ink3, background: T.paper, padding: "5px 12px", borderRadius: 999, flex: "0 0 auto" }}>
+                      {statusLabel[insp.status] ?? insp.status}
+                    </span>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )
       ) : loading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           {[1, 2, 3].map((i) => <SkeletonCard key={i} imgHeight={150} rows={4} />)}
