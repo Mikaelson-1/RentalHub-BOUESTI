@@ -34,7 +34,8 @@ export function middleware(req: NextRequest) {
   }
 
   // Inspector dashboard requires an active INSPECTOR session.
-  if (pathname.startsWith("/inspector")) {
+  // /inspector-signup is a public page — exclude it from the guard.
+  if (pathname.startsWith("/inspector") && !pathname.startsWith("/inspector-signup")) {
     const role = req.cookies.get("rh_role")?.value ?? "";
     if (role !== "INSPECTOR") {
       return NextResponse.redirect(new URL(INSPECTOR_LOGIN, req.url));
