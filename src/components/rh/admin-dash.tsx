@@ -7,7 +7,7 @@ import { Button, Card, Avatar, StatusBadge, Pill, SkeletonCard } from "@/compone
 import { DashShell, Stat, EmptyState } from "@/components/rh/dash-shell";
 import {
   getAdminSummary, getPendingProperties, getAdminLandlords, getAdminPayouts,
-  getAdminAllProperties, getAdminUsers, changePassword, setUserFreeze, setUserFlag,
+  getAdminAllProperties, getAdminUsers, changePassword, setUserFreeze,
   setPropertyStatus, setLandlordVerification, setPayoutStatus, setUserVerification, mapProperty,
   getLocations, createLocation, deleteLocation,
   type AdminSummary, type AdminLandlord, type AdminPayout, type ApiProperty, type AdminUser, type UiListing,
@@ -177,12 +177,6 @@ export function AdminDash() {
       setUsers((a) => a.map((x) => (x.id === u.id ? updated : x)));
       setSelectedUser(updated);
       showToast(action === "FREEZE" ? `${u.name} has been suspended` : `${u.name}'s account restored`);
-    } catch (e) { showToast(e instanceof Error ? e.message : "Action failed"); }
-  };
-  const flagUser = async (u: AdminUser, action: "FLAG" | "UNFLAG") => {
-    try {
-      await setUserFlag(u.id, action);
-      showToast(action === "FLAG" ? `${u.name} has been flagged for review` : `Flag removed from ${u.name}`);
     } catch (e) { showToast(e instanceof Error ? e.message : "Action failed"); }
   };
   const verifyUser = async (u: AdminUser, action: "VERIFY" | "REJECT") => {

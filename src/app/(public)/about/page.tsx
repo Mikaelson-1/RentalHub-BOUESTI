@@ -44,7 +44,7 @@ export default function AboutPage() {
             Making student housing <span style={{ fontStyle: "italic", color: T.clay }}>honest</span>.
           </h1>
           <p style={{ fontFamily: T.sans, fontSize: mobile ? 16 : 18.5, color: T.ink2, lineHeight: 1.65, maxWidth: 600, marginTop: 22 }}>
-            RentalHub was built because finding safe, affordable off-campus housing in Nigeria shouldn't be a gamble. We're a product of Mikaelson Initiative — a team that lived through the agent fees, the scams, and the shock of arriving at a place nothing like the photos.
+            RentalHub was built because finding safe, affordable off-campus housing in Nigeria shouldn&apos;t be a gamble. We&apos;re a product of Mikaelson Initiative — a team that lived through the agent fees, the scams, and the shock of arriving at a place nothing like the photos.
           </p>
         </div>
       </div>

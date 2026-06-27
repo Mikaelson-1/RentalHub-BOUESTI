@@ -105,7 +105,7 @@ export default function SearchInner({ initialListings, initialLocations, serverC
   const { go, campus } = useApp();
   const { mobile } = useViewport();
   const { isSaved, toggle: toggleSaved } = useSaved();
-  const { items: compareItems, toggle: toggleCompare, hasId: inCompare, clear: clearCompare, full: compareFull } = useCompare();
+  const { items: compareItems, toggle: toggleCompare, hasId: inCompare, clear: clearCompare } = useCompare();
   const sp = useSearchParams();
   const [f, setF] = useState<Filters>({ ...EMPTY, area: sp.get("area") });
   const [sort, setSort] = useState("featured");

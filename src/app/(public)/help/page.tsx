@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { T, I } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
-import { Button, Card, PublicNav, Footer, SectionHead } from "@/components/rh/ui";
+import { Card, PublicNav, Footer, SectionHead } from "@/components/rh/ui";
 
 interface FAQ { q: string; a: string }
 
@@ -111,7 +111,7 @@ export default function HelpPage() {
             Help <span style={{ fontStyle: "italic", color: T.clay }}>centre</span>.
           </h1>
           <p style={{ fontFamily: T.sans, fontSize: mobile ? 16 : 18, color: T.ink2, lineHeight: 1.6, maxWidth: 500, marginTop: 18 }}>
-            Answers to the most common questions. If you can't find what you need, email us — we reply to every message.
+            Answers to the most common questions. If you can&apos;t find what you need, email us — we reply to every message.
           </p>
         </div>
       </div>

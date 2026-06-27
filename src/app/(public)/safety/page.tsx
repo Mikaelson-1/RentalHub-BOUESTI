@@ -147,7 +147,7 @@ export default function SafetyPage() {
             {I.phone({ width: 26, height: 26 })}
           </div>
           <h2 style={{ margin: 0, fontFamily: T.serif, fontWeight: 400, fontSize: mobile ? 28 : 36, letterSpacing: "-.02em", color: T.ink }}>
-            Something doesn't look right?
+            Something doesn&apos;t look right?
           </h2>
           <p style={{ fontFamily: T.sans, fontSize: mobile ? 14.5 : 16, color: T.ink2, lineHeight: 1.65, maxWidth: 480, margin: "14px auto 0" }}>
             Report a suspicious listing, a payment issue, or anything that feels off. Our team reviews every report, usually within 24 hours.
