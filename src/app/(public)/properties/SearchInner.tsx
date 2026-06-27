@@ -116,7 +116,7 @@ export default function SearchInner({ initialListings, initialLocations, serverC
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [areas, setAreas] = useState<string[]>(
-    initialLocations.length > 0 ? initialLocations : (CAMPUS_AREAS[campus.id] ?? CAMPUS_AREAS.bouesti),
+    initialLocations.length > 0 ? initialLocations : (CAMPUS_AREAS[campus.id] ?? []),
   );
   const initialRender = useRef(true);
 
