@@ -18,7 +18,6 @@ const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : use
 import { useRouter } from "next/navigation";
 import { T, I } from "@/lib/rh/theme";
 import { CAMPUSES, type Campus } from "@/lib/rh/data";
-import { GoogleOAuthProvider } from "@react-oauth/google";
 import { apiGet, apiPost, googleAuth, AUTH_STORAGE_KEY } from "@/lib/rh/api";
 
 const INACTIVITY_MS = 2 * 60 * 60 * 1000; // 2 hours
@@ -31,12 +30,24 @@ function touchActivity(): void {
   try { window.localStorage.setItem(ACTIVITY_KEY, String(Date.now())); } catch { /* ignore */ }
 }
 
-function setRoleCookie(role: string) {
-  const secure = window.location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `rh_role=${role}; path=/; max-age=86400; SameSite=Lax${secure}`;
+async function setRoleCookie(role: string): Promise<void> {
+  try {
+    await fetch("/api/auth/set-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+  } catch {
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `rh_role=${role.toLowerCase()}; path=/; max-age=86400; SameSite=Lax${secure}`;
+  }
 }
-function clearRoleCookie() {
-  document.cookie = "rh_role=; path=/; max-age=0; SameSite=Lax";
+async function clearRoleCookie(): Promise<void> {
+  try {
+    await fetch("/api/auth/set-session", { method: "DELETE" });
+  } catch {
+    document.cookie = "rh_role=; path=/; max-age=0; SameSite=Lax";
+  }
 }
 function isSessionExpired(): boolean {
   const last = getLastActivity();
@@ -84,9 +95,9 @@ const ROUTE_MAP: Record<string, (arg?: string | null, params?: Params) => string
   privacy: () => "/privacy",
   terms: () => "/terms",
   "how-it-works": () => "/#how-it-works",
-  safety: () => "/",
-  about: () => "/",
-  help: () => "/",
+  safety: () => "/safety",
+  about: () => "/about",
+  help: () => "/help",
 };
 
 export type GoFn = (route: string, arg?: string | null, params?: Params) => void;
@@ -145,7 +156,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } else {
           setAuth(a);
           touchActivity();
-          setRoleCookie(a.user.role);
+          void setRoleCookie(a.user.role);
         }
       }
     } catch { /* ignore */ }
@@ -188,7 +199,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const data = await apiPost<{ token: string; user: AuthUser }>("/api/auth/login", { email, password });
     window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
     touchActivity();
-    setRoleCookie(data.user.role);
+    await setRoleCookie(data.user.role);
     setAuth(data);
     return data.user;
   }, []);
@@ -197,7 +208,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const data = await googleAuth(accessToken);
     window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: data.token, user: data.user }));
     touchActivity();
-    setRoleCookie(data.user.role);
+    await setRoleCookie(data.user.role);
     setAuth({ token: data.token, user: data.user });
     return { user: data.user, isNewUser: data.isNewUser };
   }, []);
@@ -214,7 +225,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     window.localStorage.removeItem(ACTIVITY_KEY);
-    clearRoleCookie();
+    void clearRoleCookie();
     setAuth(null);
     router.push("/");
   }, [router]);
@@ -259,7 +270,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ""}>
     <AppCtx.Provider value={{ go, role: auth?.user.role?.toLowerCase() ?? "guest", user: auth?.user ?? null, initialized, login, loginWithGoogle, updateUser, signOut, campus, setCampus, showToast }}>
       {children}
       {toast && (
@@ -269,6 +279,5 @@ export function AppProvider({ children }: { children: ReactNode }) {
         </div>
       )}
     </AppCtx.Provider>
-    </GoogleOAuthProvider>
   );
 }

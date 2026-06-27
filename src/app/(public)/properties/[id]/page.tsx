@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { T, naira, I, Photo, amenityIcon } from "@/lib/rh/theme";
@@ -23,8 +24,7 @@ function Gallery({ l, mobile }: { l: DetailListing; mobile: boolean }) {
     <div>
       <div style={{ position: "relative", height: mobile ? 240 : 420, borderRadius: 20, overflow: "hidden" }}>
         {l.images[active] ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={l.images[active]} alt={l.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <Image src={l.images[active]} alt={l.title} fill sizes="(max-width: 768px) 100vw, 740px" style={{ objectFit: "cover" }} priority />
         ) : (
           <Photo from={tones[active][0]} to={tones[active][1]} label={labels[active]} />
         )}
@@ -34,8 +34,7 @@ function Gallery({ l, mobile }: { l: DetailListing; mobile: boolean }) {
         {tones.map((t, i) => (
           <div key={i} onClick={() => setActive(i)} style={{ position: "relative", height: mobile ? 56 : 84, borderRadius: 12, overflow: "hidden", cursor: "pointer", outline: active === i ? `2.5px solid ${T.clay}` : "2.5px solid transparent", outlineOffset: 2 }}>
             {l.images[i] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={l.images[i]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <Image src={l.images[i]} alt="" fill sizes={mobile ? "25vw" : "185px"} style={{ objectFit: "cover" }} />
             ) : (
               <Photo from={t[0]} to={t[1]} tag={false} />
             )}

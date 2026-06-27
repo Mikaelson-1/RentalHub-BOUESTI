@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { T, I } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
@@ -46,8 +47,7 @@ function JobPropertyPreview({ job, mobile }: { job: InspectionJob; mobile: boole
       {/* Photo */}
       <div style={{ width: mobile ? "100%" : 160, height: mobile ? 160 : "auto", flexShrink: 0, position: "relative", overflow: "hidden", background: T.paper2 }}>
         {firstImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={firstImage} alt={p?.title ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <Image src={firstImage} alt={p?.title ?? ""} width={320} height={200} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", minHeight: 120, background: `linear-gradient(135deg, ${T.clay}22, ${T.clay}44)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {I.building({ width: 32, height: 32, style: { color: T.clay, opacity: 0.5 } })}
@@ -90,8 +90,7 @@ function JobPropertyPreview({ job, mobile }: { job: InspectionJob; mobile: boole
         {Array.isArray(p?.images) && p.images.length > 1 && (
           <div style={{ display: "flex", gap: 6, marginTop: 10, overflow: "hidden" }}>
             {p.images.slice(1, 5).map((src, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={src} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", border: "1px solid " + T.line, flexShrink: 0 }} />
+              <Image key={i} src={src} alt="" width={48} height={48} style={{ borderRadius: 8, objectFit: "cover", border: "1px solid " + T.line, flexShrink: 0 }} />
             ))}
           </div>
         )}

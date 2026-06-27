@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { T, naira, I, Photo, Logo } from "@/lib/rh/theme";
@@ -64,8 +65,7 @@ export default function LandlordManagePage() {
             <Card pad={0} style={{ overflow: "hidden" }}>
               <div style={{ position: "relative", height: mobile ? 180 : 240 }}>
                 {l.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={l.image} alt={l.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <Image src={l.image} alt={l.title} fill sizes="(max-width: 768px) 100vw, 740px" style={{ objectFit: "cover" }} />
                 ) : (
                   <Photo from={l.from} to={l.to} label={l.area} />
                 )}

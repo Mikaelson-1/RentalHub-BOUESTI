@@ -108,13 +108,16 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* How it stays safe */}
+      {/* How it works */}
       <div id="how-it-works" style={{ maxWidth: 1280, margin: "0 auto", padding: mobile ? "38px 20px" : "64px 40px" }}>
-        <SectionHead eyebrow="Built on trust" title="How it stays safe" mobile={mobile} />
-        <div className="rh-m-col1" style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(3,1fr)", gap: mobile ? 14 : 22 }}>
-          {([[I.shield, "01", "Listings are reviewed", "Our admins check every property and its photos before it ever appears in search."],
-            [I.user, "02", "Landlords are ID-checked", "Government ID, a selfie and proof of ownership — all verified before a landlord can list."],
-            [I.wallet, "03", "Payment is protected", "We hold your rent securely and release it to the landlord only after you confirm move-in."]] as const).map(([Ic, n, t, d]) => (
+        <SectionHead eyebrow="Built on trust" title="How RentalHub works" mobile={mobile} />
+        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(2,1fr)", gap: mobile ? 14 : 22 }}>
+          {([
+            [I.shield, "01", "Listings are reviewed", "Our admins check every property and its photos before it ever appears in search. No unverified home is ever shown to students."],
+            [I.user, "02", "Landlords are ID-checked", "Government ID, a selfie and proof of ownership — all verified before a landlord can list a single room."],
+            [I.eye, "03", "Inspectors verify in person", "Our network of campus-based inspectors visits properties on behalf of students who can't inspect themselves, so you know exactly what you're renting."],
+            [I.wallet, "04", "Payment is protected", "We hold your rent securely and release it to the landlord only after you confirm you've moved in — never before."],
+          ] as const).map(([Ic, n, t, d]) => (
             <Card key={n} pad={mobile ? 22 : 28}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ width: 46, height: 46, borderRadius: 13, background: T.claySoft, color: T.clay, display: "flex", alignItems: "center", justifyContent: "center" }}>{Ic({ width: 22, height: 22 })}</div>

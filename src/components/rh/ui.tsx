@@ -5,6 +5,7 @@
  * buttons, pills, badges, fields, cards, section heads, property card,
  * campus picker, public nav, footer. Faithful inline-style port.
  */
+import Image from "next/image";
 import { useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { T, I, naira, amenityIcon, Photo, Logo } from "@/lib/rh/theme";
 import { CAMPUSES, type Listing } from "@/lib/rh/data";
@@ -159,8 +160,7 @@ export function PropertyCard({ l, mobile, onClick, saved, onSave, comparing, onC
     <Card pad={0} hover onClick={onClick} style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <div style={{ position: "relative", height: mobile ? 168 : 188 }}>
         {l.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={l.image} alt={l.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <Image src={l.image} alt={l.title} fill sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 300px" style={{ objectFit: "cover" }} />
         ) : (
           <Photo from={l.from} to={l.to} label={l.area} />
         )}
@@ -311,11 +311,12 @@ export function Footer() {
   const cols: [string, [string, string][]][] = [
     ["Explore", [["Browse homes", "search"], ["How it works", "how-it-works"], ["Safety & trust", "safety"]]],
     ["Landlords", [["List a property", "add-property"], ["Get verified", "landlord-verification"], ["Earnings", "landlord"]]],
+    ["Inspectors", [["Become an inspector", "inspector-signup"], ["Already an inspector", "login"], ["Safety & trust", "safety"]]],
     ["Company", [["About RentalHub", "about"], ["Help centre", "help"], ["Privacy", "privacy"], ["Terms", "terms"]]],
   ];
   return (
     <div style={{ background: T.card, color: T.ink, padding: m ? "40px 20px 30px" : "60px 40px 40px", borderTop: "1px solid " + T.line }}>
-      <div className="rh-m-col1" style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: m ? "1fr" : "1.4fr 1fr 1fr 1fr", gap: m ? 30 : 40 }}>
+      <div className="rh-m-col1" style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: m ? "1fr" : "1.4fr 1fr 1fr 1fr 1fr", gap: m ? 30 : 40 }}>
         <div>
           <Logo />
           <p style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2, lineHeight: 1.6, marginTop: 16, maxWidth: 280 }}>

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { T, naira, I, Photo, amenityIcon } from "@/lib/rh/theme";
 import { PROPERTY_TYPES, DISTANCES, AMENITY_GROUPS } from "@/lib/rh/data";
@@ -525,10 +526,9 @@ export function LandlordDash({ initial, openAdd }: { initial?: string; openAdd?:
           <Card pad={0} style={{ overflow: "hidden" }}>
             {listings.map((l, i) => (
               <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: mobile ? 14 : 18, borderTop: i ? "1px solid " + T.line2 : "none" }}>
-                <div style={{ width: mobile ? 56 : 72, height: mobile ? 56 : 72, borderRadius: 12, overflow: "hidden", flex: "0 0 auto" }}>
+                <div style={{ position: "relative", width: mobile ? 56 : 72, height: mobile ? 56 : 72, borderRadius: 12, overflow: "hidden", flex: "0 0 auto" }}>
                   {l.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={l.image} alt={l.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <Image src={l.image} alt={l.title} fill sizes="72px" style={{ objectFit: "cover" }} />
                   ) : (
                     <Photo from={l.from} to={l.to} tag={false} />
                   )}

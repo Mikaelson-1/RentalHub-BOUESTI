@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { T, naira, I, Logo, amenityIcon } from "@/lib/rh/theme";
@@ -150,8 +151,9 @@ export default function AdminPropertyReviewPage() {
               {images.length > 0 ? (
                 <div style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 10 }}>
                   {images.slice(0, 8).map((src, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={i} src={src} alt="" style={{ aspectRatio: "4/3", width: "100%", objectFit: "cover", borderRadius: 12 }} />
+                    <div key={i} style={{ position: "relative", aspectRatio: "4/3", borderRadius: 12, overflow: "hidden" }}>
+                      <Image src={src} alt="" fill sizes="(max-width: 768px) 50vw, 25vw" style={{ objectFit: "cover" }} />
+                    </div>
                   ))}
                 </div>
               ) : (

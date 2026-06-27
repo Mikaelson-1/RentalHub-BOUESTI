@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { T, naira, I, Photo } from "@/lib/rh/theme";
 import { useApp, useViewport } from "@/components/rh/app";
@@ -125,8 +126,7 @@ function BookingRow({ bk, mobile, onAct }: { bk: UiBooking; mobile: boolean; onA
       <div style={{ display: mobile ? "block" : "flex" }}>
         <div style={{ position: "relative", width: mobile ? "100%" : 220, height: mobile ? 150 : "auto", flex: "0 0 auto" }}>
           {p.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.image} alt={p.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <Image src={p.image} alt={p.title} width={440} height={300} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
           ) : (
             <Photo from={p.from} to={p.to} label={p.area} />
           )}
