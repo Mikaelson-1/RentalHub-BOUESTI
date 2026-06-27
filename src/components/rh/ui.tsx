@@ -239,18 +239,34 @@ export function CampusPicker() {
       {open && (
         <>
           <div style={{ position: "fixed", inset: 0, zIndex: 90 }} onClick={() => setOpen(false)} />
-          <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 91, background: "#fff", border: "1px solid " + T.line, borderRadius: 16, boxShadow: "0 24px 50px -20px rgba(33,29,24,.35)", padding: 8, width: "min(270px, calc(100vw - 40px))" }}>
-            <div style={{ fontFamily: T.sans, fontSize: 11, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: T.ink3, padding: "8px 10px 6px" }}>Choose your campus</div>
-            {CAMPUSES.map((c) => (
-              <div key={c.id} onClick={() => { if (c.live) { setCampus(c.id); setOpen(false); showToast("Now browsing " + c.short); } else { showToast(c.short + " is launching soon — join the waitlist"); } }}
-                style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 10px", borderRadius: 10, cursor: "pointer", background: campus.id === c.id ? T.claySoft : "transparent" }}>
-                <span style={{ color: c.live ? T.clay : T.ink3, flex: "0 0 auto" }}>{I.pin({ width: 15, height: 15 })}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: T.sans, fontSize: 13.5, fontWeight: 600, color: c.live ? T.ink : T.ink2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+          <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 91, background: "#fff", border: "1px solid " + T.line, borderRadius: 16, boxShadow: "0 24px 50px -20px rgba(33,29,24,.35)", width: "min(300px, calc(100vw - 32px))", overflow: "hidden" }}>
+            <div style={{ fontFamily: T.sans, fontSize: 11, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: T.ink3, padding: "12px 14px 8px", borderBottom: "1px solid " + T.line2 }}>Choose your campus</div>
+            <div style={{ overflowY: "auto", maxHeight: "min(340px, 55vh)", padding: 6 }}>
+              {CAMPUSES.filter(c => c.live).map((c) => (
+                <div key={c.id} onClick={() => { setCampus(c.id); setOpen(false); showToast("Now browsing " + c.short); }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 10, cursor: "pointer", background: campus.id === c.id ? T.claySoft : "transparent" }}>
+                  <span style={{ color: T.clay, flex: "0 0 auto" }}>{I.pin({ width: 14, height: 14 })}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: T.sans, fontSize: 13.5, fontWeight: 600, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+                  </div>
+                  {campus.id === c.id && <span style={{ width: 7, height: 7, borderRadius: 999, background: T.clay, flex: "0 0 auto" }} />}
                 </div>
-                {c.live ? <Pill tone="green">Live</Pill> : <span style={{ fontFamily: T.sans, fontSize: 11, color: T.ink3 }}>Soon</span>}
-              </div>
-            ))}
+              ))}
+              {CAMPUSES.some(c => !c.live) && (
+                <>
+                  <div style={{ fontFamily: T.sans, fontSize: 11, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: T.ink3, padding: "10px 10px 6px" }}>Coming soon</div>
+                  {CAMPUSES.filter(c => !c.live).map((c) => (
+                    <div key={c.id} onClick={() => showToast(c.short + " is launching soon")}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 10, cursor: "default", opacity: 0.5 }}>
+                      <span style={{ color: T.ink3, flex: "0 0 auto" }}>{I.pin({ width: 14, height: 14 })}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: T.sans, fontSize: 13.5, fontWeight: 600, color: T.ink2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
           </div>
         </>
       )}
