@@ -465,7 +465,10 @@ export default function AddPropertyForm() {
               .filter(Boolean)
               .join("\n"),
           price: data.annualRent,
-          locationName: data.environment,
+          ...((() => {
+            const match = locations.find((loc) => loc.name === data.environment);
+            return match ? { locationId: match.id } : { locationName: data.environment };
+          })()),
           distanceToCampus: DISTANCE_TO_KM[data.distanceToCampus] ?? null,
           amenities,
           images: [

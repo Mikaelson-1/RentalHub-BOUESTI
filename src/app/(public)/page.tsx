@@ -83,11 +83,11 @@ export default function HomePage() {
 
   useEffect(() => {
     let active = true;
-    apiGet<ApiListResponse>("/api/properties?pageSize=4")
+    apiGet<ApiListResponse>(`/api/properties?pageSize=4&campus=${encodeURIComponent(campus.id)}`)
       .then((r) => { if (active) setFeatured(r.items.map(mapProperty)); })
       .catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [campus.id]);
 
   useEffect(() => {
     setAreas(CAMPUS_AREAS[campus.id] ?? []);

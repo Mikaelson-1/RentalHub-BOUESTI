@@ -129,6 +129,7 @@ export default function SearchInner({ initialListings, initialLocations, serverC
     let active = true;
     setLoading(true);
     setF((prev) => ({ ...prev, area: null }));
+    setAreas([]);
 
     Promise.all([
       apiGet<ApiListResponse>(`/api/properties?pageSize=100&campus=${encodeURIComponent(campus.id)}`),
@@ -137,7 +138,7 @@ export default function SearchInner({ initialListings, initialLocations, serverC
       .then(([r, locs]) => {
         if (!active) return;
         setAll(r.items.map(mapProperty));
-        if (locs.length) setAreas(locs.map((l) => l.name));
+        setAreas(locs.map((l) => l.name));
       })
       .catch((e) => { if (active) setError(e instanceof Error ? e.message : "Failed to load"); })
       .finally(() => { if (active) setLoading(false); });
