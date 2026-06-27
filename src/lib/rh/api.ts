@@ -229,7 +229,7 @@ export interface AdminPayout { id: string; amount: number | string; student?: { 
 
 export const getAdminSummary = () => apiGet<AdminSummary>("/api/admin/summary");
 export const getPendingProperties = () => apiGet<ApiListResponse>("/api/properties?status=PENDING&pageSize=50");
-export const getAdminAllProperties = (status?: string) => apiGet<ApiListResponse>(`/api/admin/properties${status ? `?status=${status}` : ""}&pageSize=50`);
+export const getAdminAllProperties = (status?: string) => apiGet<ApiListResponse>(`/api/admin/properties?${status ? `status=${status}&` : ""}pageSize=50`);
 export const setPropertyStatus = (id: string, status: "APPROVED" | "REJECTED", reason?: string) => apiPatch(`/api/properties/${id}/status`, { status, reason });
 export const getAdminLandlords = () => apiGet<AdminLandlord[]>("/api/admin/landlords");
 export const setLandlordVerification = (landlordId: string, action: "APPROVE" | "REJECT", note?: string) => apiPatch("/api/admin/landlords", { landlordId, action, note });
