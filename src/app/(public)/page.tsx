@@ -9,15 +9,67 @@ import { Pill, Button, Card, SectionHead, PropertyCard, PublicNav, Footer } from
 import { TourVideo } from "@/components/rh/tour-video";
 import { apiGet, getLocations, mapProperty, type UiListing, type ApiListResponse } from "@/lib/rh/api";
 
-function HeroSearch({ mobile }: { mobile: boolean }) {
+function HeroSearch({ mobile, areas }: { mobile: boolean; areas: string[] }) {
   const { go } = useApp();
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const suggestions = query.trim().length > 0
+    ? areas.filter((a) => a.toLowerCase().includes(query.trim().toLowerCase()))
+    : [];
+
+  const submit = (area?: string) => {
+    setOpen(false);
+    setQuery("");
+    go("search", null, area ? { area } : undefined);
+  };
+
   return (
-    <div onClick={() => go("search")} style={{ background: "#fff", border: "1px solid " + T.line, borderRadius: mobile ? 18 : 999, padding: mobile ? 12 : 8, display: "flex", flexDirection: mobile ? "column" : "row", gap: mobile ? 10 : 6, alignItems: "center", boxShadow: "0 18px 40px -30px rgba(33,29,24,.6)", maxWidth: mobile ? "100%" : 460, cursor: "pointer" }}>
-      <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", gap: 9, padding: mobile ? "8px" : "4px 16px" }}>
-        {I.search({ width: 18, height: 18, style: { color: T.ink2, flex: "0 0 auto" } })}
-        <span style={{ color: T.ink2, fontSize: 15, whiteSpace: "nowrap", fontFamily: T.sans, overflow: "hidden", textOverflow: "ellipsis" }}>Search your campus or area…</span>
+    <div style={{ position: "relative", maxWidth: mobile ? "100%" : 460 }}>
+      <div style={{ background: "#fff", border: "1px solid " + T.line, borderRadius: mobile ? 18 : 999, padding: mobile ? 12 : 8, display: "flex", flexDirection: mobile ? "column" : "row", gap: mobile ? 10 : 6, alignItems: "center", boxShadow: "0 18px 40px -30px rgba(33,29,24,.6)" }}>
+        <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", gap: 9, padding: mobile ? "4px 8px" : "4px 16px" }}>
+          {I.search({ width: 18, height: 18, style: { color: T.ink2, flex: "0 0 auto" } })}
+          <input
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onKeyDown={(e) => { if (e.key === "Enter") submit(suggestions[0]); if (e.key === "Escape") setOpen(false); }}
+            placeholder="Search your campus or area…"
+            style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontFamily: T.sans, fontSize: 15, color: T.ink, width: "100%" }}
+          />
+          {query && <span onClick={() => setQuery("")} style={{ color: T.ink3, cursor: "pointer", lineHeight: 0, flex: "0 0 auto" }}>{I.x({ width: 15, height: 15 })}</span>}
+        </div>
+        <Button size="md" full={mobile} onClick={() => submit(suggestions[0])} style={{ borderRadius: mobile ? 12 : 999, whiteSpace: "nowrap" }}>Search homes</Button>
       </div>
-      <Button size="md" full={mobile} onClick={() => go("search")} style={{ borderRadius: mobile ? 12 : 999, whiteSpace: "nowrap" }}>Search homes</Button>
+
+      {open && (suggestions.length > 0 || query.trim().length > 0) && (
+        <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, zIndex: 50, background: "#fff", border: "1px solid " + T.line, borderRadius: 16, boxShadow: "0 24px 50px -20px rgba(33,29,24,.3)", overflow: "hidden" }}>
+          {suggestions.length > 0 ? suggestions.map((a) => {
+            const idx = a.toLowerCase().indexOf(query.trim().toLowerCase());
+            return (
+              <div key={a} onMouseDown={() => submit(a)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid " + T.line2 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = T.paper2; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+                <span style={{ color: T.clay, flex: "0 0 auto" }}>{I.pin({ width: 15, height: 15 })}</span>
+                <span style={{ fontFamily: T.sans, fontSize: 14.5, color: T.ink }}>
+                  {a.slice(0, idx)}
+                  <strong style={{ color: T.clay }}>{a.slice(idx, idx + query.trim().length)}</strong>
+                  {a.slice(idx + query.trim().length)}
+                </span>
+              </div>
+            );
+          }) : (
+            <div style={{ padding: "12px 16px", fontFamily: T.sans, fontSize: 14, color: T.ink3 }}>No areas match &ldquo;{query}&rdquo;</div>
+          )}
+          <div onMouseDown={() => submit()} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", cursor: "pointer", background: T.paper2 }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = T.claySoft; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = T.paper2; }}>
+            <span style={{ color: T.ink3, flex: "0 0 auto" }}>{I.search({ width: 15, height: 15 })}</span>
+            <span style={{ fontFamily: T.sans, fontSize: 14, color: T.ink2 }}>Browse all homes</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -61,7 +113,7 @@ export default function HomePage() {
           <p style={{ fontFamily: T.sans, fontSize: mobile ? 15.5 : 17.5, color: T.ink2, lineHeight: 1.55, maxWidth: 400, marginTop: 18 }}>
             Every home is admin-checked before it goes live. No agents, no hidden fees — just real homes from real landlords near your campus, with your money protected until you move in.
           </p>
-          <div style={{ marginTop: mobile ? 24 : 30 }}><HeroSearch mobile={mobile} /></div>
+          <div style={{ marginTop: mobile ? 24 : 30 }}><HeroSearch mobile={mobile} areas={areas} /></div>
           <div style={{ display: "flex", gap: mobile ? 24 : 40, marginTop: mobile ? 24 : 34 }}>
             {[["240+", "verified homes"], ["8", "campus areas"], ["₦60k+", "from / year"]].map(([n, t]) => (
               <div key={t}>
