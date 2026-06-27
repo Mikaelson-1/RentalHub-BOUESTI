@@ -90,6 +90,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    setAreas(CAMPUS_AREAS[campus.id] ?? []);
     let active = true;
     getLocations(campus.id)
       .then((locs) => { if (active && locs.length) setAreas(locs.map((l) => l.name)); })
