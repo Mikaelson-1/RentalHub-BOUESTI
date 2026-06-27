@@ -12,7 +12,7 @@ import { apiGet, getLocations, mapProperty, type UiListing, type ApiListResponse
 function HeroSearch({ mobile }: { mobile: boolean }) {
   const { go } = useApp();
   return (
-    <div style={{ background: "#fff", border: "1px solid " + T.line, borderRadius: mobile ? 18 : 999, padding: mobile ? 12 : 8, display: "flex", flexDirection: mobile ? "column" : "row", gap: mobile ? 10 : 6, alignItems: "center", boxShadow: "0 18px 40px -30px rgba(33,29,24,.6)", maxWidth: mobile ? "100%" : 460 }}>
+    <div onClick={() => go("search")} style={{ background: "#fff", border: "1px solid " + T.line, borderRadius: mobile ? 18 : 999, padding: mobile ? 12 : 8, display: "flex", flexDirection: mobile ? "column" : "row", gap: mobile ? 10 : 6, alignItems: "center", boxShadow: "0 18px 40px -30px rgba(33,29,24,.6)", maxWidth: mobile ? "100%" : 460, cursor: "pointer" }}>
       <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", gap: 9, padding: mobile ? "8px" : "4px 16px" }}>
         {I.search({ width: 18, height: 18, style: { color: T.ink2, flex: "0 0 auto" } })}
         <span style={{ color: T.ink2, fontSize: 15, whiteSpace: "nowrap", fontFamily: T.sans, overflow: "hidden", textOverflow: "ellipsis" }}>Search your campus or area…</span>
@@ -79,17 +79,17 @@ export default function HomePage() {
           </div>
           <div style={{ position: "absolute", left: mobile ? 14 : 20, right: mobile ? 14 : 20, bottom: mobile ? 14 : 20, background: "rgba(255,255,255,.93)", backdropFilter: "blur(8px)", borderRadius: 18, padding: mobile ? 14 : 18 }}>
             <div style={{ display: "flex", gap: 6, marginBottom: 11, flexWrap: "wrap" }}>
-              <Pill>Self-contain</Pill><Pill>0.5 km to gate</Pill>
+              <Pill>4-Bedroom flat</Pill><Pill>Ensuite</Pill><Pill>0.8 km to gate</Pill>
             </div>
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontFamily: T.serif, fontSize: mobile ? 18 : 21, fontWeight: 600, lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Spacious Self-Contain</div>
-                <div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2, marginTop: 4 }}>Uro · Listed by Adebayo O.</div>
+                <div style={{ fontFamily: T.serif, fontSize: mobile ? 18 : 21, fontWeight: 600, lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Premium 4-Bedroom Flat</div>
+                <div style={{ fontFamily: T.sans, fontSize: 12.5, color: T.ink2, marginTop: 4 }}>Olumilua Estate · Listed by Adebayo O.</div>
               </div>
-              <div style={{ fontFamily: T.serif, fontSize: mobile ? 20 : 24, fontWeight: 700, color: T.clay, flex: "0 0 auto" }}>{naira(180000)}</div>
+              <div style={{ fontFamily: T.serif, fontSize: mobile ? 20 : 24, fontWeight: 700, color: T.clay, flex: "0 0 auto" }}>{naira(2400000)}</div>
             </div>
           </div>
-          <div onClick={() => go("property", "uro-sc")} style={{ position: "absolute", top: mobile ? 14 : 20, right: mobile ? 14 : 20, display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.93)", borderRadius: 999, padding: "7px 7px 7px 14px", fontSize: 12, fontWeight: 600, fontFamily: T.sans, cursor: "pointer" }}>
+          <div onClick={() => go("search")} style={{ position: "absolute", top: mobile ? 14 : 20, right: mobile ? 14 : 20, display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.93)", borderRadius: 999, padding: "7px 7px 7px 14px", fontSize: 12, fontWeight: 600, fontFamily: T.sans, cursor: "pointer" }}>
             Tour <span style={{ width: 26, height: 26, borderRadius: 999, background: T.clay, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="11" height="11" viewBox="0 0 12 12" fill="#fff"><path d="M3 2l7 4-7 4z" /></svg></span>
           </div>
