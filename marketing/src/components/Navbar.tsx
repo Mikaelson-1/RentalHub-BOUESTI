@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 
-const APP = 'https://app.rentalhub.ng';
-
 const navLinks = [
   { label: 'Find Housing',  href: 'https://app.rentalhub.ng/search' },
   { label: 'About',         href: '/about' },
@@ -11,16 +9,6 @@ const navLinks = [
   { label: 'Safety',        href: '/safety' },
 ];
 
-function Mark() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <path d="M9 24 L24 11 L39 24" stroke="#C75B2A" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M14 22 V38 H34 V22" stroke="#211D18" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="24" cy="29" r="3.4" stroke="#C75B2A" strokeWidth="3" />
-      <path d="M24 32 V40" stroke="#C75B2A" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -54,16 +42,10 @@ export default function Navbar() {
           {/* Logo */}
           <a
             href="https://rentalhub.ng"
-            className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-2 rounded"
+            className="flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-2 rounded"
             aria-label="RentalHub — go to homepage"
           >
-            <Mark />
-            <span
-              className="text-ink font-semibold"
-              style={{ fontSize: 20, letterSpacing: '-0.02em' }}
-            >
-              RentalHub
-            </span>
+            <img src="/logo-color.svg" alt="RentalHub" height={32} style={{ height: 32, width: 'auto' }} />
           </a>
 
           {/* Desktop nav */}

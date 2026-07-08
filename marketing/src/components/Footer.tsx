@@ -23,21 +23,10 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <Link
             href="/"
-            className="flex items-center gap-2.5 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-2 rounded"
+            className="flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-2 rounded"
             aria-label="RentalHub — go to homepage"
           >
-            <svg width="22" height="22" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-              <path d="M9 24 L24 11 L39 24" stroke="#C75B2A" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M14 22 V38 H34 V22" stroke="#F4EEE4" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="24" cy="29" r="3.4" stroke="#C75B2A" strokeWidth="3" />
-              <path d="M24 32 V40" stroke="#C75B2A" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-            <span
-              className="font-semibold"
-              style={{ color: '#F4EEE4', fontSize: '1.05rem', letterSpacing: '-0.02em' }}
-            >
-              RentalHub
-            </span>
+            <img src="/logo-reversed.svg" alt="RentalHub" height={28} style={{ height: 28, width: 'auto' }} />
           </Link>
 
           <nav aria-label="Footer">

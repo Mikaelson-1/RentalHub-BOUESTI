@@ -10,6 +10,31 @@ import {
 
 const APP = 'https://app.rentalhub.ng';
 
+// ─── Campuses ─────────────────────────────────────────────────────────────────
+
+const CAMPUSES = [
+  { id: 'bouesti',  name: 'BOUESTI, Ikere-Ekiti',                        live: true  },
+  { id: 'unilag',   name: 'University of Lagos',                          live: true  },
+  { id: 'unilorin', name: 'University of Ilorin',                         live: true  },
+  { id: 'fuoye',    name: 'Federal University Oye-Ekiti',                 live: true  },
+  { id: 'eksu',     name: 'Ekiti State University, Ado-Ekiti',            live: true  },
+  { id: 'abuad',    name: 'Afe Babalola University, Ado-Ekiti',           live: true  },
+  { id: 'lasu',     name: 'Lagos State University',                       live: true  },
+  { id: 'funaab',   name: 'Federal University of Agriculture, Abeokuta', live: true  },
+  { id: 'oou',      name: 'Olabisi Onabanjo University',                  live: true  },
+  { id: 'covenant', name: 'Covenant University, Ota',                     live: true  },
+  { id: 'babcock',  name: 'Babcock University, Ilishan-Remo',             live: true  },
+  { id: 'ui',       name: 'University of Ibadan',                         live: true  },
+  { id: 'lautech',  name: 'Ladoke Akintola University of Technology',     live: true  },
+  { id: 'oau',      name: 'Obafemi Awolowo University',                   live: true  },
+  { id: 'uniosun',  name: 'Osun State University',                        live: true  },
+  { id: 'futa',     name: 'Federal University of Technology, Akure',      live: true  },
+  { id: 'aaua',     name: 'Adekunle Ajasin University, Akungba-Akoko',    live: true  },
+  { id: 'unn',      name: 'University of Nigeria, Nsukka',                live: false },
+  { id: 'abu',      name: 'Ahmadu Bello University, Zaria',               live: false },
+  { id: 'uniben',   name: 'University of Benin',                          live: false },
+];
+
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const reasons = [
@@ -199,26 +224,47 @@ function Hero() {
             </HeroItem>
 
             <HeroItem>
-              <a
-                href="https://app.rentalhub.ng"
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-pill bg-clay text-white font-semibold hover:bg-clay-deep active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-2"
-                style={{ fontSize: '1rem', minHeight: 52 }}
+              <form
+                method="GET"
+                action={`${APP}/search`}
+                className="flex flex-col sm:flex-row gap-3 w-full"
+                style={{ maxWidth: '36rem' }}
               >
-                Browse apartments
-                <svg
-                  viewBox="0 0 24 24"
-                  width="17"
-                  height="17"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
+                <select
+                  name="campus"
+                  required
+                  defaultValue=""
+                  className="flex-1 rounded-pill px-5 text-ink bg-white focus:outline-none focus:ring-2 focus:ring-clay focus:ring-offset-2"
+                  style={{
+                    border: '1.5px solid rgba(33,29,24,.15)',
+                    fontSize: '0.95rem',
+                    height: 52,
+                    fontFamily: 'inherit',
+                    appearance: 'none',
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B6153' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 16px center',
+                    paddingRight: 44,
+                  }}
                 >
-                  <path d="m9 6 6 6-6 6" />
-                </svg>
-              </a>
+                  <option value="" disabled>Select your university…</option>
+                  {CAMPUSES.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}{c.live ? '' : ' (coming soon)'}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center gap-2 px-8 rounded-pill bg-clay text-white font-semibold hover:bg-clay-deep active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-2 flex-shrink-0"
+                  style={{ fontSize: '1rem', height: 52 }}
+                >
+                  Find rooms
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                  </svg>
+                </button>
+              </form>
             </HeroItem>
 
           </HeroStagger>
@@ -511,12 +557,14 @@ function LandlordCTA() {
 
 function Footer() {
   const links = [
-    { label: 'Find housing',   href: `${APP}/search`             },
-    { label: 'How it works',   href: `${APP}/how-it-works`       },
-    { label: 'List property',  href: `${APP}/list-your-property` },
-    { label: 'Safety',         href: `${APP}/safety`             },
-    { label: 'Privacy',        href: `${APP}/legal/privacy`      },
-    { label: 'Terms',          href: `${APP}/legal/terms`        },
+    { label: 'Find housing',  href: `${APP}/search`             },
+    { label: 'How it works',  href: '/#how-it-works'            },
+    { label: 'List property', href: `${APP}/list-your-property` },
+    { label: 'About',         href: '/about'                    },
+    { label: 'Safety',        href: '/safety'                   },
+    { label: 'Help',          href: '/help'                     },
+    { label: 'Privacy',       href: '/privacy'                  },
+    { label: 'Terms',         href: '/terms'                    },
   ];
 
   return (
@@ -528,21 +576,10 @@ function Footer() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <a
             href="https://rentalhub.ng"
-            className="flex items-center gap-2.5 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-2 rounded"
+            className="flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-2 rounded"
             aria-label="RentalHub — go to homepage"
           >
-            <svg width="22" height="22" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-              <path d="M9 24 L24 11 L39 24" stroke="#C75B2A" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M14 22 V38 H34 V22" stroke="#F4EEE4" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="24" cy="29" r="3.4" stroke="#C75B2A" strokeWidth="3" />
-              <path d="M24 32 V40" stroke="#C75B2A" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-            <span
-              className="font-semibold"
-              style={{ color: '#F4EEE4', fontSize: '1.05rem', letterSpacing: '-0.02em' }}
-            >
-              RentalHub
-            </span>
+            <img src="/logo-reversed.svg" alt="RentalHub" height={28} style={{ height: 28, width: 'auto' }} />
           </a>
 
           <nav aria-label="Footer">
