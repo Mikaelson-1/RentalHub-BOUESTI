@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 const APP = 'https://app.rentalhub.ng';
 
 const links = [
@@ -19,7 +21,7 @@ export default function Footer() {
         style={{ borderTop: '1px solid rgba(255,255,255,.07)' }}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <a
+          <Link
             href="/"
             className="flex items-center gap-2.5 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-2 rounded"
             aria-label="RentalHub — go to homepage"
@@ -36,7 +38,7 @@ export default function Footer() {
             >
               RentalHub
             </span>
-          </a>
+          </Link>
 
           <nav aria-label="Footer">
             <ul className="flex flex-wrap gap-x-5 gap-y-2" role="list">
