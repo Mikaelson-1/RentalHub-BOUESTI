@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --rh-accent:      #C75B2A;
+  --rh-accent-deep: #A8451B;
+  --rh-accent-soft: #F4E2D6;
+  --rh-radius: 18px;
+  --rh-sans:   var(--font-hanken), "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+  --rh-serif:  var(--font-hanken), "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { overflow-x: hidden; scroll-behavior: smooth; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #F4EEE4;
+  color: #211D18;
+  font-family: var(--rh-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+input, textarea, select, button { font-family: inherit; }
+img, video, iframe { max-width: 100%; }
+
+::selection { background: #C75B2A; color: #fff; }
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-thumb {
+  background: rgba(33,29,24,.18);
+  border-radius: 6px;
+  border: 3px solid #F4EEE4;
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+}

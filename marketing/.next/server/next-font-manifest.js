@@ -1,0 +1,1 @@
+self.__NEXT_FONT_MANIFEST='{"pages":{},"app":{"/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub/RentalHub-Frontend/marketing/src/app/layout":["static/media/313510e2713fb214-s.p.woff2"]},"appUsingSizeAdjust":true,"pagesUsingSizeAdjust":false}';
