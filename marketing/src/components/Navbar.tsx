@@ -5,10 +5,10 @@ import { useState, useEffect } from 'react';
 const APP = 'https://app.rentalhub.ng';
 
 const navLinks = [
-  { label: 'Find Housing',  href: `${APP}/search` },
-  { label: 'Universities',  href: '#campus' },
-  { label: 'How it Works',  href: '#how-it-works' },
-  { label: 'Safety',        href: `${APP}/safety` },
+  { label: 'Find Housing',  href: 'https://app.rentalhub.ng/search' },
+  { label: 'About',         href: '/about' },
+  { label: 'How it Works',  href: '/#how-it-works' },
+  { label: 'Safety',        href: '/safety' },
 ];
 
 function Mark() {

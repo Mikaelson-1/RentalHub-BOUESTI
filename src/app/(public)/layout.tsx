@@ -1,4 +1,6 @@
-// Pages render their own chrome (PublicNav/Footer) in the redesign.
+import AuthProvider from "@/app/(auth)/AuthProvider";
+
+// Root page uses Google OAuth; wrap with the same provider the auth routes use.
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <AuthProvider>{children}</AuthProvider>;
 }

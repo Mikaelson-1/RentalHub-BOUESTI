@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { T, I, Logo } from "@/lib/rh/theme";
 import { CAMPUSES } from "@/lib/rh/data";
-import { useApp, useViewport } from "@/components/rh/app";
+import { useApp, useViewport, setRoleCookie } from "@/components/rh/app";
 import { Button, Card, Field, Select } from "@/components/rh/ui";
 import { apiPatch, type AuthUser } from "@/lib/rh/api";
 
@@ -22,11 +22,12 @@ export default function SetupRolePage() {
     setError(null);
     setSaving(true);
     try {
-      const updated = await apiPatch<AuthUser>("/api/auth/setup-role", {
+      const data = await apiPatch<{ token: string; user: AuthUser }>("/api/auth/setup-role", {
         role: sel,
         campus: campusId,
       });
-      updateUser(updated);
+      updateUser(data.user, data.token);
+      await setRoleCookie(data.user.role);
       setCampus(campusId);
       showToast("Account ready");
       go(sel.toLowerCase() as "student" | "landlord");

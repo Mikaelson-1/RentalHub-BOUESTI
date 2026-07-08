@@ -30,7 +30,7 @@ function touchActivity(): void {
   try { window.localStorage.setItem(ACTIVITY_KEY, String(Date.now())); } catch { /* ignore */ }
 }
 
-async function setRoleCookie(role: string): Promise<void> {
+export async function setRoleCookie(role: string): Promise<void> {
   try {
     await fetch("/api/auth/set-session", {
       method: "POST",
@@ -111,7 +111,7 @@ interface AppValue {
   initialized: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   loginWithGoogle: (accessToken: string) => Promise<{ user: AuthUser; isNewUser: boolean }>;
-  updateUser: (patch: Partial<AuthUser>) => void;
+  updateUser: (patch: Partial<AuthUser>, newToken?: string) => void;
   signOut: () => void;
   campus: Campus;
   setCampus: (id: string) => void;
@@ -213,10 +213,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { user: data.user, isNewUser: data.isNewUser };
   }, []);
 
-  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+  const updateUser = useCallback((patch: Partial<AuthUser>, newToken?: string) => {
     setAuth((prev) => {
       if (!prev) return prev;
-      const updated = { ...prev, user: { ...prev.user, ...patch } };
+      const updated = { token: newToken ?? prev.token, user: { ...prev.user, ...patch } };
       window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
